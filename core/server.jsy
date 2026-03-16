@@ -1,0 +1,35 @@
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import http from "http";
+import { WebSocketServer } from "ws";
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = process.env.PORT || 5353;
+
+app.get("/", (req, res) => {
+  res.send("One2lvOS Core Running");
+});
+
+const server = http.createServer(app);
+
+const wss = new WebSocketServer({ server });
+
+wss.on("connection", (ws) => {
+  console.log("AI node connected");
+
+  ws.on("message", (msg) => {
+    console.log("message:", msg.toString());
+  });
+
+  ws.send(JSON.stringify({ system: "One2lvOS online" }));
+});
+
+server.listen(PORT, () => {
+  console.log(`One2lvOS running on http://localhost:${PORT}`);
+});

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+<title>Infinity Glass — Lumenis Desktop</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<style>
+
+body{
+margin:0;
+overflow:hidden;
+background:black;
+font-family:monospace;
+color:#00ffcc;
+}
+
+/* Terminal */
+
+#terminal{
+position:absolute;
+bottom:20px;
+left:20px;
+width:420px;
+height:260px;
+background:rgba(0,0,0,.7);
+border:1px solid #00ffcc;
+padding:10px;
+display:flex;
+flex-direction:column;
+z-index:5;
+}
+
+#terminal-body{
+flex:1;
+overflow-y:auto;
+font-size:14px;
+}
+
+#terminal-input{
+border:none;
+background:black;
+color:#00ffcc;
+font-family:monospace;
+outline:none;
+}
+
+/* colors */
+
+.neon-pink{color:#ff00ff}
+.neon-cyan{color:#00ffff}
+.neon-amber{color:#ffaa00}
+
+canvas{
+position:absolute;
+top:0;
+left:0;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="terminal">
+<div id="terminal-body"></div>
+<input id="terminal-input" placeholder="type command..." autofocus>
+</div>
+
+<script src="lumenis_terminal.js"></script>
+<script src="universe.js"></script>
+
+</body>
+</html>
