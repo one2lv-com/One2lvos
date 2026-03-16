@@ -1,2 +1,6 @@
 .env
-.env
+node_modules/
+data/
+reactor_core/logs/
+*.log
+pnpm-lock.yaml

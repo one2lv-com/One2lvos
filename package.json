@@ -1,0 +1,23 @@
+{
+  "name": "one2lvos",
+  "version": "1.0.0",
+  "description": "One2lvOS runtime",
+  "main": "core/server.js",
+  "scripts": {
+    "start": "node core/server.js",
+    "dev": "nodemon core/server.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "chokidar": "^5.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "obs-websocket-js": "^5.0.8",
+    "three": "^0.183.2",
+    "ws": "^8.19.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
