@@ -72,6 +72,23 @@ app.get("/api/status", (req, res) => {
   });
 });
 
+/* ---------- WHO.DAT ---------- */
+
+app.get("/api/who.dat", (req, res) => {
+
+  const file = path.join(DATA_DIR, "who.dat.json");
+
+  try {
+    const data = JSON.parse(fs.readFileSync(file));
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({
+      error: "who.dat unavailable"
+    });
+  }
+
+});
+
 /* ---------- REACTOR CORE ---------- */
 
 app.post("/api/reactor", (req, res) => {
