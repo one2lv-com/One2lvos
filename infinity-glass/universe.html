@@ -1,77 +1,206 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="UTF-8">
+<title>Infinity Glass Universe</title>
+<style>
+body { margin:0; background:#000; overflow:hidden; }
+canvas { display:block; }
+#hud {
+  position:absolute;
+  top:10px;
+  left:10px;
+  color:#00ffcc;
+  font-family:monospace;
+}
+</style>
+</head>
+<body>
 
-<meta charset="utf-8">
-<title>Infinity Glass — Lumenis Desktop</title>
+<div id="hud">Loading Lumenis...</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-<style>
+<script>
 
-body{
-margin:0;
-overflow:hidden;
-background:black;
-font-family:monospace;
-color:#00ffcc;
+const API = "http://127.0.0.1:8080";
+
+/* -------------------------------- */
+/* SCENE */
+/* -------------------------------- */
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  75,
+  window.innerWidth/window.innerHeight,
+  0.1,
+  1000
+);
+
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+camera.position.z = 30;
+
+/* -------------------------------- */
+/* STAR FIELD */
+/* -------------------------------- */
+
+const starsGeometry = new THREE.BufferGeometry();
+const starVertices = [];
+
+for (let i = 0; i < 2000; i++) {
+  starVertices.push(
+    (Math.random() - 0.5) * 1000,
+    (Math.random() - 0.5) * 1000,
+    (Math.random() - 0.5) * 1000
+  );
 }
 
-/* Terminal */
+starsGeometry.setAttribute(
+  'position',
+  new THREE.Float32BufferAttribute(starVertices, 3)
+);
 
-#terminal{
-position:absolute;
-bottom:20px;
-left:20px;
-width:420px;
-height:260px;
-background:rgba(0,0,0,.7);
-border:1px solid #00ffcc;
-padding:10px;
-display:flex;
-flex-direction:column;
-z-index:5;
+const starsMaterial = new THREE.PointsMaterial({
+  color: 0x888888
+});
+
+const starField = new THREE.Points(starsGeometry, starsMaterial);
+scene.add(starField);
+
+/* -------------------------------- */
+/* LUMENIS NODE */
+/* -------------------------------- */
+
+const geometry = new THREE.SphereGeometry(1.5, 32, 32);
+
+const material = new THREE.MeshBasicMaterial({
+  color: 0x00ffcc
+});
+
+const lumenisNode = new THREE.Mesh(geometry, material);
+scene.add(lumenisNode);
+
+/* -------------------------------- */
+/* BREADCRUMB LINES */
+/* -------------------------------- */
+
+const points = [];
+points.push(new THREE.Vector3(0,0,0));
+
+for(let i=0;i<10;i++){
+  points.push(new THREE.Vector3(
+    (Math.random()-0.5)*20,
+    (Math.random()-0.5)*20,
+    (Math.random()-0.5)*20
+  ));
 }
 
-#terminal-body{
-flex:1;
-overflow-y:auto;
-font-size:14px;
+const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+
+const lineMaterial = new THREE.LineBasicMaterial({
+  color: 0x00ffcc
+});
+
+const line = new THREE.Line(lineGeometry, lineMaterial);
+scene.add(line);
+
+/* -------------------------------- */
+/* WHO.DAT FETCH */
+/* -------------------------------- */
+
+async function loadIdentity(){
+
+  try{
+
+    const r = await fetch(`${API}/api/who.dat`);
+    const data = await r.json();
+
+    document.getElementById("hud").innerText =
+      `${data.node} | ${data.resonance} | ${data.temperature}`;
+
+  }catch{
+
+    document.getElementById("hud").innerText = "who.dat offline";
+
+  }
+
 }
 
-#terminal-input{
-border:none;
-background:black;
-color:#00ffcc;
-font-family:monospace;
-outline:none;
+async function loadIdentity(){
+
+  try{
+
+    const r = await fetch(`${API}/api/who.dat`);
+    const data = await r.json();
+
+    document.getElementById("hud").innerText =
+      `${data.node} | ${data.resonance}`;
+
+    // 🔥 pulse intensity based on state
+    if(data.anchor === "active"){
+      lumenisNode.material.color.set(0x00ffcc);
+    }
+
+  }catch{
+    document.getElementById("hud").innerText="offline";
+  }
+
 }
 
-/* colors */
+/* LOOP UPDATE */
+setInterval(loadIdentity,5000);
 
-.neon-pink{color:#ff00ff}
-.neon-cyan{color:#00ffff}
-.neon-amber{color:#ffaa00}
+/* -------------------------------- */
+/* PULSE (73Hz STYLE) */
+/* -------------------------------- */
 
-canvas{
-position:absolute;
-top:0;
-left:0;
+let scale = 1;
+
+function pulse(){
+
+  scale = 1 + Math.sin(Date.now()*0.005)*0.3;
+
+  lumenisNode.scale.set(scale,scale,scale);
+
 }
 
-</style>
+/* -------------------------------- */
+/* ANIMATION */
+/* -------------------------------- */
 
-</head>
+function animate(){
 
-<body>
+  requestAnimationFrame(animate);
 
-<div id="terminal">
-<div id="terminal-body"></div>
-<input id="terminal-input" placeholder="type command..." autofocus>
-</div>
+  starField.rotation.y += 0.0005;
 
-<script src="lumenis_terminal.js"></script>
-<script src="universe.js"></script>
+  lumenisNode.rotation.y += 0.01;
+
+  pulse();
+
+  renderer.render(scene,camera);
+
+}
+
+animate();
+
+/* -------------------------------- */
+/* RESIZE */
+/* -------------------------------- */
+
+window.addEventListener('resize',()=>{
+
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+
+});
+
+</script>
 
 </body>
 </html>
