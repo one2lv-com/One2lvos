@@ -1,240 +1,102 @@
 import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
 import http from "http";
+import cors from "cors";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { WebSocketServer } from "ws";
-
-import { establishBootVector } from "./boot_vector.js";
 import reactor from "../reactor_core/reactor.js";
-import { lumenisBuild } from "../reactor_core/lumenis.js";
-
-dotenv.config();
 
 /* -------------------------------- */
-/* PATH SETUP */
+/* CORE SETUP */
+/* -------------------------------- */
+
+const PORT = 3000;
+const app = express();
+const server = http.createServer(app);
+
+app.use(cors());
+app.use(express.json({ strict:false }));
+
+/* -------------------------------- */
+/* PATH RESOLUTION */
 /* -------------------------------- */
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const ROOT_DIR = path.resolve(__dirname, "..");
-const FRONTEND_DIR = path.join(ROOT_DIR, "infinity_glass");
-const DATA_DIR = path.join(ROOT_DIR, "data");
-const BOOT_DIR = path.join(DATA_DIR, "boot");
-const BREADCRUMB_DIR = path.join(DATA_DIR, "breadcrumbs");
-
 /* -------------------------------- */
-/* CREATE REQUIRED DIRECTORIES */
+/* STATIC (UNIVERSE UI) */
 /* -------------------------------- */
 
-fs.mkdirSync(DATA_DIR, { recursive: true });
-fs.mkdirSync(BOOT_DIR, { recursive: true });
-fs.mkdirSync(BREADCRUMB_DIR, { recursive: true });
+const UI_PATH = path.join(__dirname, "../infinity-glass");
 
-/* -------------------------------- */
-/* SERVER SETUP */
-/* -------------------------------- */
+app.use(express.static(UI_PATH));
 
-const PORT = Number(process.env.PORT || 3000);
-
-const app = express();
-const server = http.createServer(app);
-
-app.use(cors());
-app.use(express.json());
-
-/* -------------------------------- */
-/* STATIC FRONTEND */
-/* -------------------------------- */
-
-app.use(express.static(FRONTEND_DIR));
-
-/* -------------------------------- */
-/* BOOT VECTOR */
-/* -------------------------------- */
-
-const boot = establishBootVector();
-console.log("Boot vector direction:", boot.direction);
-
-/* -------------------------------- */
-/* API ROUTES */
-/* -------------------------------- */
-
-app.get("/api/status", (req, res) => {
-  res.json({
-    system: "One2lvOS",
-    runtime: "Infinity Glass",
-    reactor: "online",
-    timestamp: Date.now()
-  });
+/* direct route safety */
+app.get("/universe.html", (req,res)=>{
+  res.sendFile(path.join(UI_PATH, "universe.html"));
 });
 
-/* ---------- WHO.DAT ---------- */
-
-app.get("/api/who.dat", (req, res) => {
-
-  const file = path.join(DATA_DIR, "who.dat.json");
-
-  try {
-    const data = JSON.parse(fs.readFileSync(file));
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({
-      error: "who.dat unavailable"
-    });
-  }
-
+/* root shortcut */
+app.get("/", (req,res)=>{
+  res.sendFile(path.join(UI_PATH, "universe.html"));
 });
 
-/* ---------- REACTOR CORE ---------- */
+/* -------------------------------- */
+/* QUEUE COMMAND */
+/* -------------------------------- */
 
-app.post("/api/reactor", (req, res) => {
+const QUEUE_FILE = path.join(__dirname, "../reactor_core/workspace/queue.json");
 
-  const { event, data } = req.body || {};
-
-  if (!event) {
-    return res.status(400).json({
-      error: "missing event"
-    });
-  }
-
-  reactor.emitEvent(event, data || {});
-  writeBreadcrumb(`reactor event: ${event}`);
-
-  res.json({
-    status: "reactor event processed",
-    event
-  });
-
-});
-
-/* ---------- LUMENIS BUILDER ---------- */
-
-app.post("/api/lumenis/build", (req, res) => {
+app.post("/api/lumenis/command", (req,res)=>{
 
   const { prompt } = req.body;
 
-  if (!prompt) {
-    return res.status(400).json({
-      success: false,
-      error: "Prompt required"
-    });
+  if(!prompt){
+    return res.status(400).json({ error:"No prompt provided" });
   }
 
-  try {
+  let queue = [];
 
-    const moduleName = lumenisBuild(prompt);
-
-    reactor.emitEvent("lumenis_build", {
-      prompt,
-      module: moduleName
-    });
-
-    res.json({
-      success: true,
-      module: moduleName
-    });
-
-  } catch (err) {
-
-    console.error("Lumenis build error:", err);
-
-    res.status(500).json({
-      success: false,
-      error: "Build failed"
-    });
-
+  try{
+    if(fs.existsSync(QUEUE_FILE)){
+      const raw = fs.readFileSync(QUEUE_FILE, "utf-8").trim();
+      queue = raw ? JSON.parse(raw) : [];
+    }
+  }catch{
+    queue = [];
   }
+
+  queue.push({ prompt, time: Date.now() });
+
+  fs.writeFileSync(QUEUE_FILE, JSON.stringify(queue, null, 2));
+
+  res.json({ success:true, queued: prompt });
 
 });
 
 /* -------------------------------- */
-/* LUMENIS AI INJECTION */
-/* -------------------------------- */
-
-reactor.on("event", (event, data) => {
-
-  try {
-
-    const result = lumenisBuild(
-      `Analyze event: ${event} with data ${JSON.stringify(data)}`
-    );
-
-    console.log("🌷 Lumenis AI:", result);
-
-  } catch (err) {
-
-    console.error("Lumenis processing error:", err);
-
-  }
-
-});
-
-/* -------------------------------- */
-/* BREADCRUMB LOGGER */
-/* -------------------------------- */
-
-function writeBreadcrumb(msg) {
-
-  const entry = `[${new Date().toISOString()}] ${msg}\n`;
-
-  fs.appendFileSync(
-    path.join(BREADCRUMB_DIR, "runtime.log"),
-    entry
-  );
-
-}
-
-/* -------------------------------- */
-/* WEBSOCKET SERVER */
+/* WEBSOCKET (REACTOR STREAM) */
 /* -------------------------------- */
 
 const wss = new WebSocketServer({ server });
 
-wss.on("connection", ws => {
-
-  console.log("HUD client connected");
-
-  ws.send(JSON.stringify({
-    type: "system",
-    message: "Infinity Glass HUD connected"
-  }));
-
-  ws.on("message", msg => {
-
-    try {
-
-      const data = JSON.parse(msg.toString());
-
-      if (data.event) {
-        reactor.emitEvent(data.event, data.payload || {});
-      }
-
-    } catch {}
-
-  });
-
-});
-
-/* ---------- BROADCAST REACTOR EVENTS ---------- */
-
-reactor.on("event", (event, data) => {
+/* FIXED: correct event binding */
+reactor.on("event", (event, data, source)=>{
 
   const payload = JSON.stringify({
-    type: "reactor",
+    type:"reactor",
     event,
-    data
+    data,
+    source,
+    time: Date.now()
   });
 
-  wss.clients.forEach(client => {
-
-    if (client.readyState === 1) {
+  wss.clients.forEach(client=>{
+    if(client.readyState === 1){
       client.send(payload);
     }
-
   });
 
 });
@@ -243,16 +105,6 @@ reactor.on("event", (event, data) => {
 /* START SERVER */
 /* -------------------------------- */
 
-server.listen(PORT, () => {
-
-  console.log(`One2lvOS running on http://127.0.0.1:${PORT}`);
-
-  console.log("=== Infinity Glass Runtime ===");
-  console.log("[OPTICS] OK");
-  console.log("[SENSORS] OK");
-  console.log("[POWER] OK");
-  console.log("[HUD] READY");
-
-  writeBreadcrumb("runtime started");
-
+server.listen(PORT, ()=>{
+  console.log(`🌌 One2lvOS running → http://127.0.0.1:${PORT}`);
 });

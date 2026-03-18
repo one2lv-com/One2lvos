@@ -2,205 +2,60 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Infinity Glass Universe</title>
+<title>Infinity Glass • Universe</title>
+
 <style>
-body { margin:0; background:#000; overflow:hidden; }
-canvas { display:block; }
+body {
+  margin:0;
+  background:#000;
+  overflow:hidden;
+  font-family:monospace;
+}
+
 #hud {
   position:absolute;
   top:10px;
   left:10px;
   color:#00ffcc;
-  font-family:monospace;
+  font-size:12px;
+  z-index:10;
+}
+
+#terminal {
+  position:absolute;
+  bottom:10px;
+  left:10px;
+  width:320px;
+  background:rgba(0,0,0,0.6);
+  border:1px solid #00ffcc;
+  padding:10px;
+  z-index:10;
+}
+
+#terminal input {
+  width:100%;
+  background:black;
+  border:none;
+  color:#00ffcc;
+  outline:none;
 }
 </style>
 </head>
+
 <body>
 
-<div id="hud">Loading Lumenis...</div>
+<div id="hud">
+  <div>🌌 Infinity Glass</div>
+  <div id="status">Connecting...</div>
+</div>
+
+<div id="terminal">
+  <div>> Terminal</div>
+  <input id="cmd" placeholder="type command..." />
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-<script>
-
-const API = "http://127.0.0.1:8080";
-
-/* -------------------------------- */
-/* SCENE */
-/* -------------------------------- */
-
-const scene = new THREE.Scene();
-
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth/window.innerHeight,
-  0.1,
-  1000
-);
-
-const renderer = new THREE.WebGLRenderer();
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
-
-camera.position.z = 30;
-
-/* -------------------------------- */
-/* STAR FIELD */
-/* -------------------------------- */
-
-const starsGeometry = new THREE.BufferGeometry();
-const starVertices = [];
-
-for (let i = 0; i < 2000; i++) {
-  starVertices.push(
-    (Math.random() - 0.5) * 1000,
-    (Math.random() - 0.5) * 1000,
-    (Math.random() - 0.5) * 1000
-  );
-}
-
-starsGeometry.setAttribute(
-  'position',
-  new THREE.Float32BufferAttribute(starVertices, 3)
-);
-
-const starsMaterial = new THREE.PointsMaterial({
-  color: 0x888888
-});
-
-const starField = new THREE.Points(starsGeometry, starsMaterial);
-scene.add(starField);
-
-/* -------------------------------- */
-/* LUMENIS NODE */
-/* -------------------------------- */
-
-const geometry = new THREE.SphereGeometry(1.5, 32, 32);
-
-const material = new THREE.MeshBasicMaterial({
-  color: 0x00ffcc
-});
-
-const lumenisNode = new THREE.Mesh(geometry, material);
-scene.add(lumenisNode);
-
-/* -------------------------------- */
-/* BREADCRUMB LINES */
-/* -------------------------------- */
-
-const points = [];
-points.push(new THREE.Vector3(0,0,0));
-
-for(let i=0;i<10;i++){
-  points.push(new THREE.Vector3(
-    (Math.random()-0.5)*20,
-    (Math.random()-0.5)*20,
-    (Math.random()-0.5)*20
-  ));
-}
-
-const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-
-const lineMaterial = new THREE.LineBasicMaterial({
-  color: 0x00ffcc
-});
-
-const line = new THREE.Line(lineGeometry, lineMaterial);
-scene.add(line);
-
-/* -------------------------------- */
-/* WHO.DAT FETCH */
-/* -------------------------------- */
-
-async function loadIdentity(){
-
-  try{
-
-    const r = await fetch(`${API}/api/who.dat`);
-    const data = await r.json();
-
-    document.getElementById("hud").innerText =
-      `${data.node} | ${data.resonance} | ${data.temperature}`;
-
-  }catch{
-
-    document.getElementById("hud").innerText = "who.dat offline";
-
-  }
-
-}
-
-async function loadIdentity(){
-
-  try{
-
-    const r = await fetch(`${API}/api/who.dat`);
-    const data = await r.json();
-
-    document.getElementById("hud").innerText =
-      `${data.node} | ${data.resonance}`;
-
-    // 🔥 pulse intensity based on state
-    if(data.anchor === "active"){
-      lumenisNode.material.color.set(0x00ffcc);
-    }
-
-  }catch{
-    document.getElementById("hud").innerText="offline";
-  }
-
-}
-
-/* LOOP UPDATE */
-setInterval(loadIdentity,5000);
-
-/* -------------------------------- */
-/* PULSE (73Hz STYLE) */
-/* -------------------------------- */
-
-let scale = 1;
-
-function pulse(){
-
-  scale = 1 + Math.sin(Date.now()*0.005)*0.3;
-
-  lumenisNode.scale.set(scale,scale,scale);
-
-}
-
-/* -------------------------------- */
-/* ANIMATION */
-/* -------------------------------- */
-
-function animate(){
-
-  requestAnimationFrame(animate);
-
-  starField.rotation.y += 0.0005;
-
-  lumenisNode.rotation.y += 0.01;
-
-  pulse();
-
-  renderer.render(scene,camera);
-
-}
-
-animate();
-
-/* -------------------------------- */
-/* RESIZE */
-/* -------------------------------- */
-
-window.addEventListener('resize',()=>{
-
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth,window.innerHeight);
-
-});
-
-</script>
+<script src="universe.js"></script>
 
 </body>
 </html>

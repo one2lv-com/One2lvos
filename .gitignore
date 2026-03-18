@@ -3,3 +3,4 @@ data/
 reactor_core/logs/
 *.log
 .env
+.env

@@ -1,21 +1,9 @@
-#!/data/data/com.termux/files/usr/bin/bash
+#!/bin/bash
 
-echo "Starting One2lvOS..."
+echo "🚀 Starting One2lvOS..."
 
-cd ~/one2lvos_final
+node core/server.js &
+node reactor_core/lumenis_agent.js &
 
-# start API
-node api/server.js &
+echo "🌌 Universe: http://127.0.0.1:3000/universe.html"
 
-sleep 2
-
-# start reactor
-node reactor_core/reactor.js &
-
-sleep 1
-
-# start infinity runtime
-cd infinity-glass
-./bin/infinity-glass
-
-echo "System ready"

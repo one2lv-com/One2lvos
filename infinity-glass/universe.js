@@ -1,143 +1,241 @@
-/* Infinity Glass Universe Engine */
+const WS = "ws://127.0.0.1:3000";
 
-const scene = new THREE.Scene()
+/* -------------------------------- */
+/* SCENE */
+/* -------------------------------- */
+
+const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(
-75,
-window.innerWidth/window.innerHeight,
-0.1,
-1000
-)
+  75,
+  window.innerWidth/window.innerHeight,
+  0.1,
+  1000
+);
 
-const renderer = new THREE.WebGLRenderer({antialias:true})
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-renderer.setSize(window.innerWidth,window.innerHeight)
+camera.position.z = 30;
 
-document.body.appendChild(renderer.domElement)
+/* -------------------------------- */
+/* CORE */
+/* -------------------------------- */
 
-/* star field */
+const core = new THREE.Mesh(
+  new THREE.SphereGeometry(2, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0x00ffcc })
+);
 
-const stars = new THREE.BufferGeometry()
+scene.add(core);
 
-const starCount = 2000
+/* -------------------------------- */
+/* NODE STORAGE */
+/* -------------------------------- */
 
-const starPositions = []
+const nodes = [];
 
-for(let i=0;i<starCount;i++){
+/* -------------------------------- */
+/* COLORS BY SOURCE */
+/* -------------------------------- */
 
-starPositions.push(
-(Math.random()-0.5)*2000,
-(Math.random()-0.5)*2000,
-(Math.random()-0.5)*2000
-)
+const COLORS = {
+  human: 0xffffff,
+  lumenis_echo: 0x00ffcc,
+  gemini: 0xff00ff,
+  gemini_code: 0xff8800,
+  gemini_vision: 0xffff00,
+  one2lv_agent: 0x8888ff
+};
+
+/* -------------------------------- */
+/* SPAWN NODE */
+/* -------------------------------- */
+
+function spawnNode(text, source="unknown"){
+
+  const color = COLORS[source] || 0x00ffcc;
+
+  const node = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5, 16, 16),
+    new THREE.MeshBasicMaterial({ color })
+  );
+
+  node.position.set(
+    (Math.random()-0.5)*20,
+    (Math.random()-0.5)*20,
+    (Math.random()-0.5)*20
+  );
+
+  node.userData = { text, life: 1 };
+
+  scene.add(node);
+  nodes.push(node);
+
+  console.log(`[${source}]`, text);
+}
+
+/* -------------------------------- */
+/* NODE FADE */
+/* -------------------------------- */
+
+function updateNodes(){
+
+  nodes.forEach((n, i)=>{
+
+    n.userData.life -= 0.002;
+
+    if(n.userData.life <= 0){
+      scene.remove(n);
+      nodes.splice(i,1);
+    }
+
+  });
 
 }
 
-stars.setAttribute(
-'position',
-new THREE.Float32BufferAttribute(starPositions,3)
-)
+/* -------------------------------- */
+/* WEBSOCKET */
+/* -------------------------------- */
 
-const starMaterial = new THREE.PointsMaterial({
-color:0xffffff,
-size:1
-})
+const socket = new WebSocket(WS);
 
-const starField = new THREE.Points(stars,starMaterial)
+socket.onopen = ()=>{
+  document.getElementById("status").innerText = "Connected";
+};
 
-scene.add(starField)
+socket.onmessage = (msg)=>{
 
-/* breadcrumb nodes */
+  try{
 
-const nodes = []
+    const data = JSON.parse(msg.data);
 
-const nodeMaterial = new THREE.MeshBasicMaterial({
-color:0x00ffcc
-})
+    if(data.type === "reactor"){
 
-for(let i=0;i<20;i++){
+      handleEvent(data.event, data.data, data.source);
 
-const geo = new THREE.SphereGeometry(1.5,16,16)
+    }
 
-const node = new THREE.Mesh(geo,nodeMaterial)
+  }catch(e){
+    console.log("WS parse error");
+  }
 
-node.position.set(
-(Math.random()-0.5)*300,
-(Math.random()-0.5)*200,
-(Math.random()-0.5)*300
-)
+};
 
-scene.add(node)
+/* -------------------------------- */
+/* EVENT HANDLER */
+/* -------------------------------- */
 
-nodes.push(node)
+function handleEvent(event, data, source){
 
-}
+  if(event === "heartbeat"){
+    pulse();
+  }
 
-/* lattice lines */
+  if(event === "lumenis_direct"){
+    spawnNode(data.prompt, source);
+  }
 
-const lineMaterial = new THREE.LineBasicMaterial({
-color:0x00ffff
-})
+  if(event === "gemini_response"){
+    spawnNode(data.response, source);
+  }
 
-for(let i=0;i<nodes.length;i++){
+  if(event === "gemini_code"){
+    spawnNode(data.result, "gemini_code");
+  }
 
-for(let j=i+1;j<nodes.length;j++){
-
-if(Math.random()>0.85){
-
-const points=[]
-
-points.push(nodes[i].position)
-points.push(nodes[j].position)
-
-const geo = new THREE.BufferGeometry().setFromPoints(points)
-
-const line = new THREE.Line(geo,lineMaterial)
-
-scene.add(line)
+  if(event === "gemini_vision"){
+    spawnNode(data.result, "gemini_vision");
+  }
 
 }
 
+/* -------------------------------- */
+/* CORE PULSE */
+/* -------------------------------- */
+
+function pulse(){
+  const scale = 1 + Math.sin(Date.now()*0.004)*0.2;
+  core.scale.set(scale,scale,scale);
 }
 
+/* -------------------------------- */
+/* TERMINAL → API */
+/* -------------------------------- */
+
+document.getElementById("cmd").addEventListener("keydown", async (e)=>{
+
+  if(e.key === "Enter"){
+
+    const cmd = e.target.value;
+    e.target.value = "";
+
+    await fetch("http://127.0.0.1:3000/api/lumenis/command", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({ prompt: cmd })
+    });
+
+  }
+
+});
+
+/* -------------------------------- */
+/* STARFIELD */
+/* -------------------------------- */
+
+const starsGeometry = new THREE.BufferGeometry();
+const starVertices = [];
+
+for (let i = 0; i < 2000; i++) {
+  starVertices.push(
+    (Math.random()-0.5)*1000,
+    (Math.random()-0.5)*1000,
+    (Math.random()-0.5)*1000
+  );
 }
 
-camera.position.z = 120
+starsGeometry.setAttribute(
+  "position",
+  new THREE.Float32BufferAttribute(starVertices,3)
+);
 
-/* animation */
+const stars = new THREE.Points(
+  starsGeometry,
+  new THREE.PointsMaterial({ color:0x888888 })
+);
+
+scene.add(stars);
+
+/* -------------------------------- */
+/* ANIMATE */
+/* -------------------------------- */
 
 function animate(){
 
-requestAnimationFrame(animate)
+  requestAnimationFrame(animate);
 
-/* rotate universe */
+  stars.rotation.y += 0.0005;
+  core.rotation.y += 0.01;
 
-starField.rotation.y += 0.0002
+  updateNodes();
 
-/* pulse nodes */
-
-const t = Date.now()*0.002
-
-nodes.forEach((n,i)=>{
-
-const scale = 1 + Math.sin(t+i)*0.4
-
-n.scale.set(scale,scale,scale)
-
-})
-
-renderer.render(scene,camera)
+  renderer.render(scene, camera);
 
 }
 
-animate()
+animate();
 
-/* resize */
+/* -------------------------------- */
+/* RESIZE */
+/* -------------------------------- */
 
-window.addEventListener("resize",()=>{
+window.addEventListener("resize", ()=>{
 
-camera.aspect = window.innerWidth/window.innerHeight
-camera.updateProjectionMatrix()
-renderer.setSize(window.innerWidth,window.innerHeight)
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
 
-})
+});
+
