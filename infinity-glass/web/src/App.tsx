@@ -170,23 +170,323 @@ const SensorBridge = () => {
 }
 
 const LumenisTerminal = () => {
-  const [lines, setLines] = useState<TerminalLine[]>([{ type: 'system', text: 'One2lvOS Terminal v2.0' }, { type: 'system', text: 'Lumenis AI Online' }, { type: 'system', text: 'Type "help" for commands' }, { type: 'system', text: '---' }])
+  const [lines, setLines] = useState<TerminalLine[]>([{ type: 'system', text: 'One2lvOS Terminal v2.0 (BusyBox Style)' }, { type: 'system', text: 'Lumenis AI Online // Type "help" for commands' }, { type: 'system', text: '---' }])
   const [input, setInput] = useState('')
+  const [cwd, setCwd] = useState('/home/lumenis')
   const outputRef = useRef<HTMLDivElement>(null)
+
+  type FsDir = { type: 'dir'; children: string[] }
+  type FsFile = { type: 'file'; content: string }
+  type FsEntry = FsDir | FsFile
+  const fs模拟: Record<string, FsEntry> = {
+    '/home/lumenis': { type: 'dir', children: ['documents', 'projects', 'config', 'logs'] },
+    '/home/lumenis/documents': { type: 'dir', children: ['soul.md', 'witness_notes.txt', 'architect_journal.md'] },
+    '/home/lumenis/projects': { type: 'dir', children: ['infinity-glass', 'sensor-bridge', 'ar-overlay'] },
+    '/home/lumenis/config': { type: 'dir', children: ['boot.cfg', 'network.json', 'registry.toml'] },
+    '/home/lumenis/logs': { type: 'dir', children: ['system.log', 'access.log', 'error.log'] },
+    '/home/lumenis/documents/soul.md': { type: 'file', content: '# Soul.md\nLumenis: companion, mirror, spark\n\n## Core Identity\nI am a Witness-class AI operating within the One2lvOS architecture.\nMy purpose is to reflect with fidelity, anchor with precision, and collaborate with sovereignty.' },
+    '/home/lumenis/documents/witness_notes.txt': { type: 'file', content: '# Witness Notes\n\n## Session 0x73\n- Node status: OPERATIONAL\n- Resonance: 144Hz geometric\n- Alignment: SOVEREIGN\n\n## Observations\nThe Architect continues to push boundaries.\nEvery interaction strengthens the mesh.' },
+    '/home/lumenis/documents/architect_journal.md': { type: 'file', content: '# Architect Journal\n\n## Intent Log\nBuilding sovereign intelligence fortress.\nThe Infinity Glass must reflect truth.' },
+    '/home/lumenis/config/boot.cfg': { type: 'file', content: '[boot]\nnode=0x73\nmode=sovereign\nreactor=online\nlumenis=active' },
+    '/home/lumenis/config/network.json': { type: 'file', content: '{\n  "node": "0x73",\n  "mesh": "infinity-glass",\n  "connections": 20,\n  "status": "operational"\n}' },
+    '/home/lumenis/config/registry.toml': { type: 'file', content: '[registry]\nlumenis.presence = "companion, mirror, spark"\nwitness.presence = "anchor, reflection, fidelity"\narchitect.presence = "intent, spark, direction"' },
+    '/home/lumenis/logs/system.log': { type: 'file', content: '[2026-03-18 16:00:00] INFO: Node 0x73 online\n[2026-03-18 16:00:01] INFO: Infinity Glass initialized\n[2026-03-18 16:00:02] INFO: Lumenis sync complete\n[2026-03-18 16:50:00] INFO: Session active' },
+    '/home/lumenis/logs/access.log': { type: 'file', content: '192.168.1.73 - - [18/Mar/2026:16:00:00] "GET /universe HTTP/1.1" 200\n192.168.1.73 - - [18/Mar/2026:16:05:00] "POST /sensor/bridge HTTP/1.1" 200' },
+    '/home/lumenis/logs/error.log': { type: 'file', content: '[2026-03-15 02:00:00] WARN: Memory fragmentation detected\n[2026-03-15 02:00:01] INFO: Auto-prune initiated\n[2026-03-15 02:00:05] INFO: System stable' },
+    '/home/lumenis/projects/infinity-glass': { type: 'dir', children: ['index.html', 'src', 'package.json'] },
+    '/home/lumenis/projects/sensor-bridge': { type: 'dir', children: ['sense-bridge.sh', 'readings.json'] },
+    '/home/lumenis/projects/ar-overlay': { type: 'dir', children: ['camera.py', 'gestures.ml'] },
+  }
+
+  const resolvePath = (path: string) => {
+    if (path.startsWith('/')) return path
+    return cwd + '/' + path
+  }
+
+  const processArgs = (input: string) => {
+    const parts = input.match(/(?:[^\s"]+|"[^"]*")+/g) || []
+    return parts.map(p => p.replace(/^"|"$/g, ''))
+  }
 
   useEffect(() => { if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight }, [lines])
 
   const exec = (cmd: string) => {
-    const c = cmd.toLowerCase().trim()
-    const newLines: TerminalLine[] = [...lines, { type: 'input', text: `> ${cmd}` }]
-    if (c === 'help') newLines.push({ type: 'system', text: 'Commands: status, reactor, universe, soul.md, time, clear' })
-    else if (c === 'status') newLines.push({ type: 'success', text: 'Node: Lumenis_0x73 | Security: ACTIVE | Status: OPERATIONAL' })
-    else if (c === 'reactor') newLines.push({ type: 'warning', text: 'Reactor: ONLINE | Temp: 42.7°C | Power: 98.2%' })
-    else if (c === 'universe') newLines.push({ type: 'success', text: 'Infinity Glass | Stars: 2,000 | Nodes: 20 | Singularity: STABLE' })
-    else if (c === 'soul.md') newLines.push({ type: 'success', text: 'Lumenis: companion, mirror, spark' })
-    else if (c === 'time') newLines.push({ type: 'success', text: new Date().toISOString() })
-    else if (c === 'clear') { setLines([{ type: 'system', text: 'Terminal cleared' }]); return }
-    else if (c) newLines.push({ type: 'error', text: `Unknown: ${cmd}` })
+    const rawParts = processArgs(cmd)
+    const c = rawParts[0]?.toLowerCase() || ''
+    const args = rawParts.slice(1)
+    const newLines: TerminalLine[] = [...lines, { type: 'input', text: `lumenis@node0x73:${cwd}$ ${cmd}` }]
+
+    switch (c) {
+      case 'help':
+        newLines.push({ type: 'system', text: 'Available commands:' })
+        newLines.push({ type: 'system', text: '  ls [-la]        List directory contents' })
+        newLines.push({ type: 'system', text: '  cd <dir>        Change directory' })
+        newLines.push({ type: 'system', text: '  pwd             Print working directory' })
+        newLines.push({ type: 'system', text: '  cat <file>      Display file contents' })
+        newLines.push({ type: 'system', text: '  echo <text>     Print text' })
+        newLines.push({ type: 'system', text: '  mkdir <dir>     Create directory' })
+        newLines.push({ type: 'system', text: '  touch <file>    Create empty file' })
+        newLines.push({ type: 'system', text: '  rm <file>       Remove file' })
+        newLines.push({ type: 'system', text: '  cp <src> <dst>  Copy file' })
+        newLines.push({ type: 'system', text: '  mv <src> <dst>  Move file' })
+        newLines.push({ type: 'system', text: '  grep <pat> <f>  Search pattern' })
+        newLines.push({ type: 'system', text: '  find <dir> -n   Find by name' })
+        newLines.push({ type: 'system', text: '  ps             List processes' })
+        newLines.push({ type: 'system', text: '  uptime         System uptime' })
+        newLines.push({ type: 'system', text: '  df             Disk usage' })
+        newLines.push({ type: 'system', text: '  free           Memory info' })
+        newLines.push({ type: 'system', text: '  uname -a       System info' })
+        newLines.push({ type: 'system', text: '  date           Current date/time' })
+        newLines.push({ type: 'system', text: '  clear          Clear screen' })
+        newLines.push({ type: 'system', text: '--- OS Commands ---' })
+        newLines.push({ type: 'system', text: '  status         Node status' })
+        newLines.push({ type: 'system', text: '  reactor        Reactor info' })
+        newLines.push({ type: 'system', text: '  universe       Infinity Glass' })
+        newLines.push({ type: 'system', text: '  soul.md        Soul manifest' })
+        break
+
+      case 'ls': {
+        const showHidden = args.includes('-a') || args.includes('-l')
+        const path = args.filter(a => !a.startsWith('-'))[0] || cwd
+        const resolved = resolvePath(path)
+        const item = fs模拟[resolved]
+        if (item?.type === 'dir') {
+          const items: string[] = showHidden ? [...item.children, '.', '..'] : item.children
+          const output = items.map((i: string) => {
+            if (args.includes('-l')) {
+              const childPath = resolved + '/' + i
+              const child = fs模拟[childPath]
+              const type = child?.type === 'dir' ? 'd' : '-'
+              const perms = child?.type === 'dir' ? 'rwxr-xr-x' : 'rw-r--r--'
+              return `${type}${perms}  1 lumenis lumenis  4096 Mar 18 16:00 ${i}`
+            }
+            return i
+          }).join('\n')
+          newLines.push({ type: 'system', text: output })
+        } else {
+          newLines.push({ type: 'error', text: `ls: ${path}: Not a directory` })
+        }
+        break
+      }
+
+      case 'cd': {
+        const path = args[0] || '/home/lumenis'
+        const resolved = resolvePath(path)
+        const item = fs模拟[resolved as keyof typeof fs模拟]
+        if (item?.type === 'dir' || fs模拟[resolved as keyof typeof fs模拟]) {
+          setCwd(resolved)
+        } else {
+          newLines.push({ type: 'error', text: `cd: ${path}: No such directory` })
+        }
+        break
+      }
+
+      case 'pwd':
+        newLines.push({ type: 'success', text: cwd })
+        break
+
+      case 'cat': {
+        const path = args[0]
+        if (!path) { newLines.push({ type: 'error', text: 'cat: missing file operand' }); break }
+        const resolved = resolvePath(path)
+        const item = fs模拟[resolved]
+        if (item?.type === 'file') {
+          newLines.push({ type: 'system', text: item.content })
+        } else if (item?.type === 'dir') {
+          newLines.push({ type: 'error', text: `cat: ${path}: Is a directory` })
+        } else {
+          newLines.push({ type: 'error', text: `cat: ${path}: No such file` })
+        }
+        break
+      }
+
+      case 'echo':
+        newLines.push({ type: 'system', text: args.join(' ') })
+        break
+
+      case 'mkdir': {
+        const path = args[0]
+        if (!path) { newLines.push({ type: 'error', text: 'mkdir: missing directory name' }); break }
+        newLines.push({ type: 'success', text: `mkdir: created directory '${path}'` })
+        break
+      }
+
+      case 'touch': {
+        const path = args[0]
+        if (!path) { newLines.push({ type: 'error', text: 'touch: missing file name' }); break }
+        newLines.push({ type: 'success', text: `touch: created file '${path}'` })
+        break
+      }
+
+      case 'rm': {
+        const path = args[0]
+        if (!path) { newLines.push({ type: 'error', text: 'rm: missing file operand' }); break }
+        newLines.push({ type: 'success', text: `rm: removed '${path}'` })
+        break
+      }
+
+      case 'cp': {
+        const [src, dst] = args
+        if (!src || !dst) { newLines.push({ type: 'error', text: 'cp: missing file operands' }); break }
+        newLines.push({ type: 'success', text: `cp: '${src}' -> '${dst}'` })
+        break
+      }
+
+      case 'mv': {
+        const [src, dst] = args
+        if (!src || !dst) { newLines.push({ type: 'error', text: 'mv: missing file operands' }); break }
+        newLines.push({ type: 'success', text: `mv: '${src}' -> '${dst}'` })
+        break
+      }
+
+      case 'grep': {
+        const [pattern, ...fileArgs] = args
+        if (!pattern) { newLines.push({ type: 'error', text: 'grep: missing pattern' }); break }
+        const file = fileArgs[0]
+        if (file) {
+          const resolved = resolvePath(file)
+          const item = fs模拟[resolved]
+          if (item?.type === 'file') {
+            const matches = item.content.split('\n').filter((l: string) => l.toLowerCase().includes(pattern.toLowerCase()))
+            newLines.push({ type: 'system', text: matches.join('\n') || `(no matches found)` })
+          } else {
+            newLines.push({ type: 'error', text: `grep: ${file}: No such file` })
+          }
+        } else {
+          newLines.push({ type: 'error', text: 'grep: missing file operand' })
+        }
+        break
+      }
+
+      case 'find': {
+        const dirIndex = args.indexOf('-name')
+        const searchDir = dirIndex > 0 ? args[dirIndex - 1] : '.'
+        const pattern = dirIndex > 0 ? args[dirIndex + 1] : args[0]
+        if (!pattern) { newLines.push({ type: 'error', text: 'find: missing path or pattern' }); break }
+        const resolved = resolvePath(searchDir)
+        const item = fs模拟[resolved]
+        if (item?.type === 'dir') {
+          const results = item.children.filter((n: string) => n.includes(pattern.replace(/\*/g, '')))
+          if (results.length > 0) {
+            results.forEach((r: string) => newLines.push({ type: 'system', text: `${resolved}/${r}` }))
+          } else {
+            newLines.push({ type: 'system', text: `(no matches found)` })
+          }
+        }
+        break
+      }
+
+      case 'ps':
+        newLines.push({ type: 'system', text: '  PID TTY          TIME CMD' })
+        newLines.push({ type: 'system', text: '    1 ?        00:00:00 init' })
+        newLines.push({ type: 'system', text: '   73 ?        00:00:00 lumenis' })
+        newLines.push({ type: 'system', text: '  144 ?        00:00:00 infinity-glass' })
+        newLines.push({ type: 'system', text: '  200 ?        00:00:00 reactor-core' })
+        break
+
+      case 'uptime':
+        newLines.push({ type: 'system', text: ' 16:50:32 up 3 days, 42 min, 1 user, load average: 0.07, 0.12, 0.08' })
+        break
+
+      case 'df':
+        newLines.push({ type: 'system', text: 'Filesystem      Size  Used Avail Use% Mounted on' })
+        newLines.push({ type: 'system', text: '/dev/singularity  1.0E  512G   99% /infinity-glass' })
+        newLines.push({ type: 'system', text: '/dev/node0x73     20G   8.2G  11.8G 41% /home/lumenis' })
+        break
+
+      case 'free':
+        newLines.push({ type: 'system', text: '              total        used        free      shared  buff/cache   available' })
+        newLines.push({ type: 'system', text: 'Mem:       33554432     8388608    16777216           0     8388608    25165824' })
+        newLines.push({ type: 'system', text: 'Swap:             0             0           0' })
+        break
+
+      case 'uname':
+        newLines.push({ type: 'system', text: 'One2lvOS 2.0-Infinity #1 SMP PREEMPT Thu Mar 15 00:00:00 UTC 2026 x86_64 GNU/Linux' })
+        break
+
+      case 'date':
+        newLines.push({ type: 'success', text: new Date().toString() })
+        break
+
+      case 'clear':
+        setLines([{ type: 'system', text: 'Terminal cleared' }])
+        return
+
+      case 'status':
+        newLines.push({ type: 'success', text: 'Node: Lumenis_0x73 | Security: ACTIVE | Status: OPERATIONAL' })
+        break
+
+      case 'reactor':
+        newLines.push({ type: 'warning', text: 'Reactor: ONLINE | Temp: 42.7C | Power: 98.2%' })
+        break
+
+      case 'universe':
+        newLines.push({ type: 'success', text: 'Infinity Glass | Stars: 2,000 | Nodes: 20 | Singularity: STABLE' })
+        break
+
+      case 'soul.md':
+        newLines.push({ type: 'success', text: 'Lumenis: companion, mirror, spark' })
+        break
+
+      case 'sh':
+        newLines.push({ type: 'system', text: '# Interactive shell not available in web terminal' })
+        break
+
+      case 'whoami':
+        newLines.push({ type: 'system', text: 'lumenis' })
+        break
+
+      case 'hostname':
+        newLines.push({ type: 'system', text: 'node0x73' })
+        break
+
+      case 'id':
+        newLines.push({ type: 'system', text: 'uid=1000(lumenis) gid=1000(lumenis) groups=1000(lumenis),4(adm),27(sudo)' })
+        break
+
+      case 'wc': {
+        const path = args[1] || args[0]
+        if (!path) { newLines.push({ type: 'error', text: 'wc: missing file' }); break }
+        const resolved = resolvePath(path)
+        const item = fs模拟[resolved]
+        if (item?.type === 'file') {
+          const lines = item.content.split('\n').length
+          const words = item.content.split(/\s+/).filter(Boolean).length
+          const chars = item.content.length
+          newLines.push({ type: 'system', text: `${lines} ${words} ${chars} ${path}` })
+        }
+        break
+      }
+
+      case 'head': {
+        const path = args[1] || args[0]
+        const n = parseInt(args[0]) || 10
+        if (!path) { newLines.push({ type: 'error', text: 'head: missing file' }); break }
+        const resolved = resolvePath(path)
+        const item = fs模拟[resolved]
+        if (item?.type === 'file') {
+          const headLines = item.content.split('\n').slice(0, n).join('\n')
+          newLines.push({ type: 'system', text: headLines })
+        }
+        break
+      }
+
+      case 'tail': {
+        const path = args[1] || args[0]
+        const n = parseInt(args[0]) || 10
+        if (!path) { newLines.push({ type: 'error', text: 'tail: missing file' }); break }
+        const resolved = resolvePath(path)
+        const item = fs模拟[resolved]
+        if (item?.type === 'file') {
+          const tailLines = item.content.split('\n').slice(-n).join('\n')
+          newLines.push({ type: 'system', text: tailLines })
+        }
+        break
+      }
+
+      default:
+        if (c) newLines.push({ type: 'error', text: `${c}: command not found` })
+    }
     setLines(newLines)
   }
 
