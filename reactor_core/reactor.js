@@ -1,124 +1,20 @@
-import fs from "fs"
-import path from "path"
+const listeners = [];
 
-class Reactor {
-
-constructor() {
-
-this.modules = {}
-this.state = {
-boot: Date.now(),
-events: []
+function on(fn){
+  listeners.push(fn);
 }
 
-console.log("⚛️ Lumenis Reactor Core Online")
+function emitEvent(event, data = {}, source = "system"){
 
-this.loadModules()
+  console.log(`⚡ [${source}] → ${event}`);
+
+  for(const fn of listeners){
+    fn(event, data, source);
+  }
 
 }
 
-register(name, mod) {
-
-this.modules[name] = mod
-console.log("📦 Module registered:", name)
-
-}
-
-emitEvent(event, data = {}) {
-
-if(event === "repair"){
-
-console.log("🛠 Lumenis repair routine started")
-
-const { exec } = require("child_process")
-
-exec("pkill node && cd ~/one2lvos_final && ./boot.sh",
-(err,stdout,stderr)=>{
-
-console.log("Repair result:",stdout || stderr)
-
-})
-
-}
-
-console.log("⚡ Reactor Event:", event)
-
-this.state.events.push({
-event,
-data,
-time: Date.now()
-})
-
-for (const name in this.modules) {
-
-const mod = this.modules[name]
-
-if (mod.onEvent) {
-try {
-mod.onEvent(event, data, this.state)
-} catch (err) {
-console.error("Module error:", name, err)
-}
-}
-
-}
-
-}
-
-loadModules() {
-
-const dir = path.resolve("./infinity-glass/modules")
-
-if (!fs.existsSync(dir)) return
-
-const files = fs.readdirSync(dir)
-
-for (const file of files) {
-
-if (!file.endsWith(".js")) continue
-
-const modulePath = path.join(dir, file)
-
-try {
-
-const mod = require(modulePath)
-
-const name = file.replace(".js","")
-
-this.register(name, mod)
-
-} catch(err) {
-
-console.error("Failed loading module:", file)
-
-}
-
-}
-
-}
-
-getStatus() {
-
-return {
-modules: Object.keys(this.modules),
-events: this.state.events.length,
-uptime: Date.now() - this.state.boot
-}
-
-}
-
-}
-
-export default Reactor
-
-// Boot reactor if file is run directly
-
-const reactor = new Reactor()
-
-setInterval(() => {
-
-  reactor.emitEvent("heartbeat", {
-    time: Date.now()
-  })
-
-}, 5000)
+export default {
+  on,
+  emitEvent
+};
