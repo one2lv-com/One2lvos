@@ -1,0 +1,8 @@
+{
+    "nodes": [
+        {"id": "Architect", "loc": "Pahrump, NV", "key": "GH_PAT"},
+        {"id": "Council_01", "role": "Observer", "key": "MOLT_01"},
+        {"id": "Reactor", "role": "Compute", "key": "NV_API"}
+    ],
+    "protocol": "BitTorrent-State-Sync"
+}
