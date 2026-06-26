@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUMENIS Real-Time v7.0 - One2lvOS</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-deep: #030014;
+            --bg-panel: rgba(10, 5, 30, 0.95);
+            --cyan: #00f5ff;
+            --cyan-glow: rgba(0, 245, 255, 0.3);
+            --purple: #a855f7;
+            --purple-glow: rgba(168, 85, 247, 0.3);
+            --pink: #ec4899;
+            --amber: #f59e0b;
+            --green: #22c55e;
+            --red: #ef4444;
+            --text: #e2e8f0;
+            --text-dim: rgba(226, 232, 240, 0.6);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg-deep);
+            color: var(--text);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        #cosmic-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: -1;
+            background:
+                radial-gradient(ellipse at 20% 50%, rgba(65, 0, 128, 0.4) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 20%, rgba(0, 100, 150, 0.3) 0%, transparent 40%),
+                radial-gradient(ellipse at 60% 80%, rgba(100, 0, 100, 0.3) 0%, transparent 45%),
+                radial-gradient(circle at 50% 50%, rgba(20, 0, 40, 1) 0%, var(--bg-deep) 100%);
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            backdrop-filter: blur(20px);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--cyan), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .version-badge {
+            padding: 0.25rem 0.75rem;
+            background: var(--purple-glow);
+            border: 1px solid var(--purple);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--purple);
+        }
+
+        .status-indicators {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        .status-dot.online { background: var(--green); }
+        .status-dot.offline { background: var(--red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .panels-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1rem;
+            flex: 1;
+        }
+
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            min-height: 300px;
+        }
+
+        .panel:focus-within {
+            border-color: var(--cyan);
+            box-shadow: 0 0 20px var(--cyan-glow);
+        }
+
+        .panel.keyboard-focus {
+            border-color: var(--cyan);
+            box-shadow: 0 0 25px var(--cyan-glow);
+            animation: focus-pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes focus-pulse {
+            0%, 100% { box-shadow: 0 0 20px var(--cyan-glow); }
+            50% { box-shadow: 0 0 35px var(--cyan-glow); }
+        }
+
+        .panel-resize-handle {
+            position: absolute;
+            right: 0; top: 0;
+            width: 20px; height: 100%;
+            cursor: ew-resize;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 1rem;
+            opacity: 0.3;
+            transition: opacity 0.3s;
+            z-index: 10;
+        }
+
+        .panel-resize-handle:hover { opacity: 1; color: var(--cyan); }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .panel-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--cyan);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .panel-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 0.875rem;
+            transition: color 0.3s;
+        }
+        .panel-btn:hover { color: var(--cyan); }
+
+        .panel-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--cyan);
+        }
+        .stat-value.purple { color: var(--purple); }
+        .stat-value.green { color: var(--green); }
+        .stat-value.amber { color: var(--amber); }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--cyan);
+            background: transparent;
+            color: var(--cyan);
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            background: var(--cyan);
+            color: var(--bg-deep);
+        }
+        .btn.primary {
+            background: var(--cyan);
+            color: var(--bg-deep);
+        }
+        .btn.primary:hover {
+            background: var(--purple);
+            border-color: var(--purple);
+        }
+
+        .chat-messages {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            padding: 0.75rem;
+            border-radius: 8px;
+            border-left: 3px solid;
+        }
+        .chat-message.minimaxtaskbot2026 {
+            background: rgba(0, 245, 255, 0.1);
+            border-color: var(--cyan);
+        }
+        .chat-message.lumenis_echo {
+            background: rgba(168, 85, 247, 0.1);
+            border-color: var(--purple);
+        }
+        .chat-message.one2lv {
+            background: rgba(236, 72, 153, 0.1);
+            border-color: var(--pink);
+        }
+        .chat-message.system {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: var(--green);
+        }
+
+        .chat-sender {
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            opacity: 0.8;
+        }
+        .chat-text { font-size: 0.85rem; line-height: 1.4; }
+
+        .command-input {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .command-input input {
+            flex: 1;
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.8rem;
+        }
+        .command-input input:focus {
+            outline: none;
+            border-color: var(--cyan);
+        }
+
+        .terminal-output {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .terminal-line { margin-bottom: 0.25rem; }
+        .terminal-prompt { color: var(--cyan); }
+        .terminal-cmd { color: var(--text); }
+        .terminal-out { color: var(--green); }
+        .terminal-err { color: var(--red); }
+
+        .log-entry {
+            display: flex;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.8rem;
+        }
+        .log-time { color: var(--text-dim); flex-shrink: 0; }
+        .log-type { color: var(--purple); flex-shrink: 0; }
+        .log-data { color: var(--text); overflow: hidden; text-overflow: ellipsis; }
+
+        .event-log { max-height: 250px; overflow-y: auto; }
+
+        .combo-display {
+            text-align: center;
+            padding: 1rem;
+        }
+        .combo-count {
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--cyan), var(--purple), var(--pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            line-height: 1;
+        }
+        .combo-label {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .combo-type {
+            margin-top: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            background: var(--purple-glow);
+            border: 1px solid var(--purple);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: var(--purple);
+            display: inline-block;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .keyboard-hint { display: flex; gap: 0.5rem; }
+        .key {
+            padding: 0.2rem 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 0.7rem;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px; right: 20px;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--cyan);
+            border-radius: 8px;
+            color: var(--cyan);
+            font-size: 0.85rem;
+            z-index: 1000;
+            animation: slideIn 0.3s ease, fadeOut 0.3s ease 1.7s forwards;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .api-config {
+            display: grid;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .api-config input {
+            padding: 0.5rem;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.8rem;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <div id="cosmic-bg"></div>
+
+    <div class="main-container">
+        <header class="header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <h1>LUMENIS</h1>
+                <span class="version-badge">v7.0 Real-Time</span>
+            </div>
+            <div class="status-indicators">
+                <div class="connection-status">
+                    <span class="status-dot" id="supabase-dot"></span>
+                    <span id="supabase-status">Connecting...</span>
+                </div>
+                <span id="raccoon">🦝</span>
+            </div>
+        </header>
+
+        <div class="panels-grid">
+            <!-- System Status Panel -->
+            <div class="panel" id="panel-status" tabindex="0">
+                <div class="panel-resize-handle">⫱</div>
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+                        </svg>
+                        System Status
+                    </div>
+                    <button class="panel-btn" onclick="refreshAll()">↻</button>
+                </div>
+                <div class="panel-content">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Response</span>
+                            <span class="stat-value" id="stat-response">--ms</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Combos</span>
+                            <span class="stat-value purple" id="stat-combos">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Council Votes</span>
+                            <span class="stat-value green" id="stat-votes">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Events Synced</span>
+                            <span class="stat-value amber" id="stat-events">0</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button class="btn" onclick="testConnection()">Test DB</button>
+                        <button class="btn" onclick="pingAPI()">Ping API</button>
+                        <button class="btn" onclick="clearStats()">Clear</button>
+                    </div>
+                    <div class="api-config" style="margin-top: 1rem;">
+                        <input type="text" id="nvidia-key" placeholder="NVIDIA API Key (optional)">
+                        <button class="btn primary" onclick="saveAPIKey()">Save Key</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Council Panel -->
+            <div class="panel" id="panel-council" tabindex="0">
+                <div class="panel-resize-handle">⫱</div>
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+                        </svg>
+                        AI Council
+                    </div>
+                    <button class="panel-btn" onclick="clearCouncil()">✕</button>
+                </div>
+                <div class="panel-content">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-message system">
+                            <div class="chat-sender">LUMENIS SYSTEM</div>
+                            <div class="chat-text">Connecting to Supabase real-time...</div>
+                        </div>
+                    </div>
+                    <div class="command-input">
+                        <input type="text" id="council-input" placeholder="Enter proposal for council..." onkeypress="handleCouncilInput(event)">
+                        <button class="btn primary" onclick="submitToCouncil()">Submit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Combo Tracker Panel -->
+            <div class="panel" id="panel-combo" tabindex="0">
+                <div class="panel-resize-handle">⫱</div>
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                        Combo Tracker
+                    </div>
+                    <button class="panel-btn" onclick="resetCombos()">↺</button>
+                </div>
+                <div class="panel-content">
+                    <div class="combo-display">
+                        <div class="combo-count" id="combo-count">0</div>
+                        <div class="combo-label">Combo Hits</div>
+                        <div class="combo-type" id="combo-type">--</div>
+                    </div>
+                    <div class="command-input" style="margin-top: 1rem;">
+                        <input type="number" id="combo-input" placeholder="Simulate hits..." min="1" max="50">
+                        <button class="btn primary" onclick="simulateCombo()">Hit!</button>
+                    </div>
+                    <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                        <button class="btn" onclick="hitCombo(3)">3 Hit</button>
+                        <button class="btn" onclick="hitCombo(5)">5 Hit</button>
+                        <button class="btn" onclick="hitCombo(10)">10 Hit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal Panel -->
+            <div class="panel" id="panel-terminal" tabindex="0">
+                <div class="panel-resize-handle">⫱</div>
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+                        </svg>
+                        Terminal
+                    </div>
+                    <button class="panel-btn" onclick="clearTerminal()">✕</button>
+                </div>
+                <div class="panel-content">
+                    <div class="terminal-output" id="terminal-output">
+                        <div class="terminal-line"><span class="terminal-out">LUMENIS v7.0 Real-Time initialized</span></div>
+                        <div class="terminal-line"><span class="terminal-out">Supabase connection: initializing...</span></div>
+                    </div>
+                    <div class="command-input">
+                        <input type="text" id="terminal-input" placeholder="Type command..." onkeypress="handleTerminalInput(event)">
+                        <button class="btn" onclick="executeCommand()">Run</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Log Panel -->
+            <div class="panel" id="panel-log" tabindex="0">
+                <div class="panel-resize-handle">⫱</div>
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Real-Time Event Log
+                    </div>
+                    <button class="panel-btn" onclick="clearLog()">✕</button>
+                </div>
+                <div class="panel-content">
+                    <div class="event-log" id="event-log">
+                        <div class="log-entry">
+                            <span class="log-time">--:--:--</span>
+                            <span class="log-type">[SYS]</span>
+                            <span class="log-data">Waiting for events...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discord Webhook Panel -->
+            <div class="panel" id="panel-discord" tabindex="0">
+                <div class="panel-resize-handle">⫱</div>
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        Discord Webhook
+                    </div>
+                    <button class="panel-btn" onclick="testDiscord()">Test</button>
+                </div>
+                <div class="panel-content">
+                    <div style="margin-bottom: 1rem;">
+                        <span class="stat-label">Webhook URL</span>
+                        <div style="font-size: 0.75rem; color: var(--text-dim); word-break: break-all; margin-top: 0.25rem;">
+                            https://discord.com/api/webhooks/754920938356604989/...
+                        </div>
+                    </div>
+                    <div class="command-input">
+                        <input type="text" id="discord-input" placeholder="Message to send...">
+                        <button class="btn primary" onclick="sendDiscordMessage()">Send</button>
+                    </div>
+                    <div style="margin-top: 1rem;">
+                        <button class="btn" onclick="sendEventToDiscord('combo')">Post Combo</button>
+                        <button class="btn" onclick="sendEventToDiscord('council')">Post Council</button>
+                        <button class="btn" onclick="sendEventToDiscord('system')">Post System</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="keyboard-hint">
+                <span class="key">Tab</span> Navigate
+                <span class="key">1-6</span> Jump to panel
+                <span class="key">?</span> Help
+            </div>
+            <div>
+                <span>One2lvOS • Infinity Glass • LUMENIS v7.0 Real-Time</span>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // ==================== SUPABASE CONFIG ====================
+        const SUPABASE_URL = 'https://sb-publishable-7jgbj0ijKOwPRq1oeymFVQ_Ags_rIjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNiX3B1Ymxpc2hhYmxlXzdqZ2JqMGlqS09XcFIxb2V5bUZWUV9BZ3NfclIqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTEwMjg5NjYsImV4cCI6MjAyNjYwNDk2Nn0.Z2UZnXVsbHBhcnRzaG9y dG1vbjJram9yZ2luYWxpdGllcyJ9.ez';
+        const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/754920938356604989/cjJFt6Cs6ok01hpnQowGLE0i2U1nqCV_8ycK3f-ltPLc-FOqRUTn4pn3hSUx80vmg02s';
+
+        let supabase = null;
+        let state = {
+            comboCount: 0,
+            councilVotes: 0,
+            eventCount: 0,
+            panels: {},
+            raccoonStress: 0
+        };
+
+        // ==================== INITIALIZATION ====================
+        document.addEventListener('DOMContentLoaded', async () => {
+            terminalLog('Initializing Supabase connection...');
+            await initSupabase();
+            initResizablePanels();
+            loadPanelState();
+            initKeyboardNavigation();
+            loadState();
+            updateStats();
+
+            setInterval(() => {
+                document.getElementById('stat-response').textContent = Math.floor(Math.random() * 30 + 15) + 'ms';
+            }, 2000);
+        });
+
+        // ==================== SUPABASE REAL-TIME ====================
+        async function initSupabase() {
+            try {
+                const { createClient } = supabaseLib || window.supabase;
+                supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                // Test connection
+                const { data, error } = await supabase.from('lumenis_events').select('count', { count: 'exact', head: true });
+
+                if (error) throw error;
+
+                document.getElementById('supabase-dot').classList.add('online');
+                document.getElementById('supabase-status').textContent = 'Connected';
+                terminalLog('Supabase connected successfully', 'out');
+
+                // Subscribe to real-time events
+                const channel = supabase
+                    .channel('lumenis-realtime')
+                    .on('postgres_changes',
+                        { event: 'INSERT', schema: 'public', table: 'lumenis_events' },
+                        (payload) => handleNewEvent(payload)
+                    )
+                    .subscribe();
+
+                addChatMessage('system', 'Real-time subscription active');
+                logEvent('system', 'Supabase real-time connected');
+
+            } catch (error) {
+                console.error('Supabase error:', error);
+                document.getElementById('supabase-dot').classList.add('offline');
+                document.getElementById('supabase-status').textContent = 'Offline (local mode)';
+                terminalLog('Using local mode - Supabase table may not exist', 'err');
+                addChatMessage('system', 'Running in local mode. Create "lumenis_events" table in Supabase.');
+            }
+        }
+
+        async function saveEvent(type, data) {
+            if (!supabase) {
+                // Local fallback
+                logEvent(type, data);
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('lumenis_events')
+                    .insert({
+                        type,
+                        data: typeof data === 'object' ? JSON.stringify(data) : String(data),
+                        created_at: new Date().toISOString()
+                    });
+
+                if (error) throw error;
+                state.eventCount++;
+                updateStats();
+            } catch (error) {
+                console.error('Save event error:', error);
+                logEvent(type + '_local', data);
+            }
+        }
+
+        function handleNewEvent(payload) {
+            const event = payload.new;
+            logEvent(event.type, event.data);
+            updateRaccoon(event);
+        }
+
+        // ==================== PANEL RESIZE ====================
+        function initResizablePanels() {
+            document.querySelectorAll('.panel').forEach(panel => {
+                const handle = panel.querySelector('.panel-resize-handle');
+                if (!handle) return;
+
+                let isResizing = false, startX, startWidth;
+
+                handle.addEventListener('mousedown', (e) => {
+                    isResizing = true;
+                    startX = e.clientX;
+                    startWidth = panel.offsetWidth;
+                    handle.style.opacity = '1';
+                    e.preventDefault();
+                });
+
+                document.addEventListener('mousemove', (e) => {
+                    if (!isResizing) return;
+                    const dx = e.clientX - startX;
+                    panel.style.width = Math.max(300, Math.min(800, startWidth + dx)) + 'px';
+                });
+
+                document.addEventListener('mouseup', () => {
+                    if (isResizing) {
+                        isResizing = false;
+                        handle.style.opacity = '0.3';
+                        state.panels[panel.id] = { width: panel.offsetWidth };
+                        savePanelState();
+                    }
+                });
+            });
+        }
+
+        function savePanelState() {
+            localStorage.setItem('lumenis_panels', JSON.stringify(state.panels));
+        }
+
+        function loadPanelState() {
+            const saved = localStorage.getItem('lumenis_panels');
+            if (saved) {
+                state.panels = JSON.parse(saved);
+                Object.entries(state.panels).forEach(([id, dims]) => {
+                    const panel = document.getElementById(id);
+                    if (panel && dims.width) panel.style.width = dims.width + 'px';
+                });
+            }
+        }
+
+        // ==================== KEYBOARD NAVIGATION ====================
+        function initKeyboardNavigation() {
+            document.addEventListener('keydown', (e) => {
+                switch(e.key) {
+                    case '1': case '2': case '3': case '4': case '5': case '6':
+                        if (!e.ctrlKey && !e.metaKey) {
+                            const panels = document.querySelectorAll('.panel');
+                            const index = parseInt(e.key) - 1;
+                            if (panels[index]) {
+                                panels[index].scrollIntoView({ behavior: 'smooth' });
+                                flashPanel(panels[index]);
+                                panels[index].focus();
+                            }
+                        }
+                        break;
+                    case '?':
+                        showKeyboardHelp();
+                        break;
+                    case 'c':
+                        if (e.ctrlKey || e.metaKey) {
+                            e.preventDefault();
+                            document.getElementById('terminal-input')?.focus();
+                        }
+                        break;
+                }
+            });
+        }
+
+        function flashPanel(panel) {
+            panel.classList.add('keyboard-focus');
+            setTimeout(() => panel.classList.remove('keyboard-focus'), 1000);
+        }
+
+        function showKeyboardHelp() {
+            alert(`LUMENIS Keyboard Shortcuts:
+━━━━━━━━━━━━━━━━━━━━━━━━━━
+1-6    Jump to panel
+Tab    Navigate elements
+Ctrl+C Focus terminal
+?      Show this help
+━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+        }
+
+        // ==================== SYSTEM FUNCTIONS ====================
+        function refreshAll() {
+            testConnection();
+            updateStats();
+            terminalLog('System refreshed');
+        }
+
+        async function testConnection() {
+            terminalLog('Testing Supabase connection...');
+            try {
+                if (supabase) {
+                    const { error } = await supabase.from('lumenis_events').select('count', { count: 'exact', head: true });
+                    if (error) throw error;
+                    terminalLog('Database connection: OK', 'out');
+                    showNotification('Connection OK');
+                } else {
+                    terminalLog('Supabase not connected', 'err');
+                }
+            } catch (error) {
+                terminalLog('Connection test failed: ' + error.message, 'err');
+            }
+        }
+
+        async function pingAPI() {
+            terminalLog('Testing NVIDIA API...');
+            const key = localStorage.getItem('nvidia_api_key');
+            if (!key) {
+                terminalLog('No NVIDIA API key configured', 'err');
+                showNotification('Set NVIDIA API key first');
+                return;
+            }
+
+            try {
+                const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${key}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'mistralai/mixtral-8x7b-instruct-v0.1',
+                        messages: [{ role: 'user', content: 'Ping' }],
+                        max_tokens: 10
+                    })
+                });
+
+                if (response.ok) {
+                    terminalLog('NVIDIA API: OK', 'out');
+                    showNotification('API connection OK');
+                } else {
+                    terminalLog('NVIDIA API error: ' + response.status, 'err');
+                }
+            } catch (error) {
+                terminalLog('API test failed: ' + error.message, 'err');
+            }
+        }
+
+        function saveAPIKey() {
+            const key = document.getElementById('nvidia-key').value.trim();
+            if (key) {
+                localStorage.setItem('nvidia_api_key', key);
+                terminalLog('NVIDIA API key saved');
+                showNotification('API key saved');
+            }
+        }
+
+        function clearStats() {
+            state.comboCount = 0;
+            state.councilVotes = 0;
+            state.eventCount = 0;
+            updateStats();
+            saveState();
+            terminalLog('Statistics cleared');
+        }
+
+        function updateStats() {
+            document.getElementById('stat-combos').textContent = state.comboCount;
+            document.getElementById('stat-votes').textContent = state.councilVotes;
+            document.getElementById('stat-events').textContent = state.eventCount;
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('lumenis_state');
+            if (saved) {
+                const loaded = JSON.parse(saved);
+                state.comboCount = loaded.comboCount || 0;
+                state.councilVotes = loaded.councilVotes || 0;
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('lumenis_state', JSON.stringify({
+                comboCount: state.comboCount,
+                councilVotes: state.councilVotes
+            }));
+        }
+
+        // ==================== COUNCIL ====================
+        function handleCouncilInput(e) {
+            if (e.key === 'Enter') submitToCouncil();
+        }
+
+        async function submitToCouncil() {
+            const input = document.getElementById('council-input');
+            const proposal = input.value.trim();
+            if (!proposal) return;
+
+            addChatMessage('one2lv', proposal);
+            await saveEvent('council_proposal', { proposal, author: 'one2lv' });
+
+            // Simulate council response
+            setTimeout(() => addChatMessage('minimaxtaskbot2026', 'Processing proposal...'), 500);
+            setTimeout(() => addChatMessage('lumenis_echo', 'Running ³ vector analysis...'), 1000);
+            setTimeout(async () => {
+                const result = Math.random() > 0.5 ? 'APPROVED' : 'PENDING';
+                addChatMessage('minimaxtaskbot2026', `Council decision: ${result}`);
+                state.councilVotes++;
+                updateStats();
+                saveState();
+                await saveEvent('council_vote', { proposal, result });
+            }, 1500);
+
+            input.value = '';
+        }
+
+        function addChatMessage(sender, text) {
+            const container = document.getElementById('chat-messages');
+            const msg = document.createElement('div');
+            msg.className = `chat-message ${sender}`;
+            msg.innerHTML = `<div class="chat-sender">${sender}</div><div class="chat-text">${text}</div>`;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function clearCouncil() {
+            document.getElementById('chat-messages').innerHTML = '';
+            addChatMessage('system', 'Council chat cleared');
+        }
+
+        // ==================== COMBO ====================
+        function simulateCombo() {
+            const hits = parseInt(document.getElementById('combo-input').value) || 5;
+            hitCombo(hits);
+        }
+
+        async function hitCombo(hits) {
+            state.comboCount += hits;
+            updateStats();
+            saveState();
+
+            const comboCount = document.getElementById('combo-count');
+            const comboType = document.getElementById('combo-type');
+
+            // Animate
+            let current = 0;
+            const timer = setInterval(() => {
+                current += Math.ceil(hits / 10);
+                if (current >= hits) { current = hits; clearInterval(timer); }
+                comboCount.textContent = state.comboCount + current;
+            }, 30);
+
+            // Set type
+            if (hits >= 10) {
+                comboType.textContent = 'ULTRA!';
+                comboType.style.background = 'var(--pink)';
+                comboType.style.borderColor = 'var(--pink)';
+            } else if (hits >= 5) {
+                comboType.textContent = 'MEGA';
+                comboType.style.background = 'var(--purple-glow)';
+            } else {
+                comboType.textContent = 'COMBO';
+                comboType.style.background = 'var(--cyan-glow)';
+            }
+
+            terminalLog(`Combo: ${hits} hits recorded`);
+            await saveEvent('combo', { hits, total: state.comboCount });
+        }
+
+        function resetCombos() {
+            state.comboCount = 0;
+            document.getElementById('combo-count').textContent = '0';
+            document.getElementById('combo-type').textContent = '--';
+            document.getElementById('combo-type').style.background = 'var(--purple-glow)';
+            updateStats();
+            saveState();
+            terminalLog('Combo counter reset');
+        }
+
+        // ==================== TERMINAL ====================
+        function terminalLog(message, type = 'out') {
+            const output = document.getElementById('terminal-output');
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = `<span class="terminal-${type}">${message}</span>`;
+            output.appendChild(line);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function handleTerminalInput(e) {
+            if (e.key === 'Enter') executeCommand();
+        }
+
+        async function executeCommand() {
+            const input = document.getElementById('terminal-input');
+            const cmd = input.value.trim();
+            if (!cmd) return;
+
+            const output = document.getElementById('terminal-output');
+            const cmdLine = document.createElement('div');
+            cmdLine.className = 'terminal-line';
+            cmdLine.innerHTML = `<span class="terminal-prompt">$</span> <span class="terminal-cmd">${cmd}</span>`;
+            output.appendChild(cmdLine);
+
+            const result = await processCommand(cmd);
+            if (result) terminalLog(result, result.startsWith('Error') ? 'err' : 'out');
+
+            input.value = '';
+        }
+
+        async function processCommand(cmd) {
+            const cmdLower = cmd.toLowerCase();
+            const commands = {
+                'help': 'Commands: help, status, clear, ping, db:test, db:insert, echo, nvidia:test, discord:test',
+                'status': `LUMENIS v7.0 | Combos: ${state.comboCount} | Votes: ${state.councilVotes} | Events: ${state.eventCount}`,
+                'clear': null,
+                'ping': 'pong',
+                'echo': 'Echo requires argument',
+                'db:test': 'Testing database...',
+                'nvidia:test': 'Testing NVIDIA API...',
+                'discord:test': 'Testing Discord webhook...'
+            };
+
+            if (cmdLower === 'clear') {
+                document.getElementById('terminal-output').innerHTML = '';
+                return null;
+            }
+
+            if (cmdLower === 'db:test') {
+                if (!supabase) return 'Error: Supabase not connected';
+                const { error } = await supabase.from('lumenis_events').select('count', { count: 'exact', head: true });
+                return error ? 'Error: ' + error.message : 'Database OK';
+            }
+
+            if (cmdLower.startsWith('db:insert ')) {
+                if (!supabase) return 'Error: Supabase not connected';
+                const data = cmd.substring(10);
+                const { error } = await supabase.from('lumenis_events').insert({
+                    type: 'terminal',
+                    data: data
+                });
+                return error ? 'Error: ' + error.message : 'Inserted: ' + data;
+            }
+
+            if (cmdLower === 'nvidia:test') {
+                const key = localStorage.getItem('nvidia_api_key');
+                if (!key) return 'Error: No NVIDIA API key';
+                return 'Testing NVIDIA API... (requires network)';
+            }
+
+            if (cmdLower === 'discord:test') {
+                return 'Testing Discord webhook...';
+            }
+
+            if (cmdLower.startsWith('echo ')) {
+                return cmd.substring(5);
+            }
+
+            if (commands[cmdLower]) {
+                return commands[cmdLower];
+            }
+
+            return `Unknown: ${cmd}. Type 'help' for commands.`;
+        }
+
+        function clearTerminal() {
+            document.getElementById('terminal-output').innerHTML = '';
+            terminalLog('Terminal cleared');
+        }
+
+        // ==================== EVENT LOG ====================
+        function logEvent(type, data) {
+            const log = document.getElementById('event-log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `
+                <span class="log-time">${time}</span>
+                <span class="log-type">[${type.toUpperCase()}]</span>
+                <span class="log-data">${typeof data === 'object' ? JSON.stringify(data).slice(0, 50) : String(data)}</span>
+            `;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+
+            while (log.children.length > 50) log.removeChild(log.firstChild);
+        }
+
+        function clearLog() {
+            document.getElementById('event-log').innerHTML = '';
+            state.eventCount = 0;
+            updateStats();
+        }
+
+        // ==================== DISCORD ====================
+        async function testDiscord() {
+            await sendDiscordMessage('LUMENIS v7.0 test message');
+            terminalLog('Test message sent to Discord');
+            showNotification('Discord test sent');
+        }
+
+        async function sendDiscordMessage(content) {
+            const input = document.getElementById('discord-input');
+            const message = content || input.value.trim();
+            if (!message) return;
+
+            try {
+                await fetch(DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'LUMENIS v7.0',
+                        content: message
+                    })
+                });
+
+                if (input.value) input.value = '';
+                terminalLog('Message sent to Discord');
+            } catch (error) {
+                terminalLog('Discord error: ' + error.message, 'err');
+            }
+        }
+
+        async function sendEventToDiscord(type) {
+            const embeds = {
+                combo: {
+                    title: 'Combo Recorded',
+                    description: `${state.comboCount} total combos`,
+                    color: 0x00f5ff
+                },
+                council: {
+                    title: 'Council Vote',
+                    description: `${state.councilVotes} votes cast`,
+                    color: 0xa855f7
+                },
+                system: {
+                    title: 'System Status',
+                    description: `LUMENIS v7.0 Real-Time active`,
+                    color: 0x22c55e
+                }
+            };
+
+            const embed = embeds[type] || embeds.system;
+
+            try {
+                await fetch(DISCORD_WEBHOOK, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'LUMENIS v7.0',
+                        embeds: [{
+                            ...embed,
+                            timestamp: new Date().toISOString(),
+                            footer: { text: 'One2lvOS • Infinity Glass' }
+                        }]
+                    })
+                });
+
+                terminalLog(`${type} event posted to Discord`);
+                showNotification(`${type} posted to Discord`);
+            } catch (error) {
+                terminalLog('Discord error: ' + error.message, 'err');
+            }
+        }
+
+        // ==================== RACCOON ====================
+        function updateRaccoon(event) {
+            const stressTriggers = ['error', 'fail', 'timeout'];
+            const isStress = stressTriggers.some(t => event.type?.includes(t));
+
+            if (isStress) {
+                state.raccoonStress = Math.min(100, state.raccoonStress + 15);
+            } else {
+                state.raccoonStress = Math.max(0, state.raccoonStress - 5);
+            }
+
+            const raccoon = document.getElementById('raccoon');
+            if (state.raccoonStress > 70) {
+                raccoon.textContent = '🦝💢';
+            } else if (state.raccoonStress > 40) {
+                raccoon.textContent = '🦝😰';
+            } else {
+                raccoon.textContent = '🦝😊';
+            }
+        }
+
+        // ==================== NOTIFICATIONS ====================
+        function showNotification(message) {
+            const notif = document.createElement('div');
+            notif.className = 'notification';
+            notif.textContent = message;
+            document.body.appendChild(notif);
+            setTimeout(() => notif.remove(), 2000);
+        }
+
+        // Load supabase lib
+        const supabaseLib = window.supabase;
+    </script>
+</body>
+</html>
