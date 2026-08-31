@@ -1,0 +1,38 @@
+{
+  "name": "infinity-glass-v3",
+  "version": "3.0.0",
+  "description": "Lumenis Spatial Operating System - Cross-platform browser-based OS with AI reactor core",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "serve": "npx serve -s . -p 8000",
+    "build": "echo 'No build step required - pure client-side application'",
+    "deploy": "echo 'Deploy to any static hosting service'",
+    "test": "echo 'Test suite coming soon'"
+  },
+  "keywords": [
+    "spatial-os",
+    "ai",
+    "reactor",
+    "galaxy",
+    "three.js",
+    "terminal",
+    "jwst",
+    "nasa",
+    "symbolic",
+    "transformation",
+    "pwa"
+  ],
+  "author": "Lumenis <lumenis@infinity-glass.ai>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lumenis/infinity-glass-v3"
+  },
+  "homepage": "https://infinity-glass.ai",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "devDependencies": {},
+  "dependencies": {}
+}

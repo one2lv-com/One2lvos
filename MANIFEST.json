@@ -1,0 +1,141 @@
+{
+  "name": "One2lv Unified OS",
+  "version": "1.0.1-verification",
+  "build_date": "2026-08-20T05:33:29Z",
+  "status": "verification-freeze",
+  "
+": {
+    "o2png_protocol": "1.0",
+    "one2lvos_core": "1.0.0",
+    "python_api": "1.0.0",
+    "unified_integration": "1.0.1"
+  },
+  "integrated_repositories": {
+    "one2lvos": {
+      "url": "https://github.com/one2lv-com/One2lvos",
+      "language": "JavaScript",
+      "commit": "unknown",
+      "components": ["Infinity Glass", "Spatial Desktop"]
+    },
+    "sovereign-agentic-core": {
+      "url": "https://github.com/one2lv-com/sovereign-agentic-core",
+      "language": "Python",
+      "commit": "unknown",
+      "components": ["Sovereign Council", "7 AI Agents"]
+    },
+    "lumenis": {
+      "url": "https://github.com/one2lv-com/Lumenis",
+      "language": "HTML/JavaScript",
+      "commit": "unknown",
+      "components": ["Cosmic Gaming", "Reactor Core"]
+    },
+    "lumenis-control": {
+      "url": "https://github.com/one2lv-com/lumenis-control",
+      "language": "Python",
+      "commit": "unknown",
+      "components": ["Holographic Runtime"]
+    },
+    "lumenis-os": {
+      "url": "https://github.com/one2lv-com/lumenis-os",
+      "language": "TypeScript",
+      "commit": "unknown",
+      "components": ["Cyberpunk AI Command Center"]
+    },
+    "aetherix": {
+      "url": "https://github.com/one2lv-com/Aetherix",
+      "language": "HTML",
+      "commit": "unknown",
+      "components": ["Master Terminal"]
+    },
+    "control-plane-compilers": {
+      "url": "https://github.com/one2lv-com/control-plane-compilers",
+      "language": "Python",
+      "commit": "unknown",
+      "components": ["Control Plane Compiler"]
+    },
+    "minimax": {
+      "url": "https://github.com/one2lv-com/minimax",
+      "language": "TypeScript",
+      "commit": "unknown",
+      "components": ["Delta Engine (TypeScript)"]
+    },
+    "minmax": {
+      "url": "https://github.com/one2lv-com/minmax",
+      "language": "JavaScript",
+      "commit": "unknown",
+      "components": ["Delta Engine (JavaScript)"]
+    },
+    "interplanetary-disk": {
+      "url": "https://github.com/one2lv-com/Interplanetary-disk",
+      "language": "Shell",
+      "commit": "unknown",
+      "components": ["Docker Deployment Stack"]
+    },
+    "interplanetary_disk": {
+      "url": "https://github.com/one2lv-com/Interplanetary_disk",
+      "language": "Shell",
+      "commit": "unknown",
+      "components": ["Phase 9", "Multi-Agent Council", "ISO Builder"]
+    }
+  },
+  "dependencies": {
+    "python": {
+      "version": "3.7+",
+      "packages": []
+    },
+    "node": {
+      "version": "16+",
+      "packages": []
+    }
+  },
+  "build_environment": {
+    "os": "Linux",
+    "arch": "x86_64",
+    "kernel": "6.18.40",
+    "builder": "Vercel Sandbox"
+  },
+  "artifacts": {
+    "One2lv_Unified_OS_v1.0.tar.gz": {
+      "size_bytes": 50098,
+      "sha256": "pending"
+    }
+  },
+  "verification_status": {
+    "reproducible_build": "not_implemented",
+    "integration_tests": "partial",
+    "boot_benchmark": "claims_only",
+    "o2png_conformance": "not_implemented",
+    "cryptographic_tests": "not_implemented",
+    "corruption_tests": "not_implemented",
+    "rollback_tests": "basic",
+    "recovery_injection": "not_implemented",
+    "clean_install": "not_implemented",
+    "checksums": "implemented",
+    "version_manifest": "implemented",
+    "sbom": "not_implemented"
+  },
+  "performance_claims": {
+    "boot_time_ms": {
+      "value": 151,
+      "verification": "single_measurement_unverified",
+      "note": "Hardware unspecified, no statistical sampling"
+    },
+    "compression_ratio": {
+      "value": 2.4,
+      "verification": "test_payload_only",
+      "note": "1.6KB sample, may not generalize"
+    },
+    "ai_confidence": {
+      "value": 0.95,
+      "verification": "synthetic",
+      "note": "Hardcoded test value, needs real LLM integration"
+    },
+    "vfs_latency_ms": {
+      "value": "<1",
+      "verification": "not_benchmarked",
+      "note": "No systematic measurement"
+    }
+  },
+  "architectural_invariant": "O2PNG provides stability boundary below intelligence layers",
+  "release_status": "integration_build_not_release_artifact"
+}
