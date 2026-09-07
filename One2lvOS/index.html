@@ -413,6 +413,28 @@
                     <div class="app-badge">Integrated</div>
                 </a>
 
+                <!-- Chrome Web Browser -->
+                <a href="#" class="app-card" onclick="openBrowser(); return false;">
+                    <div class="app-icon">🌐</div>
+                    <div class="app-title">Chrome Browser</div>
+                    <div class="app-description">
+                        Full-featured web browser with address bar, navigation controls,
+                        and embedded browsing experience.
+                    </div>
+                    <div class="app-badge">Built-in</div>
+                </a>
+
+                <!-- Voice Agent -->
+                <a href="#" class="app-card" onclick="openVoiceAgent(); return false;">
+                    <div class="app-icon">🎤</div>
+                    <div class="app-title">Voice Agent</div>
+                    <div class="app-description">
+                        AI-powered voice command system with full terminal access.
+                        Control One2lvOS with natural language voice commands.
+                    </div>
+                    <div class="app-badge">⭐ AI-Powered</div>
+                </a>
+
                 <!-- Core OS Backend -->
                 <a href="#" class="app-card" onclick="showBackendInfo(); return false;">
                     <div class="app-icon">💾</div>
@@ -465,6 +487,458 @@
             if (timeElement) {
                 timeElement.textContent = timeString;
             }
+        }
+
+        // Open Chrome Browser
+        function openBrowser() {
+            // Create browser overlay
+            const browserOverlay = document.createElement('div');
+            browserOverlay.id = 'browser-overlay';
+            browserOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0, 0, 0, 0.95);
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                padding: 20px;
+            `;
+
+            // Create browser window
+            const browserWindow = document.createElement('div');
+            browserWindow.style.cssText = `
+                width: 100%;
+                height: 100%;
+                background: #1a1a1a;
+                border: 2px solid #00ffcc;
+                border-radius: 8px;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+            `;
+
+            // Create title bar
+            const titleBar = document.createElement('div');
+            titleBar.style.cssText = `
+                height: 50px;
+                background: rgba(0, 255, 204, 0.1);
+                border-bottom: 1px solid #00ffcc;
+                display: flex;
+                align-items: center;
+                padding: 0 15px;
+                gap: 10px;
+            `;
+
+            // Close button
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕';
+            closeBtn.style.cssText = `
+                width: 30px;
+                height: 30px;
+                background: rgba(255, 0, 0, 0.2);
+                border: 1px solid #ff0000;
+                color: #ff0000;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 18px;
+                transition: all 0.2s;
+            `;
+            closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(255, 0, 0, 0.4)';
+            closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(255, 0, 0, 0.2)';
+            closeBtn.onclick = () => document.body.removeChild(browserOverlay);
+
+            // URL bar
+            const urlBar = document.createElement('input');
+            urlBar.type = 'text';
+            urlBar.value = 'https://';
+            urlBar.placeholder = 'Enter URL...';
+            urlBar.style.cssText = `
+                flex: 1;
+                height: 35px;
+                background: rgba(0, 255, 204, 0.05);
+                border: 1px solid rgba(0, 255, 204, 0.3);
+                color: #00ffcc;
+                padding: 0 15px;
+                border-radius: 4px;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                outline: none;
+            `;
+
+            // Go button
+            const goBtn = document.createElement('button');
+            goBtn.textContent = 'GO';
+            goBtn.style.cssText = `
+                width: 60px;
+                height: 35px;
+                background: rgba(0, 255, 204, 0.2);
+                border: 1px solid #00ffcc;
+                color: #00ffcc;
+                border-radius: 4px;
+                cursor: pointer;
+                font-family: 'Courier New', monospace;
+                font-weight: bold;
+                transition: all 0.2s;
+            `;
+            goBtn.onmouseover = () => goBtn.style.background = 'rgba(0, 255, 204, 0.3)';
+            goBtn.onmouseout = () => goBtn.style.background = 'rgba(0, 255, 204, 0.2)';
+
+            // Browser iframe
+            const iframe = document.createElement('iframe');
+            iframe.style.cssText = `
+                flex: 1;
+                width: 100%;
+                border: none;
+                background: white;
+            `;
+            iframe.src = 'https://www.google.com';
+
+            // Go function
+            const navigate = () => {
+                let url = urlBar.value.trim();
+                if (url && !url.startsWith('http')) {
+                    url = 'https://' + url;
+                }
+                if (url) {
+                    iframe.src = url;
+                    urlBar.value = url;
+                }
+            };
+
+            goBtn.onclick = navigate;
+            urlBar.onkeydown = (e) => {
+                if (e.key === 'Enter') navigate();
+            };
+
+            // Assemble
+            titleBar.appendChild(closeBtn);
+            titleBar.appendChild(urlBar);
+            titleBar.appendChild(goBtn);
+
+            browserWindow.appendChild(titleBar);
+            browserWindow.appendChild(iframe);
+
+            browserOverlay.appendChild(browserWindow);
+            document.body.appendChild(browserOverlay);
+
+            // Focus URL bar
+            setTimeout(() => urlBar.focus(), 100);
+        }
+
+        // Open Voice Agent
+        function openVoiceAgent() {
+            // Create voice agent overlay
+            const agentOverlay = document.createElement('div');
+            agentOverlay.id = 'voice-agent-overlay';
+            agentOverlay.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0, 0, 0, 0.95);
+                z-index: 10000;
+                display: flex;
+                flex-direction: column;
+                padding: 20px;
+            `;
+
+            // Create agent window
+            const agentWindow = document.createElement('div');
+            agentWindow.style.cssText = `
+                width: 100%;
+                max-width: 900px;
+                height: 80vh;
+                margin: auto;
+                background: #0a0a0a;
+                border: 2px solid #00ffcc;
+                border-radius: 8px;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 0 0 50px rgba(0, 255, 204, 0.5);
+            `;
+
+            // Create title bar
+            const titleBar = document.createElement('div');
+            titleBar.style.cssText = `
+                height: 60px;
+                background: rgba(0, 255, 204, 0.1);
+                border-bottom: 2px solid #00ffcc;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 20px;
+            `;
+
+            const title = document.createElement('div');
+            title.innerHTML = '<span style="font-size: 24px;">🎤</span> <strong>VOICE AGENT</strong> - AI System Control';
+            title.style.cssText = 'color: #00ffcc; font-size: 18px; letter-spacing: 2px;';
+
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = '✕';
+            closeBtn.style.cssText = `
+                width: 40px;
+                height: 40px;
+                background: rgba(255, 0, 0, 0.2);
+                border: 1px solid #ff0000;
+                color: #ff0000;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 20px;
+                transition: all 0.2s;
+            `;
+            closeBtn.onmouseover = () => closeBtn.style.background = 'rgba(255, 0, 0, 0.4)';
+            closeBtn.onmouseout = () => closeBtn.style.background = 'rgba(255, 0, 0, 0.2)';
+            closeBtn.onclick = () => {
+                if (window.voiceAgentInstance) {
+                    window.voiceAgentInstance.stop();
+                }
+                document.body.removeChild(agentOverlay);
+            };
+
+            titleBar.appendChild(title);
+            titleBar.appendChild(closeBtn);
+
+            // Create main content area
+            const content = document.createElement('div');
+            content.style.cssText = `
+                flex: 1;
+                display: flex;
+                gap: 20px;
+                padding: 20px;
+                overflow: hidden;
+            `;
+
+            // Left panel - Voice visualization and controls
+            const leftPanel = document.createElement('div');
+            leftPanel.style.cssText = `
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            `;
+
+            // Voice status
+            const statusDiv = document.createElement('div');
+            statusDiv.id = 'voice-status';
+            statusDiv.style.cssText = `
+                background: rgba(0, 255, 204, 0.05);
+                border: 1px solid rgba(0, 255, 204, 0.3);
+                border-radius: 8px;
+                padding: 30px;
+                text-align: center;
+            `;
+            statusDiv.innerHTML = `
+                <div style="font-size: 80px; margin-bottom: 15px;" id="mic-icon">🎤</div>
+                <div style="font-size: 18px; color: #00ffcc; margin-bottom: 10px;" id="status-text">Click Start to Activate</div>
+                <div style="font-size: 14px; color: rgba(0, 255, 204, 0.7);" id="listening-text"></div>
+            `;
+
+            // Control buttons
+            const controls = document.createElement('div');
+            controls.style.cssText = 'display: flex; gap: 10px; justify-content: center;';
+
+            const startBtn = document.createElement('button');
+            startBtn.textContent = '▶ START LISTENING';
+            startBtn.id = 'start-voice-btn';
+            startBtn.style.cssText = `
+                padding: 15px 30px;
+                background: rgba(0, 255, 0, 0.2);
+                border: 2px solid #00ff00;
+                color: #00ff00;
+                border-radius: 8px;
+                cursor: pointer;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                font-weight: bold;
+                transition: all 0.2s;
+                flex: 1;
+            `;
+
+            const stopBtn = document.createElement('button');
+            stopBtn.textContent = '■ STOP';
+            stopBtn.id = 'stop-voice-btn';
+            stopBtn.disabled = true;
+            stopBtn.style.cssText = `
+                padding: 15px 30px;
+                background: rgba(255, 0, 0, 0.2);
+                border: 2px solid #ff0000;
+                color: #ff0000;
+                border-radius: 8px;
+                cursor: pointer;
+                font-family: 'Courier New', monospace;
+                font-size: 14px;
+                font-weight: bold;
+                transition: all 0.2s;
+                opacity: 0.5;
+            `;
+
+            controls.appendChild(startBtn);
+            controls.appendChild(stopBtn);
+
+            // Right panel - Command log and terminal
+            const rightPanel = document.createElement('div');
+            rightPanel.style.cssText = `
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            `;
+
+            // Command log
+            const commandLog = document.createElement('div');
+            commandLog.style.cssText = `
+                flex: 1;
+                background: rgba(0, 255, 204, 0.05);
+                border: 1px solid rgba(0, 255, 204, 0.3);
+                border-radius: 8px;
+                padding: 15px;
+                overflow-y: auto;
+                font-family: 'Courier New', monospace;
+                font-size: 13px;
+                line-height: 1.6;
+            `;
+            commandLog.id = 'command-log';
+            commandLog.innerHTML = '<div style="color: rgba(0,255,204,0.7);">Voice command log will appear here...</div>';
+
+            // Help section
+            const helpDiv = document.createElement('div');
+            helpDiv.style.cssText = `
+                background: rgba(0, 255, 204, 0.05);
+                border: 1px solid rgba(0, 255, 204, 0.3);
+                border-radius: 8px;
+                padding: 15px;
+                font-size: 12px;
+                line-height: 1.8;
+            `;
+            helpDiv.innerHTML = `
+                <strong style="color: #00ffcc;">💡 VOICE COMMANDS:</strong><br>
+                • "Hello" - Greet the agent<br>
+                • "Status" - System status<br>
+                • "Open [app name]" - Launch app<br>
+                • "Run [command]" - Execute terminal command<br>
+                • "List apps" - Available applications<br>
+                • "Time" - Current time<br>
+                • "Create snapshot" - Save state<br>
+                • "Help" - More commands
+            `;
+
+            rightPanel.appendChild(commandLog);
+            rightPanel.appendChild(helpDiv);
+
+            leftPanel.appendChild(statusDiv);
+            leftPanel.appendChild(controls);
+
+            content.appendChild(leftPanel);
+            content.appendChild(rightPanel);
+
+            agentWindow.appendChild(titleBar);
+            agentWindow.appendChild(content);
+            agentOverlay.appendChild(agentWindow);
+            document.body.appendChild(agentOverlay);
+
+            // Initialize voice agent
+            loadVoiceAgentScript(() => {
+                const agent = new VoiceAgent();
+                window.voiceAgentInstance = agent;
+
+                // Set up event handlers
+                agent.onStatusChange = (status) => {
+                    const statusText = document.getElementById('status-text');
+                    const listeningText = document.getElementById('listening-text');
+                    const micIcon = document.getElementById('mic-icon');
+
+                    if (status === 'listening') {
+                        statusText.textContent = '🔴 LISTENING...';
+                        statusText.style.color = '#ff0000';
+                        listeningText.textContent = 'Speak now...';
+                        micIcon.style.animation = 'pulse 1s infinite';
+                        startBtn.disabled = true;
+                        startBtn.style.opacity = '0.5';
+                        stopBtn.disabled = false;
+                        stopBtn.style.opacity = '1';
+                    } else {
+                        statusText.textContent = 'Click Start to Activate';
+                        statusText.style.color = '#00ffcc';
+                        listeningText.textContent = '';
+                        micIcon.style.animation = 'none';
+                        startBtn.disabled = false;
+                        startBtn.style.opacity = '1';
+                        stopBtn.disabled = true;
+                        stopBtn.style.opacity = '0.5';
+                    }
+                };
+
+                agent.onCommandReceived = (transcript) => {
+                    const log = document.getElementById('command-log');
+                    const time = new Date().toLocaleTimeString();
+                    log.innerHTML += `<div style="color: #00ff00; margin: 5px 0;">
+                        [${time}] 🎤 YOU: ${transcript}
+                    </div>`;
+                    log.scrollTop = log.scrollHeight;
+                };
+
+                agent.onSpeak = (text) => {
+                    const log = document.getElementById('command-log');
+                    const time = new Date().toLocaleTimeString();
+                    log.innerHTML += `<div style="color: #00ffcc; margin: 5px 0;">
+                        [${time}] 🤖 AGENT: ${text}
+                    </div>`;
+                    log.scrollTop = log.scrollHeight;
+                };
+
+                agent.onInterimResult = (transcript) => {
+                    document.getElementById('listening-text').textContent = `Hearing: "${transcript}"`;
+                };
+
+                agent.onTerminalCommand = (cmd) => {
+                    const log = document.getElementById('command-log');
+                    log.innerHTML += `<div style="color: #ffaa00; margin: 5px 0;">
+                        💻 TERMINAL: ${cmd}
+                    </div>`;
+                    log.scrollTop = log.scrollHeight;
+                };
+
+                agent.onError = (error) => {
+                    const log = document.getElementById('command-log');
+                    log.innerHTML += `<div style="color: #ff0000; margin: 5px 0;">
+                        ❌ ERROR: ${error}
+                    </div>`;
+                };
+
+                // Button handlers
+                startBtn.onclick = () => agent.start();
+                stopBtn.onclick = () => agent.stop();
+
+                // Add pulse animation
+                const style = document.createElement('style');
+                style.textContent = `
+                    @keyframes pulse {
+                        0%, 100% { transform: scale(1); opacity: 1; }
+                        50% { transform: scale(1.1); opacity: 0.7; }
+                    }
+                `;
+                document.head.appendChild(style);
+            });
+        }
+
+        // Load voice agent script
+        function loadVoiceAgentScript(callback) {
+            if (typeof VoiceAgent !== 'undefined') {
+                callback();
+                return;
+            }
+
+            const script = document.createElement('script');
+            script.src = 'js/voice-agent.js';
+            script.onload = callback;
+            script.onerror = () => {
+                alert('Failed to load voice agent. Make sure js/voice-agent.js exists.');
+            };
+            document.body.appendChild(script);
         }
 
         // Show backend info
