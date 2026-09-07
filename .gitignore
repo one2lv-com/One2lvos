@@ -47,3 +47,8 @@ node_modules/
 # Build artifacts
 *.tar.gz
 *.zip
+
+# Environment variables (sensitive)
+.env
+.env.local
+.env.*.local
