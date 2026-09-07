@@ -77,6 +77,214 @@
             height: 100%;
             z-index: 1;
             display: none;
+            flex-direction: column;
+        }
+
+        /* Top Bar */
+        #top-bar {
+            height: 50px;
+            background: rgba(10, 10, 10, 0.95);
+            border-bottom: 1px solid rgba(0, 255, 204, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .system-logo {
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: #00ffcc;
+            text-shadow: 0 0 10px #00ffcc;
+        }
+
+        .system-time {
+            font-size: 14px;
+            color: #00ffcc;
+        }
+
+        /* Desktop Content */
+        #desktop-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .welcome-message {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .welcome-message h1 {
+            font-size: 48px;
+            color: #00ffcc;
+            text-shadow: 0 0 20px #00ffcc;
+            margin-bottom: 10px;
+            letter-spacing: 5px;
+        }
+
+        .welcome-message p {
+            font-size: 16px;
+            color: #00ffcc;
+            opacity: 0.8;
+        }
+
+        /* Application Grid */
+        .app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1400px;
+            width: 100%;
+            margin-bottom: 40px;
+        }
+
+        .app-card {
+            background: rgba(20, 25, 40, 0.5);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            border-radius: 8px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-card:hover {
+            background: rgba(20, 25, 40, 0.8);
+            border-color: #00ffcc;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+            transform: translateY(-5px);
+        }
+
+        .app-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px currentColor;
+        }
+
+        .app-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #00ffcc;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .app-description {
+            font-size: 13px;
+            line-height: 1.6;
+            opacity: 0.8;
+            color: #00ffcc;
+        }
+
+        .app-badge {
+            display: inline-block;
+            background: rgba(0, 255, 204, 0.2);
+            border: 1px solid rgba(0, 255, 204, 0.5);
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Documentation Section */
+        .docs-section {
+            max-width: 1400px;
+            width: 100%;
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(20, 25, 40, 0.3);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .docs-section h2 {
+            color: #00ffcc;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .docs-links {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .doc-link {
+            padding: 10px 15px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            border-radius: 4px;
+            color: #00ffcc;
+            text-decoration: none;
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+
+        .doc-link:hover {
+            background: rgba(0, 255, 204, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+        }
+
+        /* Footer */
+        .desktop-footer {
+            text-align: center;
+            padding: 20px;
+            font-size: 12px;
+            opacity: 0.6;
+            color: #00ffcc;
+        }
+
+        /* Status Indicator */
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+            animation: pulse 2s infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00ffcc;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ddaa;
         }
     </style>
 </head>
@@ -87,9 +295,210 @@
         <div id="boot-log"></div>
     </div>
 
-    <div id="desktop"></div>
+    <div id="desktop">
+        <!-- Top Bar -->
+        <div id="top-bar">
+            <div class="system-logo">
+                <span class="status-indicator"></span>
+                ∞ ONE2LVOS v1.0
+            </div>
+            <div class="system-time" id="system-time">00:00:00</div>
+        </div>
+
+        <!-- Desktop Content -->
+        <div id="desktop-content">
+            <div class="welcome-message">
+                <h1>∞ ONE2LVOS</h1>
+                <p>The Future of Spatial Computing | Select an application to launch</p>
+            </div>
+
+            <!-- Application Grid -->
+            <div class="app-grid">
+                <!-- Infinity Glass -->
+                <a href="Infinity_Glasses/index.html" class="app-card">
+                    <div class="app-icon">🌠</div>
+                    <div class="app-title">Infinity Glass</div>
+                    <div class="app-description">
+                        Spatial desktop environment with 10,247-star galaxy renderer, AI Council,
+                        System Monitor, Reactor Core, NASA JWST images, and Symbolic Engine.
+                    </div>
+                    <div class="app-badge">⭐ Featured</div>
+                </a>
+
+                <!-- Aetherix Terminal -->
+                <a href="Desktop/terminal.html" class="app-card" onclick="alert('Access via Infinity Glass Terminal button'); return false;">
+                    <div class="app-icon">🖥️</div>
+                    <div class="app-title">Aetherix Terminal</div>
+                    <div class="app-description">
+                        Master control interface with command-line access, system operations,
+                        and real-time command execution.
+                    </div>
+                    <div class="app-badge">Built into Infinity Glass</div>
+                </a>
+
+                <!-- Reactor Core -->
+                <a href="reactor/index.html" class="app-card" onclick="alert('Access via Infinity Glass Reactor button'); return false;">
+                    <div class="app-icon">⚛️</div>
+                    <div class="app-title">Reactor Core</div>
+                    <div class="app-description">
+                        Real-time system health monitoring, module status visualization,
+                        performance metrics, and reactor control panel.
+                    </div>
+                    <div class="app-badge">Built into Infinity Glass</div>
+                </a>
+
+                <!-- AI Council -->
+                <a href="Agentic_Control/ai-lobby/public/index.html" class="app-card">
+                    <div class="app-icon">🧠</div>
+                    <div class="app-title">AI Council</div>
+                    <div class="app-description">
+                        Multi-agent AI coordination system with 7 specialized agents,
+                        weighted voting, and consensus decision-making.
+                    </div>
+                    <div class="app-badge">Standalone + Integrated</div>
+                </a>
+
+                <!-- System Monitor -->
+                <a href="#" class="app-card" onclick="alert('Access via Infinity Glass System Monitor button'); return false;">
+                    <div class="app-icon">📊</div>
+                    <div class="app-title">System Monitor</div>
+                    <div class="app-description">
+                        Real-time CPU, memory, and process monitoring with auto-refresh,
+                        top processes display, and system uptime tracking.
+                    </div>
+                    <div class="app-badge">Built into Infinity Glass</div>
+                </a>
+
+                <!-- JWST Browser -->
+                <a href="#" class="app-card" onclick="alert('Access via Infinity Glass JWST button'); return false;">
+                    <div class="app-icon">🔭</div>
+                    <div class="app-title">JWST Image Browser</div>
+                    <div class="app-description">
+                        NASA James Webb Space Telescope image gallery with search,
+                        live API integration, and auto-refresh functionality.
+                    </div>
+                    <div class="app-badge">Built into Infinity Glass</div>
+                </a>
+
+                <!-- Symbolic Engine -->
+                <a href="#" class="app-card" onclick="alert('Access via Infinity Glass Symbolic button'); return false;">
+                    <div class="app-icon">∫</div>
+                    <div class="app-title">Symbolic Engine</div>
+                    <div class="app-description">
+                        Mathematical transformation system with operators: ~ | π √ ∆ v =
+                        Pipeline visualization and state tracking.
+                    </div>
+                    <div class="app-badge">Built into Infinity Glass</div>
+                </a>
+
+                <!-- Desktop Environment -->
+                <a href="#" class="app-card" onclick="alert('You are currently in the Desktop Environment'); return false;">
+                    <div class="app-icon">🖼️</div>
+                    <div class="app-title">Desktop Environment</div>
+                    <div class="app-description">
+                        Main OS interface with aurora background, window management,
+                        and application launcher (you are here).
+                    </div>
+                    <div class="app-badge">Current</div>
+                </a>
+
+                <!-- Lumenis Cosmic -->
+                <a href="#" class="app-card" onclick="alert('Lumenis features integrated into Infinity Glass Reactor'); return false;">
+                    <div class="app-icon">🎮</div>
+                    <div class="app-title">Lumenis Cosmic</div>
+                    <div class="app-description">
+                        Cosmic gaming platform with holographic visualization,
+                        reactor core UI, and performance tracking.
+                    </div>
+                    <div class="app-badge">Integrated</div>
+                </a>
+
+                <!-- Core OS Backend -->
+                <a href="#" class="app-card" onclick="showBackendInfo(); return false;">
+                    <div class="app-icon">💾</div>
+                    <div class="app-title">Core OS Backend</div>
+                    <div class="app-description">
+                        Python-based O2PNG state capsule system with VFS, snapshot management,
+                        AI Council, and Delta Engine (150ms boot).
+                    </div>
+                    <div class="app-badge">Backend</div>
+                </a>
+            </div>
+
+            <!-- Documentation Section -->
+            <div class="docs-section">
+                <h2>📚 Documentation</h2>
+                <p style="margin-bottom: 15px; opacity: 0.8;">
+                    Comprehensive guides and references for One2lvOS
+                </p>
+                <div class="docs-links">
+                    <a href="../README.md" class="doc-link" target="_blank">📖 README</a>
+                    <a href="../SYSTEM_STATUS.md" class="doc-link" target="_blank">📊 System Status</a>
+                    <a href="../RUNNING_SYSTEM.md" class="doc-link" target="_blank">🚀 Usage Guide</a>
+                    <a href="../UI_EXPLORATION_GUIDE.md" class="doc-link" target="_blank">🎨 UI Guide</a>
+                    <a href="../UI_COMPONENTS_SUMMARY.md" class="doc-link" target="_blank">📱 Components</a>
+                    <a href="../QUICK_UI_DEMO.md" class="doc-link" target="_blank">⚡ Quick Demo</a>
+                    <a href="../ARCHITECTURE.md" class="doc-link" target="_blank">🏗️ Architecture</a>
+                    <a href="../verification_summary.txt" class="doc-link" target="_blank">✅ Verification</a>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="desktop-footer">
+                One2lvOS v1.0 | 🌌 The Future of Computing 🧲
+                <br>
+                Status: ✅ All Systems Operational | Boot Time: 150ms | AI Agents: 7/7 Online
+            </div>
+        </div>
+    </div>
 
     <!-- BIOS -->
     <script src="BIOS/boot.js"></script>
+
+    <!-- Desktop Script -->
+    <script>
+        // Update system time
+        function updateSystemTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour12: false });
+            const timeElement = document.getElementById('system-time');
+            if (timeElement) {
+                timeElement.textContent = timeString;
+            }
+        }
+
+        // Show backend info
+        function showBackendInfo() {
+            alert(`ONE2LVOS CORE BACKEND
+
+Python-based operating system core:
+✅ O2PNG State Capsule Protocol
+✅ Virtual File System (VFS)
+✅ Memory Management
+✅ Task Queue System
+✅ 6-Tier Recovery System
+✅ Snapshot/Restore Engine
+✅ AI Sovereign Council (7 agents)
+✅ Delta Engine (Autonomous)
+
+Boot Time: 150-160ms
+Status: OPERATIONAL
+
+To interact with the backend:
+$ cd /home/vercel-sandbox/One2lvos
+$ python3 unified_os.py`);
+        }
+
+        // Initialize desktop
+        window.addEventListener('DOMContentLoaded', () => {
+            // Start time update
+            updateSystemTime();
+            setInterval(updateSystemTime, 1000);
+
+            console.log('%c∞ ONE2LVOS v1.0 ', 'background: #00ffcc; color: #000; font-size: 20px; padding: 10px;');
+            console.log('%cAll Systems Operational', 'color: #00ffcc; font-size: 14px;');
+            console.log('%c🌌 The Future of Computing 🧲', 'color: #00ffcc; font-size: 12px;');
+        });
+    </script>
 </body>
 </html>
