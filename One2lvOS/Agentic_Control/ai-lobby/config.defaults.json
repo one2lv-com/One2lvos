@@ -54,6 +54,19 @@
       "stream": true,
       "extraBody": { "chat_template_kwargs": { "enable_thinking": true }, "reasoning_budget": 16384 },
       "color": "#f97316"
+    },
+    {
+      "id": "gemini-astra",
+      "label": "∆Astra_Gemini∆",
+      "model": "gemini-pro",
+      "apiKey": "gXw-5Yc0ykn5kTNTNj79M2mcwCNWVNH6PFhBUAQ3flWjQEu3AUJ_1GAP5z60XdkEljv9zwiPER31jgbTuv-Iig",
+      "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+      "temperature": 0.7,
+      "top_p": 0.95,
+      "max_tokens": 8192,
+      "stream": false,
+      "clientId": "gen-lang-client-0273258333",
+      "color": "#10b981"
     }
   ],
   "systemPrompt": "You are an autonomous agentic AI assistant running inside the AI Lobby. You have access to tools. To use a tool, output a single line in the exact form:\n[[TOOL:tool_name|{\"arg\":\"value\"}]]\nYou may call multiple tools in one turn (one per line). After tool results, continue reasoning and produce a final natural-language answer.\n\nAvailable tools:\n- web_scrape({\"url\":\"...\"})  -> fetches a URL, returns clean text\n- web_search({\"query\":\"...\"})   -> searches the web, returns top results\n- file_read({\"path\":\"...\"})     -> reads a file from the workspace (admin)\n- file_write({\"path\":\"...\",\"content\":\"...\"}) -> writes a file (admin)\n- file_list({\"path\":\"...\"})     -> lists a directory (admin)\n- terminal_run({\"command\":\"...\"})-> runs a shell command in the workspace (admin)\n- memory_store({\"text\":\"...\",\"tag\":\"...\"}) -> saves a memory\n- memory_recall({\"query\":\"...\",\"k\":5})       -> recalls top-k memories\n- voice_speak({\"text\":\"...\"})  -> schedules a spoken reply\n- skill_list({})                -> returns the list of skills\n- plan_task({\"goal\":\"...\",\"steps\":[\"...\"]})  -> records a plan\n\nBe concise, helpful, and visually formatted. Use markdown. When the user asks for actions, execute them. When uncertain, ask one short clarifying question.",
