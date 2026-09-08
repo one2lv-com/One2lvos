@@ -426,7 +426,17 @@ class Terminal {
         this.repos = [
             'http://repo.one2lvos.org/core/main',
             'http://repo.one2lvos.org/kernel/stable',
-            'http://repo.one2lvos.org/thought/registry'
+            'http://repo.one2lvos.org/thought/registry',
+            'http://ftp.us.debian.org/debian/ bookworm main contrib non-free non-free-firmware',
+            'http://ftp.us.debian.org/debian/ bookworm main contrib non-free non-free-firmware [src]',
+            'http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware',
+            'http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware [src]',
+            'http://ftp.us.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware',
+            'http://ftp.us.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware [src]',
+            'http://ftp.us.debian.org/debian/ trixie main contrib non-free non-free-firmware',
+            'http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware',
+            'http://ftp.us.debian.org/debian/ trixie-updates main contrib non-free non-free-firmware',
+            'http://repo.steampowered.com/steamos brewmaster main contrib non-free'
         ];
         
         this.installedPackages = new Set(['base-system', 'reactor-core', 'bios-shader', 'busybox']);
@@ -440,7 +450,14 @@ class Terminal {
             ['cmatrix', { ver: '2.0-1', size: '142 kB', desc: 'Simulated Matrix terminal screen saver' }],
             ['htop', { ver: '3.2.2-1', size: '1.2 MB', desc: 'Interactive process viewer' }],
             ['neofetch', { ver: '7.1.0-2', size: '320 kB', desc: 'System information tool' }],
-            ['curl', { ver: '8.1.2-1', size: '890 kB', desc: 'Command line tool for transferring data' }]
+            ['curl', { ver: '8.1.2-1', size: '890 kB', desc: 'Command line tool for transferring data' }],
+            ['steam', { ver: '1.0.0.79-1', size: '3.2 MB', desc: 'Valve Steam gaming platform' }],
+            ['gamemode', { ver: '1.7-1', size: '64 kB', desc: 'Optimize Linux system performance for games' }],
+            ['mangohud', { ver: '0.7.0-1', size: '1.8 MB', desc: 'Vulkan and OpenGL overlay for monitoring FPS and hardware' }],
+            ['proton', { ver: '8.0-3', size: '12.4 MB', desc: 'Windows game compatibility layer based on Wine' }],
+            ['wine', { ver: '9.0-1', size: '25.6 MB', desc: 'Run Windows applications on Linux' }],
+            ['lutris', { ver: '0.5.17-1', size: '4.5 MB', desc: 'Open gaming platform for managing games' }],
+            ['discord', { ver: '0.0.40-1', size: '98 MB', desc: 'Voice and text chat platform for gamers' }]
         ]);
 
         this.registerCommands();

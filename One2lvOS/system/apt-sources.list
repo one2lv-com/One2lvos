@@ -1,0 +1,89 @@
+# One2lvOS APT Sources Configuration
+# Generated: 2026-09-08
+# For Debian Trixie + SteamOS integration
+
+# ============================================
+# Debian Bookworm (Stable) - Main Repository
+# ============================================
+deb http://ftp.us.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+deb-src http://ftp.us.debian.org/debian/ bookworm main contrib non-free non-free-firmware
+
+# ============================================
+# Debian Bookworm - Security Updates
+# ============================================
+deb http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
+
+# ============================================
+# Debian Bookworm - Stable Updates
+# ============================================
+deb http://ftp.us.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+deb-src http://ftp.us.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
+
+# ============================================
+# Debian Trixie (Testing) - Main Repository
+# ============================================
+deb http://ftp.us.debian.org/debian/ trixie main contrib non-free non-free-firmware
+deb-src http://ftp.us.debian.org/debian/ trixie main contrib non-free non-free-firmware
+
+# ============================================
+# Debian Trixie - Security Updates
+# ============================================
+deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+
+# ============================================
+# Debian Trixie - Stable Updates
+# ============================================
+deb http://ftp.us.debian.org/debian/ trixie-updates main contrib non-free non-free-firmware
+deb-src http://ftp.us.debian.org/debian/ trixie-updates main contrib non-free non-free-firmware
+
+# ============================================
+# SteamOS Repository (Brewmaster)
+# Gaming and Steam integration
+# ============================================
+deb http://repo.steampowered.com/steamos brewmaster main contrib non-free
+deb-src http://repo.steampowered.com/steamos brewmaster main contrib non-free
+
+# ============================================
+# Additional Repositories (Optional)
+# ============================================
+# Uncomment as needed:
+
+# Debian Backports
+# deb http://ftp.us.debian.org/debian/ trixie-backports main contrib non-free non-free-firmware
+
+# Debian Multimedia
+# deb http://www.deb-multimedia.org trixie main non-free
+
+# Node.js (NodeSource)
+# deb https://deb.nodesource.com/node_20.x trixie main
+
+# Docker
+# deb https://download.docker.com/linux/debian trixie stable
+
+# ============================================
+# Mirror Information
+# ============================================
+# Primary US Mirror: http://ftp.us.debian.org/debian/
+# Security: http://security.debian.org/debian-security
+# Steam: http://repo.steampowered.com/steamos
+
+# ============================================
+# Usage Instructions
+# ============================================
+# 1. Copy this file to /etc/apt/sources.list
+# 2. Update package lists: sudo apt update
+# 3. Upgrade system: sudo apt upgrade
+# 4. Install packages: sudo apt install <package>
+
+# ============================================
+# Gaming Packages (via SteamOS)
+# ============================================
+# Available after adding SteamOS repository:
+# - steam
+# - steam-devices
+# - steam-launcher
+# - gamemode
+# - mangohud
+# - proton
