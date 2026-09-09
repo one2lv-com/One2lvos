@@ -1,6 +1,25 @@
-# One2lv Unified OS v1.0
+# One2lv Unified OS v1.0.2 🌌🧲
 
-**The Complete Spatial Operating System**
+**The Complete Spatial Operating System with AI-Powered Vector Memory**
+
+## 🚀 Quick Start - Deploy in One Command
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/one2lv-com/One2lvos/main/one2lvos-quickstart.sh | bash
+```
+
+**That's it!** The script automatically:
+- ✅ Clones the repository
+- ✅ Configures all API keys (Astra DB, NVIDIA, Gemini, etc.)
+- ✅ Deploys with Docker Compose (Nginx + Node + Python)
+- ✅ Initializes Astra DB with NVIDIA vector embeddings
+- ✅ Shows access URLs and management commands
+
+**Then visit**: `http://your-server/` to access One2lvOS!
+
+📚 **See**: [`QUICKSTART.md`](QUICKSTART.md) for detailed instructions
+
+---
 
 ## Overview
 
@@ -114,16 +133,36 @@ One2lv Unified OS is a production-ready operating system that unifies all One2lv
 
 ## Installation
 
+### Option 1: Automated (Recommended)
+
+```bash
+# One-command installation with all dependencies
+curl -fsSL https://raw.githubusercontent.com/one2lv-com/One2lvos/main/one2lvos-quickstart.sh | bash
+```
+
+### Option 2: Manual
+
 ```bash
 # Clone repository
-git clone https://github.com/one2lv-com/one2lv-unified-os
-cd one2lv-unified-os
+git clone https://github.com/one2lv-com/One2lvos.git
+cd One2lvos
 
-# Install dependencies
-./install.sh
+# Configure environment
+cp .env.production.template .env
+nano .env  # Add your API keys if you want custom ones
 
-# Boot system
-./boot.sh
+# Deploy
+./deploy.sh start
+
+# Initialize Astra DB
+./deploy.sh init-astra
+```
+
+### Option 3: Custom Directory
+
+```bash
+# Install to specific location
+curl -fsSL https://raw.githubusercontent.com/one2lv-com/One2lvos/main/one2lvos-quickstart.sh | bash -s /opt/one2lvos
 ```
 
 ## Features

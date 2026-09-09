@@ -7,7 +7,7 @@ class AIChatModule {
     constructor() {
         this.name = 'AIChatModule';
         this.invokeUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
-        
+
         // Configuration preset
         this.config = {
             model: "nvidia/nemotron-3-ultra-550b-a55b",
@@ -19,16 +19,16 @@ class AIChatModule {
             stream: true
         };
 
-        // Note: For client-side OS environments, hardcoding bearer tokens is supported for local builds,
-        // but can also be overridden dynamically via state or local storage.
-        this.apiKey = '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';
+        // API key should be provided via environment or initialization
+        // Set via: window.AIChatModule.setApiKey('YOUR_KEY')
+        this.apiKey = null;
         this.conversationHistory = [];
         this.isProcessing = false;
     }
 
     async initialize(state = {}) {
         console.log(`[${this.name}] Initializing Nemotron AI Chat Engine...`);
-        
+
         if (state.apiKey) this.apiKey = state.apiKey;
         if (state.history) this.conversationHistory = state.history;
 
@@ -47,6 +47,10 @@ class AIChatModule {
     async streamChat(prompt, onChunk, onComplete) {
         if (this.isProcessing) {
             throw new Error('AIChatModule is already processing a request.');
+        }
+
+        if (!this.apiKey) {
+            throw new Error('API key not set. Use setApiKey() to configure.');
         }
 
         this.isProcessing = true;
@@ -118,7 +122,7 @@ class AIChatModule {
 
             // Save assistant reply to memory history
             this.conversationHistory.push({ role: 'assistant', content: assistantResponse });
-            
+
             if (onComplete) onComplete(assistantResponse);
 
         } catch (error) {
@@ -142,11 +146,11 @@ class AIChatModule {
     registerTerminalCommands() {
         if (window.DesktopEnvironment && window.DesktopEnvironment.terminal) {
             const term = window.DesktopEnvironment.terminal;
-            
+
             term.commands['nemotron'] = (args) => {
                 if (!args.length) return 'Usage: nemotron <your prompt message>';
                 const promptText = args.join(' ');
-                
+
                 term.writeLine(`[Nemotron-3 Thinking...]`, '#ff00ff');
                 term.isProcessing = true;
                 term.input.disabled = true;
@@ -180,4 +184,3 @@ class AIChatModule {
 
 // Global kernel instance mounting
 window.AIChatModule = new AIChatModule();
-
