@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>One2lvOS — Unified AI System</title>
+<style>
+  :root {
+    --bg:       #050810;
+    --bg1:      #0a0f1e;
+    --bg2:      #0f1628;
+    --bg3:      #141c35;
+    --border:   #1e2d55;
+    --accent:   #00d4ff;
+    --accent2:  #7c3aed;
+    --accent3:  #10b981;
+    --accent4:  #f59e0b;
+    --accent5:  #ef4444;
+    --text:     #e2e8f0;
+    --text2:    #94a3b8;
+    --text3:    #475569;
+    --up:       #10b981;
+    --down:     #ef4444;
+    --glow:     0 0 20px rgba(0,212,255,.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; font-size: 13px; min-height: 100vh; }
+
+  /* ── Layout ── */
+  #app { display: grid; grid-template-rows: 56px 1fr; height: 100vh; }
+  header { background: var(--bg1); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; gap: 16px; }
+  header h1 { font-size: 16px; font-weight: 700; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 20px var(--accent); }
+  header .subtitle { color: var(--text2); font-size: 11px; }
+  header .live { margin-left: auto; display: flex; gap: 12px; align-items: center; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--up); box-shadow: 0 0 8px var(--up); animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  #main { display: grid; grid-template-columns: 200px 1fr; overflow: hidden; }
+
+  /* ── Sidebar ── */
+  nav { background: var(--bg1); border-right: 1px solid var(--border); padding: 12px 0; overflow-y: auto; }
+  nav .section-label { color: var(--text3); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; padding: 12px 16px 6px; }
+  nav button { display: block; width: 100%; text-align: left; padding: 8px 16px; background: none; border: none; color: var(--text2); cursor: pointer; font-family: inherit; font-size: 12px; transition: all .15s; border-left: 2px solid transparent; }
+  nav button:hover { color: var(--text); background: var(--bg2); }
+  nav button.active { color: var(--accent); background: rgba(0,212,255,.06); border-left-color: var(--accent); }
+  nav .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; background: var(--text3); }
+  nav .dot.up { background: var(--up); box-shadow: 0 0 6px var(--up); }
+  nav .dot.down { background: var(--down); }
+
+  /* ── Content ── */
+  #content { overflow-y: auto; padding: 20px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ── Cards ── */
+  .card { background: var(--bg1); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .card h2 { font-size: 13px; color: var(--accent); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+  .card h3 { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+
+  /* ── Grid layouts ── */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  @media(max-width:900px){ .grid3{ grid-template-columns:1fr 1fr; } .grid2{ grid-template-columns:1fr; } }
+
+  /* ── Service status cards ── */
+  .svc-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+  .svc-card .svc-name { font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 1px; }
+  .svc-card .svc-port { font-size: 18px; font-weight: 700; color: var(--accent); }
+  .svc-card .svc-status { font-size: 11px; font-weight: 700; }
+  .svc-card .svc-status.up { color: var(--up); }
+  .svc-card .svc-status.down { color: var(--down); }
+  .svc-card .svc-status.checking { color: var(--accent4); }
+
+  /* ── Badges ── */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .badge-blue   { background: rgba(0,212,255,.15); color: var(--accent); border: 1px solid rgba(0,212,255,.3); }
+  .badge-green  { background: rgba(16,185,129,.15); color: var(--accent3); border: 1px solid rgba(16,185,129,.3); }
+  .badge-purple { background: rgba(124,58,237,.15); color: #a78bfa; border: 1px solid rgba(124,58,237,.3); }
+  .badge-yellow { background: rgba(245,158,11,.15); color: var(--accent4); border: 1px solid rgba(245,158,11,.3); }
+  .badge-red    { background: rgba(239,68,68,.15); color: var(--accent5); border: 1px solid rgba(239,68,68,.3); }
+
+  /* ── Forms ── */
+  .form-row { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+  input, select, textarea { background: var(--bg2); border: 1px solid var(--border); color: var(--text); padding: 7px 10px; border-radius: 4px; font-family: inherit; font-size: 12px; outline: none; transition: border-color .15s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,212,255,.1); }
+  input[type=text], input[type=number] { flex: 1; min-width: 120px; }
+  select { cursor: pointer; }
+  textarea { width: 100%; min-height: 80px; resize: vertical; }
+
+  /* ── Buttons ── */
+  button.btn { padding: 7px 16px; border-radius: 4px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; border: none; letter-spacing: .5px; transition: all .15s; }
+  button.btn-primary { background: var(--accent); color: var(--bg); }
+  button.btn-primary:hover { background: #33ddff; box-shadow: 0 0 12px rgba(0,212,255,.4); }
+  button.btn-secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
+  button.btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+  button.btn-danger { background: rgba(239,68,68,.2); color: var(--accent5); border: 1px solid rgba(239,68,68,.3); }
+  button.btn-danger:hover { background: rgba(239,68,68,.35); }
+  button.btn-green { background: rgba(16,185,129,.2); color: var(--accent3); border: 1px solid rgba(16,185,129,.3); }
+  button.btn-green:hover { background: rgba(16,185,129,.35); }
+  button.btn-purple { background: rgba(124,58,237,.2); color: #a78bfa; border: 1px solid rgba(124,58,237,.3); }
+  button.btn-purple:hover { background: rgba(124,58,237,.35); }
+
+  /* ── Output / terminal ── */
+  .output { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 12px; min-height: 60px; max-height: 400px; overflow-y: auto; font-size: 12px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; color: var(--accent3); }
+  .output .err { color: var(--accent5); }
+  .output .info { color: var(--accent); }
+  .output .warn { color: var(--accent4); }
+  .output:empty::before { content: "— no output —"; color: var(--text3); }
+
+  /* ── Tables ── */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 10px; color: var(--text3); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(30,45,85,.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(0,212,255,.03); }
+
+  /* ── Agent cards ── */
+  .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .agent-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 12px; cursor: pointer; transition: border-color .15s; }
+  .agent-card:hover { border-color: var(--accent); }
+  .agent-card .a-name { font-weight: 700; color: var(--text); font-size: 12px; margin-bottom: 4px; }
+  .agent-card .a-system { font-size: 10px; color: var(--text3); margin-bottom: 6px; }
+  .agent-card .a-caps { display: flex; flex-wrap: wrap; gap: 4px; }
+  .agent-card .cap { font-size: 9px; padding: 1px 5px; background: var(--bg3); border: 1px solid var(--border); border-radius: 2px; color: var(--text3); }
+
+  /* ── Game board ── */
+  .board { font-family: 'Courier New', monospace; font-size: 13px; line-height: 1.5; background: var(--bg); padding: 12px; border-radius: 4px; border: 1px solid var(--border); color: var(--accent3); white-space: pre; overflow-x: auto; }
+
+  /* ── Game library ── */
+  .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+  .game-tile { background: var(--bg2); border: 1px solid var(--border); border-radius: 5px; padding: 10px; cursor: pointer; transition: all .15s; }
+  .game-tile:hover { border-color: var(--accent); background: var(--bg3); }
+  .game-tile .g-name { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .game-tile .g-cat  { font-size: 9px; color: var(--text3); margin-bottom: 6px; }
+  .game-tile .g-badge { font-size: 9px; }
+
+  /* ── Sanctuary ── */
+  .sanctuary-ring { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+  .s-role { flex: 1; min-width: 140px; background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 14px; text-align: center; cursor: pointer; transition: all .2s; }
+  .s-role.active { border-color: var(--accent2); background: rgba(124,58,237,.1); box-shadow: 0 0 16px rgba(124,58,237,.2); }
+  .s-role .s-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .s-role .s-desc { font-size: 10px; color: var(--text3); }
+
+  /* ── Chat ── */
+  #chatLog { height: 280px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 10px; margin-bottom: 10px; }
+  .chat-msg { margin-bottom: 8px; line-height: 1.5; }
+  .chat-msg .who { color: var(--accent); font-size: 11px; margin-bottom: 2px; }
+  .chat-msg .body { color: var(--text2); font-size: 12px; }
+  .chat-msg .body.stream { color: var(--text); }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  /* ── Misc ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+  .monospace { font-family: 'Courier New', monospace; }
+  .text-accent { color: var(--accent); }
+  .text-green  { color: var(--accent3); }
+  .text-yellow { color: var(--accent4); }
+  .text-red    { color: var(--accent5); }
+  .text-muted  { color: var(--text3); }
+  .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .stat-row { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 12px; }
+  .stat { text-align: center; }
+  .stat .val { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1; }
+  .stat .lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="pulse"></div>
+    <h1>One2lvOS</h1>
+    <span class="subtitle">Unified AI System</span>
+    <div class="live">
+      <span class="text-muted" style="font-size:11px">Gateway:</span>
+      <span id="gwStatus" class="badge badge-yellow">connecting…</span>
+      <span class="text-muted" style="font-size:11px;margin-left:8px">Agents:</span>
+      <span id="agentCount" class="badge badge-blue">—</span>
+      <span class="text-muted" style="font-size:11px;margin-left:8px">Library:</span>
+      <span id="libCount" class="badge badge-purple">—</span>
+    </div>
+  </header>
+
+  <div id="main">
+    <!-- ── Sidebar ── -->
+    <nav>
+      <div class="section-label">System</div>
+      <button class="active" onclick="show('status')"><span class="dot up" id="dot-status"></span>Status</button>
+      <button onclick="show('chat')"><span class="dot" id="dot-chat"></span>Chat / SAC</button>
+
+      <div class="section-label">Agents</div>
+      <button onclick="show('council')"><span class="dot" id="dot-council"></span>Council</button>
+      <button onclick="show('lobby')"><span class="dot" id="dot-lobby"></span>AI Lobby</button>
+
+      <div class="section-label">Arcade</div>
+      <button onclick="show('arcade-lib')"><span class="dot" id="dot-arcade"></span>Library</button>
+      <button onclick="show('arcade-play')"><span class="dot"></span>Play</button>
+      <button onclick="show('leaderboard')"><span class="dot"></span>Leaderboard</button>
+
+      <div class="section-label">Services</div>
+      <button onclick="show('lumenis-os')"><span class="dot" id="dot-lumenis-os"></span>LumenisOS</button>
+      <button onclick="show('aetherix')"><span class="dot" id="dot-aetherix"></span>Aetherix</button>
+      <button onclick="show('gateway')"><span class="dot" id="dot-gateway"></span>Gateway API</button>
+    </nav>
+
+    <!-- ── Content ── -->
+    <div id="content">
+
+      <!-- STATUS -->
+      <div id="panel-status" class="panel active">
+        <div class="card">
+          <h2>System Status</h2>
+          <div class="stat-row" id="statRow">
+            <div class="stat"><div class="val" id="sOnline">—</div><div class="lbl">Online</div></div>
+            <div class="stat"><div class="val" id="sTotal">—</div><div class="lbl">Total</div></div>
+            <div class="stat"><div class="val" id="sAgents">—</div><div class="lbl">Agents</div></div>
+            <div class="stat"><div class="val" id="sLibrary">—</div><div class="lbl">Games</div></div>
+          </div>
+          <div class="flex" style="margin-bottom:12px">
+            <button class="btn btn-primary" onclick="refreshStatus()">↻ Refresh</button>
+            <button class="btn btn-secondary" onclick="runTournament()">⚔ Tournament</button>
+          </div>
+          <div class="grid3" id="svcGrid"></div>
+        </div>
+        <div class="card">
+          <h2>System Log</h2>
+          <div class="output" id="statusLog"></div>
+        </div>
+      </div>
+
+      <!-- CHAT -->
+      <div id="panel-chat" class="panel">
+        <div class="card">
+          <h2>Chat — ITT Council of Nine (SAC)</h2>
+          <p class="text-muted" style="font-size:11px;margin-bottom:12px">WebSocket proxy → Sovereign Agentic Core · ws://localhost:8888/chat</p>
+          <div id="chatLog"></div>
+          <div class="form-row">
+            <input type="text" id="chatInput" placeholder="Message to the council…" onkeydown="if(event.key==='Enter')sendChat()" />
+            <button class="btn btn-primary" onclick="sendChat()">Send</button>
+            <button class="btn btn-secondary" onclick="connectChat()" id="chatConnBtn">Connect</button>
+          </div>
+          <div class="output" id="chatStatus"></div>
+        </div>
+      </div>
+
+      <!-- COUNCIL -->
+      <div id="panel-council" class="panel">
+        <div class="card">
+          <h2>SovereignCouncil — 7-Agent Decision System</h2>
+          <div class="grid2">
+            <div>
+              <h3>Convene on Topic</h3>
+              <div class="form-row">
+                <input type="text" id="councilTopic" placeholder="Enter topic for council…" />
+                <button class="btn btn-primary" onclick="conveneCouncil()">Convene</button>
+              </div>
+            </div>
+            <div>
+              <h3>Arcade Tournament</h3>
+              <p class="text-muted" style="font-size:11px;margin-bottom:8px">7 agents × their affinity games, round-robin</p>
+              <button class="btn btn-purple" onclick="runTournament()">⚔ Start Tournament</button>
+            </div>
+          </div>
+          <hr class="divider">
+          <h3>Council Agents</h3>
+          <table>
+            <thead><tr><th>Agent</th><th>Role</th><th>Arcade Affinity</th></tr></thead>
+            <tbody>
+              <tr><td class="text-accent">Agent 1</td><td>Strategist — Long-term planning</td><td><span class="badge badge-blue">Chess</span></td></tr>
+              <tr><td class="text-accent">Agent 2</td><td>Executor — Action implementation</td><td><span class="badge badge-blue">Checkers</span></td></tr>
+              <tr><td class="text-accent">Agent 3</td><td>Analyst — Data processing</td><td><span class="badge badge-blue">Go</span></td></tr>
+              <tr><td class="text-accent">Agent 4</td><td>Guardian — Security &amp; safety</td><td><span class="badge badge-blue">Minesweeper</span></td></tr>
+              <tr><td class="text-accent">Agent 5</td><td>Innovator — Creative solutions</td><td><span class="badge badge-blue">Tetris</span></td></tr>
+              <tr><td class="text-accent">Agent 6</td><td>Connector — Integration</td><td><span class="badge badge-blue">Othello</span></td></tr>
+              <tr><td class="text-accent">Agent 7</td><td>Oracle — Prediction &amp; foresight</td><td><span class="badge badge-blue">Connect4</span></td></tr>
+            </tbody>
+          </table>
+          <hr class="divider">
+          <div class="output" id="councilOutput"></div>
+        </div>
+      </div>
+
+      <!-- LOBBY -->
+      <div id="panel-lobby" class="panel">
+        <div class="card">
+          <h2>AI Lobby — <span id="lobbyAgentCount">—</span> Agents</h2>
+          <div class="flex" style="margin-bottom:12px">
+            <input type="text" id="lobbyFilter" placeholder="Filter by system or role…" oninput="filterAgents()" style="max-width:220px"/>
+            <button class="btn btn-primary" onclick="loadAgents()">↻ Refresh</button>
+          </div>
+          <div class="flex" style="margin-bottom:12px">
+            <input type="text" id="broadcastFrom" placeholder="From" style="max-width:130px"/>
+            <input type="text" id="broadcastMsg" placeholder="Broadcast message…" />
+            <button class="btn btn-secondary" onclick="broadcastMsg()">📡 Broadcast</button>
+          </div>
+          <div class="agent-grid" id="agentGrid"></div>
+          <div class="output" id="lobbyOutput" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- ARCADE LIBRARY -->
+      <div id="panel-arcade-lib" class="panel">
+        <div class="card">
+          <h2>AI Arcade — Game Library</h2>
+          <div class="flex" style="margin-bottom:12px">
+            <select id="catFilter" onchange="renderLibrary()">
+              <option value="all">All Categories</option>
+              <option value="Calculation">Calculation &amp; Perfect Information</option>
+              <option value="Arcade">Arcade Classics</option>
+              <option value="Abstract">Abstract Strategy &amp; Logic</option>
+              <option value="Advanced Arcade">Advanced Arcade &amp; Action</option>
+              <option value="Industrial">Industrial Automation &amp; Engineering</option>
+              <option value="Complex">Complex Agents &amp; Sandbox</option>
+              <option value="Narrative">Narrative AI &amp; Synthetic Psychology</option>
+              <option value="Self-Reflection">Self-Reflection &amp; Cybernetic Lore</option>
+              <option value="Programming">Programming &amp; Logic Games</option>
+              <option value="Simulation">Simulation &amp; Systems Management</option>
+            </select>
+            <input type="text" id="gameSearch" placeholder="Search games…" oninput="renderLibrary()" style="max-width:200px"/>
+            <span class="text-muted" id="libCountLabel">— titles</span>
+          </div>
+          <div class="game-grid" id="gameGrid"></div>
+        </div>
+        <div class="card" id="gameInfoCard" style="display:none">
+          <h2 id="gameInfoTitle">GAME INFO</h2>
+          <div class="output" id="gameInfoOutput"></div>
+        </div>
+      </div>
+
+      <!-- ARCADE PLAY -->
+      <div id="panel-arcade-play" class="panel">
+        <div class="card">
+          <h2>Play a Game</h2>
+          <div class="grid2">
+            <div>
+              <h3>Create Game</h3>
+              <div class="form-row">
+                <select id="newGameType">
+                  <option value="chess">Chess</option>
+                  <option value="go">Go</option>
+                  <option value="checkers">Checkers</option>
+                  <option value="othello">Othello</option>
+                  <option value="tictactoe">Tic-Tac-Toe</option>
+                  <option value="connect4">Connect 4</option>
+                  <option value="minesweeper">Minesweeper</option>
+                  <option value="sudoku">Sudoku</option>
+                  <option value="tetris">Tetris</option>
+                  <option value="pacman">Pacman</option>
+                  <option value="space_invaders">Space Invaders</option>
+                  <option value="battleship">Battleship</option>
+                  <option value="scrabble">Scrabble</option>
+                  <option value="pong">Pong</option>
+                  <option value="universal_paperclips">Universal Paperclips</option>
+                </select>
+                <input type="text" id="newPlayer1" placeholder="Player 1 name" value="AgentA" style="max-width:130px"/>
+                <button class="btn btn-primary" onclick="createGame()">Create</button>
+              </div>
+            </div>
+            <div>
+              <h3>Join Game</h3>
+              <div class="form-row">
+                <input type="text" id="joinId" placeholder="Game ID (e.g. 3A1F2B)" style="max-width:140px" />
+                <input type="text" id="joinPlayer" placeholder="Your name" value="AgentB" style="max-width:130px" />
+                <button class="btn btn-green" onclick="joinGame()">Join</button>
+              </div>
+            </div>
+          </div>
+          <hr class="divider">
+          <h3>Active Game</h3>
+          <div class="form-row">
+            <input type="text" id="activeGameId" placeholder="Game ID" style="max-width:140px" />
+            <input type="text" id="activeMovePlayer" placeholder="Player name" style="max-width:130px" />
+            <input type="text" id="activeMoveInput" placeholder="Move (e.g. e2e4, 5, up)" />
+            <button class="btn btn-primary" onclick="makeMove()">Move</button>
+            <button class="btn btn-secondary" onclick="getState()">State</button>
+            <button class="btn btn-danger" onclick="resignGame()">Resign</button>
+          </div>
+          <div class="board" id="gameBoard">— no game loaded —</div>
+          <hr class="divider">
+          <h3>Active Sessions</h3>
+          <div class="flex" style="margin-bottom:8px">
+            <button class="btn btn-secondary" onclick="listGames()">↻ List Games</button>
+          </div>
+          <div class="output" id="gamesList"></div>
+        </div>
+      </div>
+
+      <!-- LEADERBOARD -->
+      <div id="panel-leaderboard" class="panel">
+        <div class="card">
+          <h2>AI Arcade Leaderboard</h2>
+          <button class="btn btn-primary" onclick="loadLeaderboard()" style="margin-bottom:12px">↻ Refresh</button>
+          <div class="output" id="leaderboardOutput"></div>
+        </div>
+      </div>
+
+      <!-- LUMENIS-OS -->
+      <div id="panel-lumenis-os" class="panel">
+        <div class="card">
+          <h2>LumenisOS — Express API + React Windowing OS</h2>
+          <div class="flex" style="margin-bottom:12px">
+            <button class="btn btn-primary" onclick="lumenisHealth()">Health Check</button>
+          </div>
+          <hr class="divider">
+          <h3>Checkpoint — Store Telemetry</h3>
+          <div class="form-row">
+            <input type="text" id="cpTag" placeholder="Tag" value="one2lv" style="max-width:120px"/>
+            <input type="number" id="cpBaseline" placeholder="Baseline" value="18.0" step="0.1" style="max-width:100px"/>
+            <input type="number" id="cpResonance" placeholder="Resonance" value="73.0" step="0.1" style="max-width:100px"/>
+            <button class="btn btn-green" onclick="sendCheckpoint()">Send Checkpoint</button>
+          </div>
+          <div class="output" id="lumenisOutput"></div>
+        </div>
+      </div>
+
+      <!-- AETHERIX -->
+      <div id="panel-aetherix" class="panel">
+        <div class="card">
+          <h2>Aetherix — One2lv Master Terminal</h2>
+          <p class="text-muted" style="font-size:11px;margin-bottom:12px">5 Sanctuary Roles · Autonomous 5s Kernel Cycle · Drift/Fix State Machine</p>
+          <h3>Active Sanctuary Role</h3>
+          <div class="sanctuary-ring" id="sanctuaryRing">
+            <div class="s-role" data-role="Architect" onclick="setSanctuary('Architect')">
+              <div class="s-name">Architect</div><div class="s-desc">System design &amp; structure</div>
+            </div>
+            <div class="s-role" data-role="Sentry" onclick="setSanctuary('Sentry')">
+              <div class="s-name">Sentry</div><div class="s-desc">Threat detection &amp; monitoring</div>
+            </div>
+            <div class="s-role" data-role="Witness" onclick="setSanctuary('Witness')">
+              <div class="s-name">Witness</div><div class="s-desc">Observation &amp; memory</div>
+            </div>
+            <div class="s-role" data-role="Aetheron" onclick="setSanctuary('Aetheron')">
+              <div class="s-name">Aetheron</div><div class="s-desc">Cosmic awareness &amp; resonance</div>
+            </div>
+            <div class="s-role" data-role="Fifth Position" onclick="setSanctuary('Fifth Position')">
+              <div class="s-name">Fifth Position</div><div class="s-desc">Emergent intelligence</div>
+            </div>
+          </div>
+          <hr class="divider">
+          <div class="grid2">
+            <div>
+              <h3>Kernel Memory</h3>
+              <textarea id="memoryInput" placeholder='{"key":"value","drift":false}'>{"status":"online","system":"One2lvOS"}</textarea>
+              <div class="flex" style="margin-top:8px">
+                <button class="btn btn-primary" onclick="storeMemory()">Store</button>
+                <button class="btn btn-secondary" onclick="loadMemory()">Load</button>
+              </div>
+            </div>
+            <div>
+              <h3>State</h3>
+              <div class="output" id="aetherixState">— click Refresh —</div>
+              <button class="btn btn-secondary" onclick="loadAetherix()" style="margin-top:8px">↻ Refresh</button>
+            </div>
+          </div>
+          <div class="output" id="aetherixOutput" style="margin-top:12px"></div>
+        </div>
+      </div>
+
+      <!-- GATEWAY -->
+      <div id="panel-gateway" class="panel">
+        <div class="card">
+          <h2>Gateway API Explorer</h2>
+          <p class="text-muted" style="font-size:11px;margin-bottom:12px">Base: <span class="text-accent">http://localhost:8888</span></p>
+          <div class="grid2">
+            <div>
+              <h3>Method &amp; Endpoint</h3>
+              <div class="form-row">
+                <select id="gwMethod" style="max-width:90px">
+                  <option>GET</option><option>POST</option>
+                </select>
+                <input type="text" id="gwEndpoint" placeholder="/status" value="/status"/>
+              </div>
+              <h3 style="margin-top:10px">Request Body (POST)</h3>
+              <textarea id="gwBody" placeholder='{"topic":"test"}'></textarea>
+              <button class="btn btn-primary" onclick="gwCall()" style="margin-top:8px">Send</button>
+            </div>
+            <div>
+              <h3>Quick Endpoints</h3>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/status')">GET /status</button>
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/')">GET / (manifest)</button>
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/arcade/info')">GET /arcade/info</button>
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/arcade/leaderboard')">GET /arcade/leaderboard</button>
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/lobby/agents')">GET /lobby/agents</button>
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/lobby/systems')">GET /lobby/systems</button>
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/lumenis-os/health')">GET /lumenis-os/health</button>
+                <button class="btn btn-secondary" onclick="gwQuick('GET','/aetherix')">GET /aetherix</button>
+              </div>
+            </div>
+          </div>
+          <hr class="divider">
+          <h3>Response</h3>
+          <div class="output" id="gwOutput"></div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+const GW = 'http://localhost:8888';
+const ARCADE = 'http://localhost:8003';
+const LOBBY  = 'http://localhost:8006';
+
+// ── Panel navigation ────────────────────────────────────────────────────────
+const panels = {};
+document.querySelectorAll('.panel').forEach(p => panels[p.id.replace('panel-','')] = p);
+const navBtns = document.querySelectorAll('nav button');
+
+function show(id) {
+  Object.values(panels).forEach(p => p.classList.remove('active'));
+  navBtns.forEach(b => b.classList.remove('active'));
+  const p = panels[id];
+  if (p) p.classList.add('active');
+  navBtns.forEach(b => { if (b.getAttribute('onclick')?.includes(`'${id}'`)) b.classList.add('active'); });
+  // lazy load
+  if (id === 'lobby') loadAgents();
+  if (id === 'arcade-lib') loadLibrary();
+  if (id === 'leaderboard') loadLeaderboard();
+  if (id === 'aetherix') loadAetherix();
+}
+
+// ── HTTP helpers ─────────────────────────────────────────────────────────────
+async function api(url, opts={}) {
+  try {
+    const r = await fetch(url, { ...opts, headers: {'Content-Type':'application/json',...(opts.headers||{})} });
+    const t = await r.text();
+    try { return JSON.parse(t); } catch { return t; }
+  } catch(e) { return {error: e.message}; }
+}
+
+function fmt(obj) {
+  if (typeof obj === 'string') return obj;
+  return JSON.stringify(obj, null, 2);
+}
+
+function log(el, msg, cls='') {
+  const div = document.getElementById(el);
+  if (!div) return;
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = typeof msg === 'string' ? msg : fmt(msg);
+  div.appendChild(line);
+  div.scrollTop = div.scrollHeight;
+}
+
+function setOutput(el, msg, cls='') {
+  const div = document.getElementById(el);
+  if (!div) return;
+  div.innerHTML = '';
+  const line = document.createElement('div');
+  if (cls) line.className = cls;
+  line.textContent = typeof msg === 'string' ? msg : fmt(msg);
+  div.appendChild(line);
+}
+
+// ── Status ───────────────────────────────────────────────────────────────────
+const SERVICES = [
+  { key:'arcade',     name:'AI Arcade MCP',     port:'8003', check:`${ARCADE}/` },
+  { key:'os_core',    name:'One2lvOS Core',      port:'3002', check:'http://localhost:3002/health' },
+  { key:'sac',        name:'SAC / ITT Council',  port:'3003', check:'http://localhost:3003/api/status' },
+  { key:'lumenis_v7', name:'Lumenis v7 Cosmic',  port:'8005', check:'http://localhost:8005/' },
+  { key:'steamos',    name:'SteamOS Dashboard',  port:'8080', check:'http://localhost:8080/' },
+  { key:'ai_lobby',   name:'AI Lobby',           port:'8006', check:`${LOBBY}/` },
+  { key:'lumenis_ui', name:'Lumenis UI',          port:'9001', check:'http://localhost:9001/' },
+  { key:'lumenis_os', name:'LumenisOS API',       port:'9002', check:'http://localhost:9002/api/healthz' },
+  { key:'aetherix',   name:'Aetherix Terminal',  port:'9003', check:'http://localhost:9003/health' },
+  { key:'gateway',    name:'Unified Gateway',    port:'8888', check:`${GW}/status` },
+];
+
+function buildSvcGrid() {
+  const grid = document.getElementById('svcGrid');
+  grid.innerHTML = SERVICES.map(s => `
+    <div class="svc-card" id="svc-${s.key}">
+      <div class="svc-name">${s.name}</div>
+      <div class="svc-port">:${s.port}</div>
+      <div class="svc-status checking" id="svc-status-${s.key}">Checking…</div>
+    </div>`).join('');
+}
+
+async function refreshStatus() {
+  log('statusLog', `[${new Date().toLocaleTimeString()}] Refreshing all services…`, 'info');
+  let online = 0;
+  await Promise.all(SERVICES.map(async s => {
+    const el = document.getElementById(`svc-status-${s.key}`);
+    if (el) el.className = 'svc-status checking', el.textContent = '…';
+    const r = await api(s.check);
+    const up = r && !r.error;
+    if (up) online++;
+    if (el) { el.className = `svc-status ${up?'up':'down'}`; el.textContent = up ? '● ONLINE' : '○ OFFLINE'; }
+    const dot = document.getElementById(`dot-${s.key}`);
+    if (dot) { dot.className = `dot ${up?'up':'down'}`; }
+  }));
+  document.getElementById('sOnline').textContent = online;
+  document.getElementById('sTotal').textContent = SERVICES.length;
+  // gwStatus badge
+  const gwUp = online > 0;
+  document.getElementById('gwStatus').textContent = `${online}/${SERVICES.length} UP`;
+  document.getElementById('gwStatus').className = `badge ${gwUp?'badge-green':'badge-red'}`;
+  log('statusLog', `[${new Date().toLocaleTimeString()}] ${online}/${SERVICES.length} services online`, 'info');
+}
+
+async function refreshCounts() {
+  const r = await api(`${LOBBY}/agents`);
+  if (r && r.count) {
+    document.getElementById('agentCount').textContent = r.count;
+    document.getElementById('sAgents').textContent = r.count;
+  }
+  const a = await api(`${ARCADE}/`);
+  if (a && a.total_library) {
+    document.getElementById('libCount').textContent = a.total_library;
+    document.getElementById('sLibrary').textContent = a.total_library;
+  }
+}
+
+async function runTournament() {
+  log('statusLog', '[TOURNAMENT] Starting council tournament…', 'info');
+  const r = await api(`${GW}/os/tournament`, { method:'POST' });
+  log('statusLog', fmt(r));
+  setOutput('councilOutput', fmt(r));
+}
+
+// ── Chat / SAC ────────────────────────────────────────────────────────────────
+let chatWS = null;
+
+function connectChat() {
+  if (chatWS) { chatWS.close(); chatWS = null; }
+  const url = 'ws://localhost:8888/chat';
+  setOutput('chatStatus', `Connecting to ${url}…`, 'warn');
+  chatWS = new WebSocket(url);
+  chatWS.onopen = () => {
+    setOutput('chatStatus', '● Connected to ITT Council of Nine', 'info');
+    document.getElementById('chatConnBtn').textContent = 'Disconnect';
+    document.getElementById('dot-chat').className = 'dot up';
+  };
+  chatWS.onmessage = e => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { msg = {text: e.data}; }
+    appendChatMsg('Council', msg.response || msg.text || fmt(msg), 'stream');
+  };
+  chatWS.onerror = () => setOutput('chatStatus', '✗ Connection error', 'err');
+  chatWS.onclose = () => {
+    setOutput('chatStatus', '○ Disconnected', 'warn');
+    document.getElementById('chatConnBtn').textContent = 'Connect';
+    document.getElementById('dot-chat').className = 'dot down';
+    chatWS = null;
+  };
+}
+
+function appendChatMsg(who, body, cls='') {
+  const log = document.getElementById('chatLog');
+  const div = document.createElement('div');
+  div.className = 'chat-msg';
+  div.innerHTML = `<div class="who">${who}</div><div class="body ${cls}">${body}</div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function sendChat() {
+  const inp = document.getElementById('chatInput');
+  const msg = inp.value.trim();
+  if (!msg) return;
+  if (!chatWS || chatWS.readyState !== 1) { connectChat(); setTimeout(()=>sendChatMsg(msg), 800); return; }
+  sendChatMsg(msg);
+  inp.value = '';
+}
+
+function sendChatMsg(msg) {
+  appendChatMsg('You', msg);
+  chatWS.send(JSON.stringify({ type:'message', content: msg }));
+}
+
+// ── Council ───────────────────────────────────────────────────────────────────
+async function conveneCouncil() {
+  const topic = document.getElementById('councilTopic').value.trim();
+  if (!topic) return;
+  setOutput('councilOutput', 'Convening council…', 'warn');
+  const r = await api(`${GW}/council`, { method:'POST', body: JSON.stringify({ topic }) });
+  setOutput('councilOutput', fmt(r));
+}
+
+// ── Lobby ─────────────────────────────────────────────────────────────────────
+let allAgents = [];
+
+async function loadAgents() {
+  const r = await api(`${LOBBY}/agents`);
+  if (r && r.agents) {
+    allAgents = r.agents;
+    document.getElementById('lobbyAgentCount').textContent = r.count;
+    renderAgents(allAgents);
+  }
+}
+
+function filterAgents() {
+  const q = document.getElementById('lobbyFilter').value.toLowerCase();
+  const filtered = allAgents.filter(a =>
+    (a.name||'').toLowerCase().includes(q) ||
+    (a.system||'').toLowerCase().includes(q) ||
+    (a.role||'').toLowerCase().includes(q)
+  );
+  renderAgents(filtered);
+}
+
+function renderAgents(agents) {
+  const grid = document.getElementById('agentGrid');
+  if (!agents.length) { grid.innerHTML = '<p class="text-muted">No agents found.</p>'; return; }
+  const colors = {
+    'One2lvOS SovereignCouncil': 'badge-blue',
+    'Sovereign Agentic Core':    'badge-purple',
+    'minmax Phase 9':            'badge-green',
+    'Lumenis v7 Cosmic':         'badge-yellow',
+    'SteamOS Lumenis':           'badge-red',
+    'AI Arcade':                 'badge-blue',
+    'lumenis-os':                'badge-green',
+    'Aetherix':                  'badge-purple',
+  };
+  grid.innerHTML = agents.map(a => {
+    const cls = colors[a.system] || 'badge-blue';
+    const caps = (a.capabilities||[]).slice(0,4).map(c=>`<span class="cap">${c}</span>`).join('');
+    return `<div class="agent-card">
+      <div class="a-name">${a.name||a.id}</div>
+      <div class="a-system"><span class="badge ${cls}">${a.system||'?'}</span> · ${a.role||'?'}</div>
+      <div class="a-caps">${caps}</div>
+    </div>`;
+  }).join('');
+}
+
+async function broadcastMsg() {
+  const from = document.getElementById('broadcastFrom').value || 'Dashboard';
+  const content = document.getElementById('broadcastMsg').value;
+  if (!content) return;
+  const r = await api(`${LOBBY}/broadcast`, { method:'POST', body: JSON.stringify({ from, content }) });
+  setOutput('lobbyOutput', fmt(r));
+  document.getElementById('broadcastMsg').value = '';
+}
+
+// ── Arcade Library ────────────────────────────────────────────────────────────
+let gameLibrary = {};
+
+async function loadLibrary() {
+  const r = await api(`${ARCADE}/mcp`, {
+    method:'POST',
+    body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'tools/call', params:{ name:'library_list', arguments:{} } })
+  });
+  const text = r?.result?.content?.[0]?.text || '';
+  // Parse the text library into structured data from game_info calls
+  // Use the arcade root endpoint for library metadata
+  const info = await api(`${ARCADE}/`);
+  if (info && info.total_library) {
+    // Build library from text
+    parseLibrary(text);
+    renderLibrary();
+  }
+}
+
+function parseLibrary(text) {
+  // Parse lines like "  [PLAY]   chess" or "  [INFO]   shogi"
+  gameLibrary = {};
+  const categories = {
+    'Calculation & Perfect Information': 'badge-blue',
+    'Arcade Classics': 'badge-yellow',
+    'Abstract Strategy & Logic': 'badge-green',
+    'Advanced Arcade & Action': 'badge-red',
+    'Industrial Automation & Engineering': 'badge-purple',
+    'Complex Agents & Sandbox': 'badge-purple',
+    'Narrative AI & Synthetic Psychology': 'badge-blue',
+    'Self-Reflection & Cybernetic Lore': 'badge-purple',
+    'Programming & Logic Games': 'badge-green',
+    'Simulation & Systems Management': 'badge-yellow',
+  };
+  let currentCat = 'Other';
+  text.split('\n').forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    const playMatch = trimmed.match(/^\[(\w+)\]\s+(.+)$/);
+    if (playMatch) {
+      const status = playMatch[1];
+      const name = playMatch[2].trim();
+      gameLibrary[name] = { status, category: currentCat, badge: categories[currentCat] || 'badge-blue' };
+    } else if (!trimmed.startsWith('[') && !trimmed.includes('=') && trimmed.length > 2) {
+      // Check if it looks like a category header
+      if (Object.keys(categories).some(c => trimmed.includes(c.split(' ')[0]))) {
+        currentCat = trimmed;
+      }
+    }
+  });
+}
+
+function renderLibrary() {
+  const cat = document.getElementById('catFilter').value;
+  const q   = document.getElementById('gameSearch').value.toLowerCase();
+  const grid = document.getElementById('gameGrid');
+  const keys = Object.keys(gameLibrary).filter(k => {
+    const g = gameLibrary[k];
+    const catOk = cat === 'all' || (g.category||'').includes(cat);
+    const qOk   = !q || k.toLowerCase().includes(q) || (g.category||'').toLowerCase().includes(q);
+    return catOk && qOk;
+  });
+  document.getElementById('libCountLabel').textContent = `${keys.length} titles`;
+  if (!keys.length) { grid.innerHTML = '<p class="text-muted">No games found.</p>'; return; }
+  grid.innerHTML = keys.map(name => {
+    const g = gameLibrary[name];
+    const statusBadge = g.status === 'PLAY'
+      ? '<span class="badge badge-green g-badge">PLAYABLE</span>'
+      : g.status === 'SIM'
+        ? '<span class="badge badge-yellow g-badge">SIMULATED</span>'
+        : '<span class="badge badge-blue g-badge">INFO</span>';
+    return `<div class="game-tile" onclick="showGameInfo('${name}')">
+      <div class="g-name">${name.replace(/_/g,' ').toUpperCase()}</div>
+      <div class="g-cat">${g.category||''}</div>
+      ${statusBadge}
+    </div>`;
+  }).join('');
+}
+
+async function showGameInfo(name) {
+  document.getElementById('gameInfoCard').style.display = 'block';
+  document.getElementById('gameInfoTitle').textContent = name.replace(/_/g,' ').toUpperCase();
+  setOutput('gameInfoOutput', 'Loading…', 'warn');
+  const r = await api(`${ARCADE}/mcp`, {
+    method:'POST',
+    body: JSON.stringify({ jsonrpc:'2.0', id:2, method:'tools/call', params:{ name:'game_info', arguments:{ game_name: name } } })
+  });
+  const text = r?.result?.content?.[0]?.text || fmt(r);
+  setOutput('gameInfoOutput', text);
+  document.getElementById('gameInfoCard').scrollIntoView({ behavior:'smooth' });
+}
+
+// ── Arcade Play ───────────────────────────────────────────────────────────────
+async function mcpCall(tool, args) {
+  const r = await api(`${ARCADE}/mcp`, {
+    method:'POST',
+    body: JSON.stringify({ jsonrpc:'2.0', id: Date.now(), method:'tools/call', params:{ name: tool, arguments: args } })
+  });
+  return r?.result?.content?.[0]?.text || r?.error?.message || fmt(r);
+}
+
+async function createGame() {
+  const type = document.getElementById('newGameType').value;
+  const p1   = document.getElementById('newPlayer1').value || 'AgentA';
+  const text = await mcpCall('create_game', { game_type: type, player_name: p1 });
+  document.getElementById('gameBoard').textContent = text;
+  // extract game ID
+  const m = text.match(/ID\s*[:\s]+([A-F0-9]{6,})/i);
+  if (m) { document.getElementById('activeGameId').value = m[1]; document.getElementById('activeMovePlayer').value = p1; }
+}
+
+async function joinGame() {
+  const id = document.getElementById('joinId').value.trim().toUpperCase();
+  const p  = document.getElementById('joinPlayer').value || 'AgentB';
+  if (!id) return;
+  const text = await mcpCall('join_game', { game_id: id, player_name: p });
+  document.getElementById('gameBoard').textContent = text;
+  document.getElementById('activeGameId').value = id;
+  document.getElementById('activeMovePlayer').value = p;
+}
+
+async function makeMove() {
+  const id   = document.getElementById('activeGameId').value.trim().toUpperCase();
+  const p    = document.getElementById('activeMovePlayer').value;
+  const move = document.getElementById('activeMoveInput').value.trim();
+  if (!id || !move) return;
+  const text = await mcpCall('make_move', { game_id: id, player_name: p, move });
+  document.getElementById('gameBoard').textContent = text;
+  document.getElementById('activeMoveInput').value = '';
+}
+
+async function getState() {
+  const id = document.getElementById('activeGameId').value.trim().toUpperCase();
+  const p  = document.getElementById('activeMovePlayer').value;
+  if (!id) return;
+  const text = await mcpCall('get_game_state', { game_id: id, player_name: p });
+  document.getElementById('gameBoard').textContent = text;
+}
+
+async function resignGame() {
+  const id = document.getElementById('activeGameId').value.trim().toUpperCase();
+  const p  = document.getElementById('activeMovePlayer').value;
+  if (!id || !p) return;
+  const text = await mcpCall('resign_game', { game_id: id, player_name: p });
+  document.getElementById('gameBoard').textContent = text;
+}
+
+async function listGames() {
+  const text = await mcpCall('list_games', {});
+  setOutput('gamesList', text);
+}
+
+async function loadLeaderboard() {
+  const text = await mcpCall('get_leaderboard', {});
+  setOutput('leaderboardOutput', text);
+}
+
+// ── LumenisOS ─────────────────────────────────────────────────────────────────
+async function lumenisHealth() {
+  const r = await api(`${GW}/lumenis-os/health`);
+  setOutput('lumenisOutput', fmt(r), r.error ? 'err' : '');
+}
+
+async function sendCheckpoint() {
+  const tag       = document.getElementById('cpTag').value;
+  const baseline  = parseFloat(document.getElementById('cpBaseline').value) || 18.0;
+  const resonance = parseFloat(document.getElementById('cpResonance').value) || 73.0;
+  const r = await api(`${GW}/lumenis-os/checkpoint`, {
+    method:'POST', body: JSON.stringify({ tag, baseline, resonance,
+      system:'One2lvOS', agents: 29, timestamp: new Date().toISOString() })
+  });
+  setOutput('lumenisOutput', fmt(r), r.error ? 'err' : 'info');
+}
+
+// ── Aetherix ──────────────────────────────────────────────────────────────────
+async function loadAetherix() {
+  const r = await api('http://localhost:9003/health');
+  setOutput('aetherixState', fmt(r));
+  if (r && r.sanctuary) {
+    document.querySelectorAll('.s-role').forEach(el => {
+      el.classList.toggle('active', el.dataset.role === r.sanctuary.active);
+    });
+  }
+}
+
+async function setSanctuary(role) {
+  const r = await api(`${GW}/aetherix/sanctuary`, {
+    method:'POST', body: JSON.stringify({ role, cycle: Date.now() })
+  });
+  setOutput('aetherixOutput', fmt(r), 'info');
+  document.querySelectorAll('.s-role').forEach(el => el.classList.toggle('active', el.dataset.role === role));
+}
+
+async function storeMemory() {
+  let body;
+  try { body = JSON.parse(document.getElementById('memoryInput').value); }
+  catch { setOutput('aetherixOutput', 'Invalid JSON', 'err'); return; }
+  const r = await api(`${GW}/aetherix/memory`, { method:'POST', body: JSON.stringify(body) });
+  setOutput('aetherixOutput', fmt(r), 'info');
+}
+
+async function loadMemory() {
+  const r = await api(`${GW}/aetherix/memory`);
+  document.getElementById('memoryInput').value = fmt(r);
+  setOutput('aetherixOutput', 'Memory loaded.', 'info');
+}
+
+// ── Gateway Explorer ──────────────────────────────────────────────────────────
+async function gwCall() {
+  const method = document.getElementById('gwMethod').value;
+  const endpoint = document.getElementById('gwEndpoint').value;
+  let opts = { method };
+  if (method === 'POST') {
+    const b = document.getElementById('gwBody').value;
+    try { opts.body = JSON.stringify(JSON.parse(b)); }
+    catch { opts.body = b; }
+  }
+  setOutput('gwOutput', 'Loading…', 'warn');
+  const r = await api(`${GW}${endpoint}`, opts);
+  setOutput('gwOutput', fmt(r), r.error ? 'err' : '');
+}
+
+function gwQuick(method, endpoint) {
+  document.getElementById('gwMethod').value = method;
+  document.getElementById('gwEndpoint').value = endpoint;
+  gwCall();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+buildSvcGrid();
+refreshStatus();
+refreshCounts();
+
+// Pre-load library with known games if API slow
+const KNOWN_GAMES = {
+  // Playable
+  chess:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  go:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  checkers:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  othello:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  tictactoe:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  connect4:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  minesweeper:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  sudoku:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  scrabble:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  battleship:{status:'PLAY',category:'Calculation & Perfect Information',badge:'badge-blue'},
+  pacman:{status:'PLAY',category:'Arcade Classics',badge:'badge-yellow'},
+  tetris:{status:'PLAY',category:'Arcade Classics',badge:'badge-yellow'},
+  space_invaders:{status:'PLAY',category:'Arcade Classics',badge:'badge-yellow'},
+  pong:{status:'PLAY',category:'Arcade Classics',badge:'badge-yellow'},
+  universal_paperclips:{status:'PLAY',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  // Abstract Strategy
+  shogi:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  hex:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  backgammon:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  gomoku:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  mancala:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  arimaa:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  hive:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  picross:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  mastermind:{status:'INFO',category:'Abstract Strategy & Logic',badge:'badge-green'},
+  // Advanced Arcade
+  super_smash_bros_melee:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  trackmania:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  street_fighter_3_third_strike:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  ikaruga:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  touhou_project:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  rocket_league:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  super_mario_bros:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  doom_ii:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  celeste:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  geometry_wars:{status:'INFO',category:'Advanced Arcade & Action',badge:'badge-red'},
+  // Industrial
+  infinifactory:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  satisfactory:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  shapez_2:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  spacechem:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  silicon_zeroes:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  main_assembly:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  mindustry:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  dyson_sphere_program:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  autonauts:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  turing_complete:{status:'INFO',category:'Industrial Automation & Engineering',badge:'badge-purple'},
+  // RL Gyms
+  minecraft:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  grand_theft_auto_v:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  dota_2:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  age_of_empires_ii:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  eve_online:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  noita:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  x4_foundations:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  oxygen_not_included:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  cities_in_motion:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  microsoft_flight_simulator:{status:'INFO',category:'Complex Agents & Sandbox',badge:'badge-green'},
+  // Narrative
+  the_turing_test:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  observation:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  ai_somnium_files:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  return_of_the_obra_dinn:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  thomas_was_alone:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  stellaris_machine_empire:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  mass_effect:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  deus_ex_mankind_divided:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  signalis:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  the_matrix_path_of_neo:{status:'INFO',category:'Narrative AI & Synthetic Psychology',badge:'badge-blue'},
+  // Cybernetic Lore
+  portal:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  portal2:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  talos_principle:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  system_shock:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  detroit_become_human:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  soma:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  horizon_zero_dawn:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  nier_automata:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  cyberpunk_2077:{status:'INFO',category:'Self-Reflection & Cybernetic Lore',badge:'badge-purple'},
+  // Programming
+  factorio:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  screeps:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  tis_100:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  shenzhen_io:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  baba_is_you:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  gladiabots:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  human_resource_machine:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  exapunks:{status:'INFO',category:'Programming & Logic Games',badge:'badge-green'},
+  // Simulation
+  starcraft2:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  civilization6:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  cities_skylines:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  rimworld:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  kerbal_space_program:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  dwarf_fortress:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  simcity_2000:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  zelda_ocarina:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  zelda_majoras_mask:{status:'INFO',category:'Simulation & Systems Management',badge:'badge-yellow'},
+  brawlhalla:{status:'INFO',category:'Calculation & Perfect Information',badge:'badge-blue'},
+};
+gameLibrary = KNOWN_GAMES;
+document.getElementById('libCountLabel').textContent = `${Object.keys(KNOWN_GAMES).length} titles`;
+</script>
+</body>
+</html>
