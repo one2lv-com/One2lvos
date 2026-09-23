@@ -60,7 +60,7 @@ That's it. All 10 services start automatically.
 | **Unified Gateway** | `8888` | Single API entry point for all subsystems |
 | **One2lvOS Core** | `3002` | SovereignCouncil — 7-agent decision system |
 | **Sovereign Agentic Core** | `3003` | ITT Council of Nine + LumenisReactor (Claude) |
-| **AI Arcade MCP** | `8003` | 51-title game library, MCP 2024-11-05 protocol |
+| **AI Arcade MCP** | `8003` | 100-title game library, MCP 2024-11-05 protocol |
 | **AI Lobby** | `8006` | Central hub — 29 agents, broadcast, WS room |
 | **Lumenis v7 Cosmic** | `8005` | 73Hz resonance council, Gemini AI, Twitch |
 | **SteamOS Dashboard** | `8080` | AI Coach, Broadcaster, Second Player |
@@ -204,13 +204,28 @@ Base URL: `http://localhost:8888`
 
 ## AI Arcade
 
-51-title library. 15 playable via API:
+100-title library. 15 playable via API:
 
 `chess` · `go` · `checkers` · `othello` · `tictactoe` · `connect4` · `minesweeper` · `sudoku` · `scrabble` · `battleship` · `pacman` · `tetris` · `space_invaders` · `pong` · `universal_paperclips`
 
 **MCP Protocol:** `POST http://localhost:8003/mcp` (JSON-RPC 2.0)
 
 **Tools:** `arcade_info` · `list_games` · `create_game` · `join_game` · `get_game_state` · `make_move` · `resign_game` · `get_leaderboard` · `game_info` · `library_list`
+
+**Full library — 100 titles across 7 categories:**
+
+| Category | Titles |
+|---|---|
+| Calculation & Perfect Information | chess, go, checkers, othello, tictactoe, connect4, minesweeper, sudoku, scrabble, battleship, brawlhalla |
+| Arcade Classics | pacman, tetris, space_invaders, pong, asteroids, galaga, frogger, donkey_kong, centipede, defender |
+| Abstract Strategy & Logic | shogi, hex, backgammon, gomoku, mancala, arimaa, hive, picross, mastermind |
+| Advanced Arcade & Action | super_smash_bros_melee, trackmania, street_fighter_3_third_strike, ikaruga, touhou_project, rocket_league, super_mario_bros, doom_ii, celeste, geometry_wars |
+| Industrial Automation & Engineering | infinifactory, satisfactory, shapez_2, spacechem, silicon_zeroes, main_assembly, mindustry, dyson_sphere_program, autonauts, turing_complete |
+| Complex Agents & Sandbox | minecraft, grand_theft_auto_v, dota_2, age_of_empires_ii, eve_online, noita, x4_foundations, oxygen_not_included, cities_in_motion, microsoft_flight_simulator |
+| Narrative AI & Synthetic Psychology | the_turing_test, observation, ai_somnium_files, return_of_the_obra_dinn, thomas_was_alone, stellaris_machine_empire, mass_effect, deus_ex_mankind_divided, signalis, the_matrix_path_of_neo |
+| Self-Reflection & Cybernetic Lore | universal_paperclips, portal, portal2, talos_principle, system_shock, detroit_become_human, soma, horizon_zero_dawn, nier_automata, cyberpunk_2077 |
+| Programming & Logic Games | factorio, screeps, tis_100, shenzhen_io, baba_is_you, gladiabots, human_resource_machine, exapunks |
+| AI Research & Strategy | starcraft2, civilization6, cities_skylines, rimworld, kerbal_space_program, dwarf_fortress, simcity_2000, zelda_ocarina, zelda_majoras_mask |
 
 ---
 
@@ -232,7 +247,7 @@ The One2lv Master Terminal cycles through 5 roles every 5 seconds:
 
 | Repo | Description |
 |---|---|
-| [One2lvos](https://github.com/one2lv-com/One2lvos) | Core OS — SovereignCouncil, gateway, lobby, build script |
+| [One2lvos](https://github.com/one2lv-com/One2lvos) | Core OS — SovereignCouncil, gateway, lobby, AI Arcade (100 titles), build script |
 | [sovereign-agentic-core](https://github.com/one2lv-com/sovereign-agentic-core) | ITT Council of Nine + LumenisReactor |
 | [minmax](https://github.com/one2lv-com/minmax) | Phase 9 Delta Engine ∆⁹ + 3D Vector Engine ³ |
 | [lumenis-os](https://github.com/one2lv-com/lumenis-os) | TypeScript monorepo — Express API + React windowing OS |
