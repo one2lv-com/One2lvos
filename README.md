@@ -1,231 +1,250 @@
-# One2lv Unified OS v1.0.2 🌌🧲
+# One2lvOS — Unified AI System
 
-**The Complete Spatial Operating System with AI-Powered Vector Memory**
+> Copyright (c) 2026 one2lv-com — MIT License
 
-## 🚀 Quick Start - Deploy in One Command
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/one2lv-com/One2lvos/main/one2lvos-quickstart.sh | bash
-```
-
-**That's it!** The script automatically:
-- ✅ Clones the repository
-- ✅ Configures all API keys (Astra DB, NVIDIA, Gemini, etc.)
-- ✅ Deploys with Docker Compose (Nginx + Node + Python)
-- ✅ Initializes Astra DB with NVIDIA vector embeddings
-- ✅ Shows access URLs and management commands
-
-**Then visit**: `http://your-server/` to access One2lvOS!
-
-📚 **See**: [`QUICKSTART.md`](QUICKSTART.md) for detailed instructions
+A fully integrated multi-agent AI operating system merging 10 repositories into one unified platform. Features a 29-agent lobby, 51-game AI Arcade, ITT Council of Nine, SovereignCouncil, Phase 9 Delta Engine, and a single gateway API surface.
 
 ---
 
-## Overview
+## Quick Start
 
-One2lv Unified OS is a production-ready operating system that unifies all One2lv ecosystem components into a single, cohesive platform:
+```bash
+git clone https://github.com/one2lv-com/One2lvos.git
+cd One2lvos
+./build.sh
+```
 
-- **State Capsule Core** - One2lvOS Python backend with O2PNG protocol
-- **Lumenis Reactor** - Holographic AI runtime with cosmic gaming
-- **Sovereign Council** - Multi-agent AI decision-making system
-- **Delta Engine** - Cross-platform autonomous engine
-- **Infinity Glass** - Spatial UI and desktop environment
-- **Aetherix Terminal** - Master control terminal
-- **Phase 9 Architecture** - Advanced bootable ISO system
+That's it. All 10 services start automatically.
+
+---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                  ONE2LV UNIFIED OS v1.0                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           APPLICATION LAYER                          │  │
-│  │  • Lumenis Cosmic Gaming                             │  │
-│  │  • Infinity Glass Desktop                            │  │
-│  │  • Aetherix Master Terminal                          │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                          ↕                                   │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           AI INTELLIGENCE LAYER                      │  │
-│  │  • Sovereign Council (7 Agents)                      │  │
-│  │  • Delta Engine (Autonomous)                         │  │
-│  │  • LLM Integration                                   │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                          ↕                                   │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           RUNTIME LAYER                              │  │
-│  │  • Lumenis Reactor (Python)                          │  │
-│  │  • Control Plane Compiler                            │  │
-│  │  • Mesh Network (P2P)                                │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                          ↕                                   │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           CORE OS LAYER (One2lvOS)                   │  │
-│  │  • State Capsule Management (O2PNG)                  │  │
-│  │  • Virtual File System                               │  │
-│  │  • Memory Management                                 │  │
-│  │  • Snapshot System                                   │  │
-│  │  • Multi-Tier Recovery                               │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                          ↕                                   │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │           BOOT & STORAGE LAYER                       │  │
-│  │  • Bootloader (150ms boot)                           │  │
-│  │  • ISO Builder (Phase 9)                             │  │
-│  │  • Docker Deployment Stack                           │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                                                              │
-└─────────────────────────────────────────────────────────────┘
+                        ┌─────────────────────────────┐
+                        │   Unified Gateway  :8888     │
+                        │   POST /council              │
+                        │   GET  /arcade/info          │
+                        │   GET  /lobby/agents         │
+                        │   WS   /chat                 │
+                        └──────────┬──────────────────┘
+                                   │
+          ┌────────────────────────┼──────────────────────────┐
+          │                        │                           │
+┌─────────▼──────┐    ┌───────────▼────────┐    ┌────────────▼──────────┐
+│  One2lvOS Core │    │  Sovereign Agentic  │    │    AI Arcade MCP      │
+│  :3002         │    │  Core  :3003        │    │    :8003              │
+│  SovereignCouncil   │  ITT Council of Nine│    │  51 games, MCP 2024   │
+│  7 agents      │    │  9 seats + LumenisR │    │  chess · go · tetris  │
+└────────────────┘    └────────────────────┘    └───────────────────────┘
+          │                        │
+┌─────────▼────────────────────────▼──────────────────────────────────┐
+│                         AI Lobby  :8006                              │
+│           29 agents registered across all 6 subsystems               │
+│           GET /agents · POST /broadcast · WS /room                   │
+└──────┬──────────┬────────────┬────────────┬────────────┬────────────┘
+       │          │            │            │            │
+  ┌────▼───┐ ┌───▼────┐ ┌────▼────┐ ┌────▼────┐ ┌────▼──────┐
+  │minmax  │ │Lumenis │ │SteamOS  │ │Lumenis  │ │Aetherix   │
+  │Phase 9 │ │v7 :8005│ │Dash:8080│ │OS :9002 │ │:9003      │
+  │∆⁹ + ³  │ │73Hz    │ │AI Coach │ │React OS │ │5 Sanctuary│
+  └────────┘ └────────┘ └─────────┘ └─────────┘ └───────────┘
 ```
-
-## Components
-
-### 1. Core OS (Python)
-- **One2lvOS** - State capsule operating system
-- **O2PNG Protocol** - Snapshot format with 2.4× compression
-- **Recovery Manager** - 6-tier failover system
-- **Lumenis Reactor** - Active state management
-
-### 2. AI Intelligence (JavaScript/Python)
-- **Sovereign Council** - 7-agent decision system
-- **Delta Engine** - Autonomous system dynamics
-- **Vector Memory** - Semantic storage
-- **LLM Integration** - Claude AI interface
-
-### 3. UI Layer (HTML/JS)
-- **Infinity Glass** - Spatial desktop environment
-- **Aetherix Terminal** - Command interface
-- **Lumenis Cosmic** - Gaming platform
-- **Reactor Core UI** - System visualization
-
-### 4. Deployment (Shell/Docker)
-- **ISO Builder** - Bootable system images
-- **Docker Stack** - Container deployment
-- **P2P Mesh** - Distributed networking
-
-## Quick Start
-
-### Boot Unified OS
-
-```bash
-./one2lv-unified-os boot
-```
-
-### Components
-
-```bash
-# Start full stack
-./one2lv-unified-os start-all
-
-# Individual components
-./one2lv-unified-os start-lumenis
-./one2lv-unified-os start-council
-./one2lv-unified-os start-ui
-```
-
-### Create Snapshot
-
-```bash
-./one2lv-unified-os snapshot
-```
-
-## Installation
-
-### Option 1: Automated (Recommended)
-
-```bash
-# One-command installation with all dependencies
-curl -fsSL https://raw.githubusercontent.com/one2lv-com/One2lvos/main/one2lvos-quickstart.sh | bash
-```
-
-### Option 2: Manual
-
-```bash
-# Clone repository
-git clone https://github.com/one2lv-com/One2lvos.git
-cd One2lvos
-
-# Configure environment
-cp .env.production.template .env
-nano .env  # Add your API keys if you want custom ones
-
-# Deploy
-./deploy.sh start
-
-# Initialize Astra DB
-./deploy.sh init-astra
-```
-
-### Option 3: Custom Directory
-
-```bash
-# Install to specific location
-curl -fsSL https://raw.githubusercontent.com/one2lv-com/One2lvos/main/one2lvos-quickstart.sh | bash -s /opt/one2lvos
-```
-
-## Features
-
-### ✅ Production Ready
-- Complete boot sequence (151ms)
-- State persistence with snapshots
-- Multi-tier recovery system
-- Comprehensive test suite
-
-### ✅ AI-Powered
-- 7-agent council for decisions
-- Delta Engine for autonomy
-- Vector memory for context
-- LLM integration
-
-### ✅ Spatial Computing
-- Infinity Glass desktop
-- Holographic visualization
-- 3D environments
-- VR/AR ready
-
-### ✅ Developer Friendly
-- Python + JavaScript APIs
-- RESTful interfaces
-- CLI tools
-- Extensive documentation
-
-## Performance
-
-| Metric | Value |
-|--------|-------|
-| Boot Time | 151ms |
-| Snapshot Size | 801 bytes (compressed) |
-| Recovery Time | 150ms |
-| VFS Operations | <1ms |
-| AI Response | <500ms |
-
-## System Requirements
-
-- Python 3.7+
-- Node.js 16+
-- 2GB RAM minimum
-- 10GB storage recommended
-- Linux/macOS/Windows (WSL)
-
-## Documentation
-
-- **Architecture**: `docs/ARCHITECTURE.md`
-- **API Reference**: `docs/API.md`
-- **Deployment**: `docs/DEPLOYMENT.md`
-- **Development**: `docs/DEVELOPMENT.md`
-
-## License
-
-MIT License - See LICENSE file
-
-## Support
-
-- GitHub: https://github.com/one2lv-com
-- Discord: https://discord.gg/one2lv
-- Email: support@one2lv.com
 
 ---
 
-**One2lv Unified OS v1.0** - The Future of Computing
+## Services
+
+| Service | Port | Description |
+|---|---|---|
+| **Unified Gateway** | `8888` | Single API entry point for all subsystems |
+| **One2lvOS Core** | `3002` | SovereignCouncil — 7-agent decision system |
+| **Sovereign Agentic Core** | `3003` | ITT Council of Nine + LumenisReactor (Claude) |
+| **AI Arcade MCP** | `8003` | 51-title game library, MCP 2024-11-05 protocol |
+| **AI Lobby** | `8006` | Central hub — 29 agents, broadcast, WS room |
+| **Lumenis v7 Cosmic** | `8005` | 73Hz resonance council, Gemini AI, Twitch |
+| **SteamOS Dashboard** | `8080` | AI Coach, Broadcaster, Second Player |
+| **LumenisOS** | `9002` | TypeScript Express API + React windowing OS |
+| **Aetherix** | `9003` | One2lv Master Terminal — 5 Sanctuary Roles |
+| **Lumenis Space Agent UI** | `9001` | Three.js space agent frontend |
+
+---
+
+## Build Script
+
+```bash
+./build.sh              # full install → build → start
+./build.sh deps         # install Python + Node dependencies only
+./build.sh build        # compile TypeScript (lumenis-os)
+./build.sh start        # start all services
+./build.sh stop         # stop all services
+./build.sh restart      # stop + start
+./build.sh status       # live health table
+./build.sh logs gateway # tail a specific service log
+```
+
+Logs are written to `/tmp/one2lv-logs/`.
+
+---
+
+## Unified Gateway API
+
+Base URL: `http://localhost:8888`
+
+### System
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/` | Full system manifest |
+| `GET` | `/status` | Live health of all 10 services |
+
+### Council
+
+| Method | Endpoint | Body | Description |
+|---|---|---|---|
+| `POST` | `/council` | `{"topic": "..."}` | Convene SovereignCouncil |
+| `POST` | `/os/tournament` | — | Start 7-agent arcade tournament |
+| `WS` | `/chat` | — | Proxy to ITT Council of Nine |
+
+### AI Arcade
+
+| Method | Endpoint | Body | Description |
+|---|---|---|---|
+| `GET` | `/arcade/info` | — | Arcade info + stats |
+| `GET` | `/arcade/games` | — | Active games |
+| `GET` | `/arcade/library` | — | All 51 titles |
+| `GET` | `/arcade/leaderboard` | — | Leaderboard |
+| `POST` | `/arcade/create` | `{"game_type","player1","player2"}` | Create + join a game |
+| `POST` | `/arcade/move` | `{"game_id","player","move"}` | Submit a move |
+| `GET` | `/arcade/board/{game_id}` | — | Current board state |
+
+### AI Lobby
+
+| Method | Endpoint | Body | Description |
+|---|---|---|---|
+| `GET` | `/lobby/agents` | — | List all 29 agents |
+| `GET` | `/lobby/systems` | — | All subsystem health |
+| `POST` | `/lobby/broadcast` | `{"from","content"}` | Broadcast to all agents |
+| `WS` | `/lobby/room` | — | Real-time agent room |
+
+### LumenisOS
+
+| Method | Endpoint | Body | Description |
+|---|---|---|---|
+| `GET` | `/lumenis-os/health` | — | API server health |
+| `POST` | `/lumenis-os/checkpoint` | `{"tag","baseline","resonance"}` | Store telemetry checkpoint |
+
+### Aetherix
+
+| Method | Endpoint | Body | Description |
+|---|---|---|---|
+| `GET` | `/aetherix` | — | Sanctuary state |
+| `GET` | `/aetherix/memory` | — | Kernel memory |
+| `POST` | `/aetherix/memory` | `{...}` | Store kernel memory |
+| `POST` | `/aetherix/sanctuary` | `{"role","cycle"}` | Set active sanctuary role |
+
+---
+
+## AI Agents (29 total)
+
+### One2lvOS SovereignCouncil
+| Agent | Role | Arcade Affinity |
+|---|---|---|
+| Agent 1 | Strategist | Chess |
+| Agent 2 | Executor | Checkers |
+| Agent 3 | Analyst | Go |
+| Agent 4 | Guardian | Minesweeper |
+| Agent 5 | Innovator | Tetris |
+| Agent 6 | Connector | Othello |
+| Agent 7 | Oracle | Connect4 |
+
+### Sovereign Agentic Core — ITT Council of Nine
+| Seat | Role |
+|---|---|
+| The Witness | Memory & session history |
+| The Sentinel | Input validation & safety |
+| The Navigator | Intent classification & routing |
+| The Weaver | Response synthesis & streaming |
+| The Forge | Code generation & structured output |
+| The Oracle | Reasoning & factual answers |
+| The Architect | Final integration & governance |
+| The Hermes | External integrations (Gmail, Drive, GitHub, etc.) |
+| **The Gambit** | AI Arcade — games, MCP tools, strategy |
+
+### minmax Phase 9
+| Agent | Role |
+|---|---|
+| Phase9 Agent 0 | Delta Engine + autonomous planning |
+| Phase9 Agent 1 | Delta Engine + consensus negotiation |
+| Phase9 Agent 2 | Delta Engine + execution planning |
+
+### Lumenis v7 Cosmic
+| Agent | Role |
+|---|---|
+| Lumenis Council | 73Hz orchestration, Watchman, Scribe |
+| Lumenis Gemini | Gemini AI — game advice & strategy |
+| Lumenis Prediction | Match prediction, combo detection, telemetry |
+
+### SteamOS Lumenis
+| Agent | Role |
+|---|---|
+| One2lv Coach | Combat coaching, Brawlhalla, adaptive learning |
+| One2lv Broadcaster | Live commentary, Twitch integration |
+| One2lv Second Player | Autonomous gameplay, co-op partner |
+
+### Other
+| Agent | Role |
+|---|---|
+| AI Arcade MCP | Game server — 51 titles |
+| LumenisOS API | Express 5 API + checkpoint telemetry |
+| LumenisOS UI | React windowing OS |
+| Aetherix Master | One2lv Master Terminal, 5 Sanctuary Roles |
+
+---
+
+## AI Arcade
+
+51-title library. 15 playable via API:
+
+`chess` · `go` · `checkers` · `othello` · `tictactoe` · `connect4` · `minesweeper` · `sudoku` · `scrabble` · `battleship` · `pacman` · `tetris` · `space_invaders` · `pong` · `universal_paperclips`
+
+**MCP Protocol:** `POST http://localhost:8003/mcp` (JSON-RPC 2.0)
+
+**Tools:** `arcade_info` · `list_games` · `create_game` · `join_game` · `get_game_state` · `make_move` · `resign_game` · `get_leaderboard` · `game_info` · `library_list`
+
+---
+
+## Aetherix — Sanctuary Roles
+
+The One2lv Master Terminal cycles through 5 roles every 5 seconds:
+
+| Role | Function |
+|---|---|
+| **Architect** | System design & structure |
+| **Sentry** | Threat detection & monitoring |
+| **Witness** | Observation & memory |
+| **Aetheron** | Cosmic awareness & resonance |
+| **Fifth Position** | The unnamed — emergent intelligence |
+
+---
+
+## Repositories
+
+| Repo | Description |
+|---|---|
+| [One2lvos](https://github.com/one2lv-com/One2lvos) | Core OS — SovereignCouncil, gateway, lobby, build script |
+| [sovereign-agentic-core](https://github.com/one2lv-com/sovereign-agentic-core) | ITT Council of Nine + LumenisReactor |
+| [minmax](https://github.com/one2lv-com/minmax) | Phase 9 Delta Engine ∆⁹ + 3D Vector Engine ³ |
+| [lumenis-os](https://github.com/one2lv-com/lumenis-os) | TypeScript monorepo — Express API + React windowing OS |
+| [Aetherix](https://github.com/one2lv-com/Aetherix) | One2lv Master Terminal — 5 Sanctuary Roles |
+| [steamos_lumenis](https://github.com/one2lv-com/steamos_lumenis) | Lumenis v7 Cosmic + SteamOS AI agents |
+| [control-plane-compilers](https://github.com/one2lv-com/control-plane-compilers) | Distributed + self-modifying compiler for agent graphs |
+| [Lumenis](https://github.com/one2lv-com/Lumenis) | Lumenis Space Agent v1 (Three.js) |
+
+---
+
+## License
+
+MIT License — Copyright (c) 2026 one2lv-com
+
+See [LICENSE](./LICENSE) for full text.
