@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+  <VGpu>Enable</VGpu>
+  <Networking>Enable</Networking>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>C:\Users\%USERNAME%\One2lvOS</HostFolder>
+      <SandboxFolder>C:\One2lvOS</SandboxFolder>
+      <ReadOnly>false</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell -ExecutionPolicy Bypass -Command "cd C:\One2lvOS; if (Test-Path .\start-one2lvos.bat) { Start-Process cmd -ArgumentList '/c .\start-one2lvos.bat' -Verb RunAs } else { Write-Host 'One2lvOS not found. Please run installer first.' -ForegroundColor Red; Read-Host 'Press Enter to exit' }"</Command>
+  </LogonCommand>
+  <MemoryInMB>4096</MemoryInMB>
+</Configuration>
