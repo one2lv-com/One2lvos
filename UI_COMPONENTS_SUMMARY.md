@@ -16,7 +16,7 @@
 ### 🌐 Web Server: **RUNNING** ✅
 ```
 Port:     8000
-Location: /home/vercel-sandbox/One2lvos/One2lvOS
+Location: ~/One2lvOS/One2lvos/One2lvOS
 Status:   🟢 ONLINE
 
 URLs:
@@ -465,7 +465,7 @@ Case: Uppercase labels with letter-spacing
 Open: http://localhost:8000/Infinity_Glasses/
 
 # Option 2: Command Line
-cd /home/vercel-sandbox/One2lvos
+cd ~/One2lvOS/One2lvos
 cat QUICK_UI_DEMO.md
 
 # Option 3: Full Guide

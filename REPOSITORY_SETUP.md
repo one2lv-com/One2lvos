@@ -175,9 +175,9 @@ For display in One2lvOS terminal simulation:
 
 ```bash
 # Create mock sources.list for display
-mkdir -p /home/vercel-sandbox/One2lvos/system/etc/apt
+mkdir -p ~/One2lvOS/One2lvos/system/etc/apt
 
-cat > /home/vercel-sandbox/One2lvos/system/etc/apt/sources.list << 'EOF'
+cat > ~/One2lvOS/One2lvos/system/etc/apt/sources.list << 'EOF'
 # One2lvOS Package Sources
 # Simulated Debian-based package repositories
 

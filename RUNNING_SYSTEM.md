@@ -5,7 +5,7 @@
 **Installation**: Complete ✅
 **Status**: All systems online ✅
 **Boot Time**: 150-160ms ✅
-**Location**: `/home/vercel-sandbox/One2lvos`
+**Location**: `~/One2lvOS/One2lvos`
 
 ---
 
@@ -69,7 +69,7 @@ Files: 500+ JavaScript/HTML files ready
 ### Start the System
 ```bash
 # Navigate to One2lvos
-cd /home/vercel-sandbox/One2lvos
+cd ~/One2lvOS/One2lvos
 
 # Boot the OS (150ms boot time)
 ./boot.sh
@@ -206,7 +206,7 @@ Expected Output:
 ## 📁 Directory Structure
 
 ```
-/home/vercel-sandbox/One2lvos/
+~/One2lvOS/One2lvos/
 ├── boot.sh                     # Main boot script ⚡
 ├── unified_os.py               # Full system integration
 ├── verification_demonstration.py
@@ -365,7 +365,7 @@ Recovery Chain:
 python3 --version
 
 # Check if in correct directory
-pwd  # Should be: /home/vercel-sandbox/One2lvos
+pwd  # Should be: ~/One2lvOS/One2lvos
 
 # Try manual boot
 python3 unified_os.py

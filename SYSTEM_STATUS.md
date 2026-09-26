@@ -97,7 +97,7 @@ Located in: `One2lvOS/`
 
 ### Boot the System
 ```bash
-cd /home/vercel-sandbox/One2lvos
+cd ~/One2lvOS/One2lvos
 ./boot.sh
 ```
 

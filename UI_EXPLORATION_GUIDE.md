@@ -334,7 +334,7 @@ state-loader.js - State restoration system
 
 ### **Method 1: Web Server**
 ```bash
-cd /home/vercel-sandbox/One2lvos/One2lvOS
+cd ~/One2lvOS/One2lvos/One2lvOS
 python3 serve.py
 
 # Then open in browser:
@@ -351,7 +351,7 @@ firefox One2lvOS/Infinity_Glasses/index.html
 
 ### **Method 3: Integrated Boot**
 ```bash
-cd /home/vercel-sandbox/One2lvos
+cd ~/One2lvOS/One2lvos
 ./boot.sh
 # Then open web UI as shown above
 ```

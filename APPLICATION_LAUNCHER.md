@@ -224,7 +224,7 @@ Each application card shows:
 
 **Command**:
 ```bash
-cd /home/vercel-sandbox/One2lvos
+cd ~/One2lvOS/One2lvos
 python3 unified_os.py
 ```
 
@@ -384,7 +384,7 @@ http://localhost:8000/Agentic_Control/ai-lobby/public/  # AI Council
 
 ### Command Line
 ```bash
-cd /home/vercel-sandbox/One2lvos
+cd ~/One2lvOS/One2lvos
 python3 unified_os.py    # Backend demo
 ./boot.sh                 # System boot
 ```

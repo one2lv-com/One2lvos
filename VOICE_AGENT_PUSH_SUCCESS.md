@@ -139,7 +139,7 @@
 - **Format**: O2PNG v1.0 protocol
 - **Size**: 820 bytes (raw snapshot)
 - **Generation**: 16
-- **Location**: `/home/vercel-sandbox/One2lvos/one2lvos_state_snapshot.png`
+- **Location**: `~/One2lvOS/One2lvos/one2lvos_state_snapshot.png`
 
 ### PNG Carrier Details
 - **Dimensions**: 512 × 512 pixels

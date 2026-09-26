@@ -51,7 +51,7 @@ PNG Carrier Details:
 ├── Utilization: 0.31%
 ├── PNG Size: 3,665 bytes
 ├── Compression Ratio: 4.5×
-├── Location: /home/vercel-sandbox/One2lvos/one2lvos_state_snapshot.png
+├── Location: ~/One2lvOS/One2lvos/one2lvos_state_snapshot.png
 ├── Status: ✅ Successfully created
 ```
 
@@ -409,7 +409,7 @@ Styling:                Cyberpunk neon theme
 ## 🔗 Related Files
 
 ```
-/home/vercel-sandbox/One2lvos/
+~/One2lvOS/One2lvos/
 ├── one2lvos_state_snapshot.png          (3.6 KB) - NEW!
 ├── One2lvOS/index.html                  (Modified)
 ├── /tmp/one2lv-unified/snapshots/

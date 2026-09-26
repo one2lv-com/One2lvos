@@ -4,7 +4,7 @@
 
 **Status**: ✅ HTTP Server Active
 **Port**: 8000
-**Location**: /home/vercel-sandbox/One2lvos/One2lvOS
+**Location**: ~/One2lvOS/One2lvos/One2lvOS
 
 ---
 
