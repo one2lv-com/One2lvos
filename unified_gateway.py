@@ -29,18 +29,12 @@ This gateway (port 8888):
 
 import asyncio
 import json
-<<<<<<< HEAD
 import os
-=======
->>>>>>> b0827b55eeaf8fddb4bbc495fa0cb2fa820ff8b0
 import sys
 import urllib.error
 import urllib.request
 from datetime import datetime
-<<<<<<< HEAD
 from pathlib import Path
-=======
->>>>>>> b0827b55eeaf8fddb4bbc495fa0cb2fa820ff8b0
 from typing import Any, Dict, Optional
 
 import uvicorn
@@ -48,13 +42,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-<<<<<<< HEAD
 # Dynamically determine the installation directory
 INSTALL_DIR = Path(__file__).parent.absolute()
 sys.path.insert(0, str(INSTALL_DIR / "One2lvos"))
-=======
-sys.path.insert(0, "/home/vercel-sandbox/One2lvos")
->>>>>>> b0827b55eeaf8fddb4bbc495fa0cb2fa820ff8b0
 
 # ── Lazy imports (non-fatal if a subsystem is down) ──────────────────────────
 
@@ -171,11 +161,7 @@ async def manifest():
                              "tetris", "space_invaders", "pong", "universal_paperclips"],
             },
             "minmax_phase9": {
-<<<<<<< HEAD
                 "root": str(INSTALL_DIR / "minmax" / "opt" / "one2lv"),
-=======
-                "root": "/home/vercel-sandbox/minmax/opt/one2lv",
->>>>>>> b0827b55eeaf8fddb4bbc495fa0cb2fa820ff8b0
                 "description": "Phase 9 Delta Engine ∆⁹ + 3D Vector Engine ³",
                 "features": ["DeltaEngine 9-layer gradient", "SystemDynamics spherical vectors",
                              "Phase9 Council", "VectorDB", "SecureRPC", "SandboxExecutor"],
