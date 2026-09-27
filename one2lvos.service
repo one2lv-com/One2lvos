@@ -1,0 +1,60 @@
+# Systemd service file for One2lvOS
+# Install to: /etc/systemd/system/one2lvos.service
+#
+# Installation instructions:
+# 1. sudo cp one2lvos.service /etc/systemd/system/
+# 2. sudo systemctl daemon-reload
+# 3. sudo systemctl enable one2lvos
+# 4. sudo systemctl start one2lvos
+#
+# Management:
+# - sudo systemctl status one2lvos
+# - sudo systemctl restart one2lvos
+# - sudo systemctl stop one2lvos
+# - sudo journalctl -u one2lvos -f
+
+[Unit]
+Description=One2lvOS - AI-Powered Spatial Computing OS
+Documentation=https://github.com/one2lv-com/One2lvos
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/one2lvos
+User=deploy
+Group=deploy
+
+# Start command
+ExecStart=/usr/bin/docker compose up -d
+
+# Stop command
+ExecStop=/usr/bin/docker compose down
+
+# Reload command
+ExecReload=/usr/bin/docker compose restart
+
+# Health check (optional)
+ExecStartPost=/bin/sleep 15
+ExecStartPost=/bin/bash -c 'curl -sf http://localhost/health || exit 1'
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+# Limits
+LimitNOFILE=65536
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Environment
+Environment="PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+[Install]
+WantedBy=multi-user.target
