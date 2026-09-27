@@ -18,7 +18,10 @@ Port: 8006
 
 import asyncio
 import json
+<<<<<<< HEAD
 import os
+=======
+>>>>>>> b0827b55eeaf8fddb4bbc495fa0cb2fa820ff8b0
 import sys
 import time
 import urllib.request
@@ -31,9 +34,13 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
+<<<<<<< HEAD
 # Dynamically determine the installation directory
 INSTALL_DIR = Path(__file__).parent.absolute()
 sys.path.insert(0, str(INSTALL_DIR / "control-plane-compilers" / "src"))
+=======
+sys.path.insert(0, "/home/vercel-sandbox/control-plane-compilers/src")
+>>>>>>> b0827b55eeaf8fddb4bbc495fa0cb2fa820ff8b0
 
 # ── Control-Plane Compiler (wires all agent fragments at startup) ─────────────
 try:
