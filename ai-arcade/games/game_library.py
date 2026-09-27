@@ -639,7 +639,7 @@ GAME_LIBRARY = {
 
     # ── ABSTRACT STRATEGY & LOGIC (DEEP TREE TRAVERSAL) ──────────────────
     "shogi": {
-        "status": "info_only",
+        "status": "playable",
         "category": "Abstract Strategy & Logic",
         "description": "Processing a massive branching factor due to the drop rule, requiring deeper forward-calculation than standard chess.",
         "ai_notes": (
@@ -652,7 +652,7 @@ GAME_LIBRARY = {
         "fun_fact": "The drop rule makes Shogi draws extremely rare — unlike Chess, material almost never disappears from the game.",
     },
     "hex": {
-        "status": "info_only",
+        "status": "playable",
         "category": "Abstract Strategy & Logic",
         "description": "Computing connections across a hexagonal grid where draws are mathematically impossible.",
         "ai_notes": (
@@ -678,7 +678,7 @@ GAME_LIBRARY = {
         "fun_fact": "TD-Gammon discovered the 2-1 opening move to 13-point — considered wrong by experts — is actually optimal.",
     },
     "gomoku": {
-        "status": "info_only",
+        "status": "playable",
         "category": "Abstract Strategy & Logic",
         "description": "Analyzing continuous five-in-a-row constraint sequences.",
         "ai_notes": (
@@ -691,7 +691,7 @@ GAME_LIBRARY = {
         "fun_fact": "Gomoku on an infinite board was proven to be a first-player win by László Almásy in 1994.",
     },
     "mancala": {
-        "status": "info_only",
+        "status": "playable",
         "category": "Abstract Strategy & Logic",
         "description": "Calculating deterministic capture chains and seed distribution.",
         "ai_notes": (
@@ -731,7 +731,7 @@ GAME_LIBRARY = {
         "fun_fact": "Hive won the Mensa Mind Games award and has no random elements — draws are extremely rare.",
     },
     "picross": {
-        "status": "info_only",
+        "status": "playable",
         "category": "Abstract Strategy & Logic",
         "description": "Solving matrices through pure Boolean logic and overlapping row-column constraints.",
         "ai_notes": (
@@ -745,7 +745,7 @@ GAME_LIBRARY = {
         "fun_fact": "Picross was invented independently by Non Ishida and Tetsuya Nishio in Japan in 1987.",
     },
     "mastermind": {
-        "status": "info_only",
+        "status": "playable",
         "category": "Abstract Strategy & Logic",
         "description": "Breaking combinatorial codes using deductive algorithmic elimination.",
         "ai_notes": (
