@@ -340,21 +340,41 @@
               <h3>Create Game</h3>
               <div class="form-row">
                 <select id="newGameType">
+                  <!-- Strategy Games -->
                   <option value="chess">Chess</option>
                   <option value="go">Go</option>
                   <option value="checkers">Checkers</option>
                   <option value="othello">Othello</option>
                   <option value="tictactoe">Tic-Tac-Toe</option>
                   <option value="connect4">Connect 4</option>
+                  <!-- New Strategy -->
+                  <option value="shogi">Shogi</option>
+                  <option value="hex">Hex</option>
+                  <option value="gomoku">Gomoku</option>
+                  <option value="mancala">Mancala</option>
+                  <!-- Puzzle Games -->
                   <option value="minesweeper">Minesweeper</option>
                   <option value="sudoku">Sudoku</option>
+                  <option value="battleship">Battleship</option>
+                  <option value="scrabble">Scrabble</option>
+                  <option value="mastermind">Mastermind</option>
+                  <option value="picross">Picross</option>
+                  <!-- Arcade Games -->
                   <option value="tetris">Tetris</option>
                   <option value="pacman">Pacman</option>
                   <option value="space_invaders">Space Invaders</option>
-                  <option value="battleship">Battleship</option>
-                  <option value="scrabble">Scrabble</option>
                   <option value="pong">Pong</option>
                   <option value="universal_paperclips">Universal Paperclips</option>
+                  <!-- New Arcade -->
+                  <option value="platformer">Platformer</option>
+                  <option value="arena_shooter">Arena Shooter</option>
+                  <option value="rhythm_game">Rhythm Game</option>
+                  <option value="racing_game">Racing Game</option>
+                  <!-- Simulation -->
+                  <option value="factorio">Factorio</option>
+                  <option value="city_builder">City Builder</option>
+                  <option value="space_mining">Space Mining</option>
+                  <option value="terraform">Terraform</option>
                 </select>
                 <input type="text" id="newPlayer1" placeholder="Player 1 name" value="AgentA" style="max-width:130px"/>
                 <button class="btn btn-primary" onclick="createGame()">Create</button>
@@ -457,6 +477,31 @@
             </div>
           </div>
           <div class="output" id="aetherixOutput" style="margin-top:12px"></div>
+        </div>
+
+        <!-- Terminal Command Interface -->
+        <div class="card">
+          <h2>🖥️ One2lvOS Terminal</h2>
+          <p class="text-muted" style="font-size:11px;margin-bottom:12px">Execute system commands · Type 'help' for available commands</p>
+
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:'Courier New',monospace;font-size:12px">
+            <div id="terminalHistory" style="max-height:300px;overflow-y:auto;margin-bottom:10px;white-space:pre-wrap;word-break:break-all;"></div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:var(--accent)">one2lv@OS:~$</span>
+              <input type="text" id="terminalInput" placeholder="Type command..."
+                style="flex:1;background:transparent;border:none;color:var(--text);outline:none;font-family:inherit;font-size:inherit;padding:0"
+                onkeypress="if(event.key==='Enter')runTerminalCommand()" />
+            </div>
+          </div>
+
+          <div style="margin-top:12px;display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onclick="quickTerminalCmd('help')">help</button>
+            <button class="btn btn-secondary" onclick="quickTerminalCmd('status')">status</button>
+            <button class="btn btn-secondary" onclick="quickTerminalCmd('services')">services</button>
+            <button class="btn btn-secondary" onclick="quickTerminalCmd('arcade info')">arcade info</button>
+            <button class="btn btn-secondary" onclick="quickTerminalCmd('list games')">list games</button>
+            <button class="btn btn-secondary" onclick="quickTerminalCmd('clear')">clear</button>
+          </div>
         </div>
       </div>
 
@@ -965,6 +1010,143 @@ function gwQuick(method, endpoint) {
   document.getElementById('gwMethod').value = method;
   document.getElementById('gwEndpoint').value = endpoint;
   gwCall();
+}
+
+// ── Terminal Commands ─────────────────────────────────────────────────────────
+const terminalHistory = [];
+const TERMINAL_COMMANDS = {
+  help: 'Available commands:\n  help       - Show this message\n  status     - Show system status\n  services   - List all services\n  arcade     - AI Arcade commands (info, list, leaderboard)\n  build      - Build system (start, stop, status)\n  boot       - Boot One2lvOS\n  gateway    - Gateway API status\n  lumenis    - LumenisOS health\n  clear      - Clear terminal\n  version    - Show version info\n\nExamples:\n  arcade info\n  arcade list\n  services\n  build status',
+
+  version: 'One2lvOS v1.0.2\nAI-Powered Spatial Computing Operating System\nHosted: https://one2lv.com/OS',
+
+  async status() {
+    const services = await Promise.all(SERVICES.map(async s => {
+      try {
+        const r = await api(s.check, {}, 2000);
+        return `  ${s.name.padEnd(20)} [${r ? 'UP' : 'DOWN'}] :${s.port}`;
+      } catch { return `  ${s.name.padEnd(20)} [DOWN] :${s.port}`; }
+    }));
+    return 'System Status:\n' + services.join('\n');
+  },
+
+  async services() {
+    return 'One2lvOS Services:\n\n' + SERVICES.map(s =>
+      `  ${s.name.padEnd(20)} - Port ${s.port}\n  ${s.check}`
+    ).join('\n\n');
+  },
+
+  async arcade(args) {
+    const subcmd = args[0] || 'info';
+    if (subcmd === 'info') {
+      const text = await mcpCall('arcade_info', {});
+      return text;
+    } else if (subcmd === 'list') {
+      const text = await mcpCall('list_games', {});
+      return text;
+    } else if (subcmd === 'leaderboard') {
+      const text = await mcpCall('get_leaderboard', {});
+      return text;
+    } else {
+      return 'arcade subcommands: info, list, leaderboard';
+    }
+  },
+
+  async build(args) {
+    const subcmd = args[0] || 'status';
+    if (subcmd === 'status') {
+      return await TERMINAL_COMMANDS.status();
+    } else if (subcmd === 'start') {
+      return 'Starting services... (Use ./build.sh start on host)';
+    } else if (subcmd === 'stop') {
+      return 'Stopping services... (Use ./build.sh stop on host)';
+    } else {
+      return 'build subcommands: start, stop, status';
+    }
+  },
+
+  boot() {
+    return 'One2lvOS Bootloader\n==================\nStage 1: Initializing...\nStage 2: Loading kernel...\nStage 3: Mounting services...\nSystem ready.\n\nUse "status" to check services.';
+  },
+
+  async gateway() {
+    const r = await api(`${GW}/status`);
+    return `Gateway Status:\n${fmt(r)}`;
+  },
+
+  async lumenis() {
+    const r = await api(`${GW}/lumenis-os/health`);
+    return `LumenisOS Health:\n${fmt(r)}`;
+  },
+
+  clear() {
+    document.getElementById('terminalHistory').innerHTML = '';
+    return null;
+  }
+};
+
+function addTerminalLine(text, type = 'output') {
+  const hist = document.getElementById('terminalHistory');
+  if (!hist) return;
+
+  const line = document.createElement('div');
+  line.style.marginBottom = '8px';
+
+  if (type === 'input') {
+    line.style.color = 'var(--accent)';
+    line.innerHTML = `<span style="color:var(--accent)">one2lv@OS:~$</span> <span style="color:var(--text)">${text}</span>`;
+  } else if (type === 'error') {
+    line.style.color = 'var(--accent5)';
+    line.textContent = text;
+  } else {
+    line.style.color = 'var(--text2)';
+    line.textContent = text;
+  }
+
+  hist.appendChild(line);
+  hist.scrollTop = hist.scrollHeight;
+}
+
+async function runTerminalCommand() {
+  const input = document.getElementById('terminalInput');
+  if (!input) return;
+
+  const cmd = input.value.trim();
+  if (!cmd) return;
+
+  input.value = '';
+  addTerminalLine(cmd, 'input');
+  terminalHistory.push(cmd);
+
+  const parts = cmd.split(/\s+/);
+  const mainCmd = parts[0];
+  const args = parts.slice(1);
+
+  try {
+    let output;
+    const cmdFunc = TERMINAL_COMMANDS[mainCmd];
+
+    if (typeof cmdFunc === 'function') {
+      output = await cmdFunc(args);
+    } else if (typeof cmdFunc === 'string') {
+      output = cmdFunc;
+    } else {
+      output = `Command not found: ${mainCmd}\nType 'help' for available commands.`;
+    }
+
+    if (output !== null) {
+      addTerminalLine(output);
+    }
+  } catch (err) {
+    addTerminalLine(`Error: ${err.message}`, 'error');
+  }
+}
+
+function quickTerminalCmd(cmd) {
+  const input = document.getElementById('terminalInput');
+  if (input) {
+    input.value = cmd;
+    runTerminalCommand();
+  }
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────

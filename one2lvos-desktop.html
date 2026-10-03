@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>One2lvOS Web Environment</title>
+    <!-- Tailwind CSS for rapid styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for beautiful icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts for modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            /* High-quality default wallpaper */
+            background: url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop') no-repeat center center fixed;
+            background-size: cover;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Custom scrollbar for inner windows */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .window {
+            transition: width 0.2s, height 0.2s, background-color 0.2s, box-shadow 0.2s;
+        }
+        .window.maximized {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="text-gray-800 w-screen h-screen flex flex-col relative">
+
+    <!-- Desktop Area -->
+    <main id="desktop" class="flex-1 relative z-0">
+        <div id="desktop-icons" class="absolute top-0 left-0 bottom-12 right-0 p-4 flex flex-col flex-wrap content-start gap-2 z-0"></div>
+    </main>
+
+    <!-- Start Menu -->
+    <div id="start-menu" class="absolute bottom-16 left-1/2 -translate-x-1/2 w-full max-w-[420px] h-[550px] max-h-[80vh] bg-white/75 backdrop-blur-2xl border border-white/50 shadow-[0_0_50px_rgba(0,0,0,0.2)] rounded-2xl p-6 flex flex-col transition-all duration-300 ease-out opacity-0 scale-95 pointer-events-none z-50">
+        <div class="relative mb-6">
+            <i class="fas fa-search absolute left-3 top-3.5 text-gray-500 text-sm"></i>
+            <input type="text" placeholder="Search apps, settings, and documents" class="w-full bg-white/60 border border-gray-300 rounded-lg pl-9 pr-4 py-2.5 text-sm outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/50 transition-all placeholder-gray-500 shadow-inner">
+        </div>
+
+        <div class="flex-1 overflow-y-auto pr-2">
+            <div class="flex justify-between items-center mb-4 px-2">
+                <h3 class="text-xs font-semibold text-gray-800 uppercase tracking-wider">Pinned</h3>
+                <button class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 transition-colors">All apps <i class="fas fa-chevron-right ml-1 text-[10px]"></i></button>
+            </div>
+            <div class="grid grid-cols-4 gap-y-6 gap-x-2" id="start-menu-grid"></div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-gray-300/50 flex justify-between items-center bg-white/30 -mx-6 -mb-6 px-6 py-4 rounded-b-2xl">
+            <div class="flex items-center gap-3 cursor-pointer hover:bg-white/60 p-1.5 pr-4 rounded-lg transition-colors">
+                <img src="https://ui-avatars.com/api/?name=One2lvOS&background=3b82f6&color=fff&rounded=true" alt="User" class="w-8 h-8 rounded-full shadow-sm">
+                <span class="text-sm font-medium text-gray-800">Administrator</span>
+            </div>
+            <button class="w-10 h-10 rounded-lg hover:bg-white/60 flex items-center justify-center transition-colors text-gray-700 hover:text-red-600">
+                <i class="fas fa-power-off text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Taskbar -->
+    <nav id="taskbar" class="h-14 bg-black/40 backdrop-blur-xl border-t border-white/10 flex items-center justify-between px-3 z-50 relative shadow-[0_-5px_20px_rgba(0,0,0,0.1)]">
+        <div class="flex items-center gap-1.5 h-full">
+            <button id="start-btn" onclick="toggleStartMenu()" class="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all group active:scale-95">
+                <div class="text-[22px] text-blue-400 group-hover:text-blue-300 transition-colors drop-shadow-md">
+                    <i class="fab fa-windows"></i>
+                </div>
+            </button>
+
+            <div class="w-px h-6 bg-white/20 mx-1"></div>
+
+            <div id="taskbar-apps" class="flex gap-1.5 items-center h-full"></div>
+        </div>
+
+        <div class="flex items-center gap-2 h-full text-white">
+            <div class="flex items-center gap-3 hover:bg-white/10 px-3 py-1.5 rounded-lg cursor-pointer transition-colors h-10">
+                <i class="fas fa-chevron-up text-[10px] text-gray-300"></i>
+                <i class="fas fa-wifi text-sm text-gray-100"></i>
+                <i class="fas fa-volume-up text-sm text-gray-100"></i>
+                <i class="fas fa-battery-three-quarters text-sm text-gray-100"></i>
+            </div>
+
+            <div class="hover:bg-white/10 px-3 py-1.5 rounded-lg cursor-pointer transition-colors h-10 flex flex-col justify-center items-end" id="taskbar-time"></div>
+
+            <div class="hover:bg-white/10 w-10 h-10 rounded-lg cursor-pointer transition-colors flex items-center justify-center relative">
+                <i class="far fa-bell text-gray-100"></i>
+                <div class="absolute top-2.5 right-2 w-2 h-2 bg-blue-500 rounded-full border border-gray-800"></div>
+            </div>
+        </div>
+    </nav>
+
+    <script>
+        // System State
+        let highestZ = 10;
+        let openApps = {};
+
+        // API Configuration
+        const ARCADE = 'http://localhost:8080';
+        const GW = 'http://localhost:8888';
+
+        // Application Configurations
+        const apps = {
+            'about': {
+                name: 'About One2lvOS',
+                icon: 'fas fa-info-circle',
+                color: 'text-blue-500',
+                width: 500,
+                height: 400,
+                content: `
+                    <div class="p-8 flex flex-col items-center justify-center h-full text-center bg-gradient-to-br from-blue-50 to-white">
+                        <div class="text-6xl text-blue-500 mb-6 drop-shadow-sm"><i class="fas fa-laptop-code"></i></div>
+                        <h1 class="text-3xl font-bold mb-2 text-gray-800">One2lvOS</h1>
+                        <p class="text-gray-600 mb-6 font-medium bg-blue-100 px-3 py-1 rounded-full text-sm">Version 2.0.0 (Web Edition)</p>
+                        <p class="text-sm text-gray-500 leading-relaxed max-w-sm mb-6">A comprehensive, browser-based operating system featuring AI agents, game arcade, and unified gateway services.</p>
+                        <div class="text-xs text-gray-400 bg-gray-50 px-4 py-2 rounded-lg">
+                            <div>Hosted: <span class="text-blue-600 font-mono">https://one2lv.com/OS</span></div>
+                            <div class="mt-1">Repository: <span class="text-blue-600 font-mono">github.com/one2lv-com/One2lvos</span></div>
+                        </div>
+                    </div>
+                `
+            },
+            'one2lv-terminal': {
+                name: 'One2lvOS Terminal',
+                icon: 'fas fa-terminal',
+                color: 'text-cyan-400',
+                width: 700,
+                height: 500,
+                content: `
+                    <div class="bg-gray-900 text-green-400 p-4 h-full font-mono text-sm overflow-auto cursor-text flex flex-col" onclick="document.getElementById('one2lv-input').focus()">
+                        <div class="mb-4">
+                            <div class="text-cyan-400 font-bold">One2lvOS Terminal Interface [Version 2.0.0]</div>
+                            <div class="text-gray-400">(c) 2026 One2lv-com Corporation. All rights reserved.</div>
+                            <div class="text-gray-500 text-xs mt-1">Type 'help' for available commands.</div>
+                            <div class="text-yellow-400 text-xs mt-1">Hosted: https://one2lv.com/OS</div>
+                        </div>
+                        <div id="one2lv-output" class="flex-1 overflow-auto mb-2"></div>
+                        <div class="flex items-center">
+                            <span class="mr-2 text-blue-400">one2lv@OS:~$</span>
+                            <input type="text" id="one2lv-input" class="bg-transparent outline-none flex-1 text-green-400 caret-white" onkeypress="handleOne2lvTerminal(event)" autocomplete="off" spellcheck="false">
+                        </div>
+                    </div>
+                `
+            },
+            'ai-arcade': {
+                name: 'AI Arcade',
+                icon: 'fas fa-gamepad',
+                color: 'text-purple-500',
+                width: 650,
+                height: 550,
+                content: `
+                    <div class="h-full flex flex-col bg-gradient-to-br from-purple-50 to-white">
+                        <div class="bg-purple-600 text-white p-4 shadow-lg">
+                            <h2 class="text-xl font-bold flex items-center gap-2">
+                                <i class="fas fa-gamepad"></i> AI Arcade MCP Server
+                            </h2>
+                            <p class="text-purple-100 text-sm mt-1">21 Playable Games · 100+ Game Library</p>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4">
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <button onclick="arcadeCommand('info')" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-md">
+                                    <i class="fas fa-info-circle mr-2"></i>Arcade Info
+                                </button>
+                                <button onclick="arcadeCommand('list')" class="bg-green-500 hover:bg-green-600 text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-md">
+                                    <i class="fas fa-list mr-2"></i>List Games
+                                </button>
+                                <button onclick="arcadeCommand('leaderboard')" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-md">
+                                    <i class="fas fa-trophy mr-2"></i>Leaderboard
+                                </button>
+                                <button onclick="arcadeCommand('library')" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-3 rounded-lg font-medium transition-colors shadow-md">
+                                    <i class="fas fa-book mr-2"></i>Game Library
+                                </button>
+                            </div>
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-xs overflow-auto max-h-80" id="arcade-output">
+                                Click a button to interact with the AI Arcade...
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'services': {
+                name: 'Service Monitor',
+                icon: 'fas fa-server',
+                color: 'text-orange-500',
+                width: 550,
+                height: 500,
+                content: `
+                    <div class="h-full flex flex-col bg-white">
+                        <div class="bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 shadow-lg">
+                            <h2 class="text-xl font-bold flex items-center gap-2">
+                                <i class="fas fa-server"></i> One2lvOS Services
+                            </h2>
+                            <p class="text-orange-100 text-sm mt-1">Real-time Service Status Monitor</p>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4">
+                            <button onclick="refreshServices()" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors mb-4 shadow-md">
+                                <i class="fas fa-sync-alt mr-2"></i>Refresh Status
+                            </button>
+                            <div id="services-list" class="space-y-3">
+                                <div class="text-center text-gray-400 py-8">
+                                    <i class="fas fa-spinner fa-spin text-3xl mb-2"></i>
+                                    <div>Loading services...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                onOpen: (appId) => {
+                    setTimeout(() => refreshServices(), 500);
+                }
+            },
+            'calculator': {
+                name: 'Calculator',
+                icon: 'fas fa-calculator',
+                color: 'text-indigo-500',
+                width: 320,
+                height: 480,
+                content: `
+                    <div class="h-full flex flex-col bg-gray-50 font-sans select-none">
+                        <div class="h-1/3 bg-gray-50 p-5 flex flex-col items-end justify-end shadow-inner border-b">
+                            <div class="text-gray-500 text-sm h-5 tracking-wider" id="calc-history"></div>
+                            <div class="text-5xl font-light text-gray-800 overflow-hidden w-full text-right" id="calc-display">0</div>
+                        </div>
+                        <div class="flex-1 grid grid-cols-4 gap-[1px] bg-gray-300 p-[1px]">
+                            <button class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-lg transition-colors col-span-2 text-red-500" onclick="calcOp('C')">C</button>
+                            <button class="bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-lg transition-colors text-gray-600" onclick="calcOp('DEL')"><i class="fas fa-backspace"></i></button>
+                            <button class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-xl transition-colors text-blue-600 font-medium" onclick="calcOp('÷')">÷</button>
+
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('7')">7</button>
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('8')">8</button>
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('9')">9</button>
+                            <button class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-xl transition-colors text-blue-600 font-medium" onclick="calcOp('×')">×</button>
+
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('4')">4</button>
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('5')">5</button>
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('6')">6</button>
+                            <button class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-xl transition-colors text-blue-600 font-medium" onclick="calcOp('-')">-</button>
+
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('1')">1</button>
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('2')">2</button>
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('3')">3</button>
+                            <button class="bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-xl transition-colors text-blue-600 font-medium" onclick="calcOp('+')">+</button>
+
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium col-span-2 text-gray-800" onclick="calcInput('0')">0</button>
+                            <button class="bg-white hover:bg-gray-50 active:bg-gray-100 text-xl transition-colors font-medium text-gray-800" onclick="calcInput('.')">.</button>
+                            <button class="bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-2xl transition-colors text-white font-medium" onclick="calcOp('=')">=</button>
+                        </div>
+                    </div>
+                `
+            },
+            'notepad': {
+                name: 'Notepad',
+                icon: 'fas fa-file-alt',
+                color: 'text-blue-400',
+                width: 600,
+                height: 450,
+                content: `
+                    <div class="h-full flex flex-col bg-white">
+                        <div class="flex gap-1 p-1 bg-gray-50 border-b border-gray-200 text-sm shadow-sm">
+                            <button class="px-3 py-1 hover:bg-gray-200 rounded text-gray-700 transition-colors">File</button>
+                            <button class="px-3 py-1 hover:bg-gray-200 rounded text-gray-700 transition-colors">Edit</button>
+                            <button class="px-3 py-1 hover:bg-gray-200 rounded text-gray-700 transition-colors">Format</button>
+                            <button class="px-3 py-1 hover:bg-gray-200 rounded text-gray-700 transition-colors">View</button>
+                        </div>
+                        <textarea class="flex-1 w-full p-4 outline-none resize-none font-mono text-sm text-gray-800 leading-relaxed" placeholder="Start typing your notes here..."></textarea>
+                    </div>
+                `
+            },
+            'settings': {
+                name: 'Settings',
+                icon: 'fas fa-cog',
+                color: 'text-gray-600',
+                width: 550,
+                height: 450,
+                content: `
+                    <div class="flex h-full bg-white text-gray-800">
+                        <div class="w-1/3 bg-gray-50 border-r border-gray-200 p-4">
+                            <h2 class="font-bold text-xl mb-6">Settings</h2>
+                            <ul class="space-y-2">
+                                <li class="p-2 bg-blue-50 text-blue-600 rounded font-medium cursor-pointer"><i class="fas fa-desktop w-6 text-center"></i> Personalization</li>
+                                <li class="p-2 hover:bg-gray-100 rounded cursor-pointer text-gray-700 transition-colors"><i class="fas fa-wifi w-6 text-center"></i> Network</li>
+                                <li class="p-2 hover:bg-gray-100 rounded cursor-pointer text-gray-700 transition-colors"><i class="fas fa-shield-alt w-6 text-center"></i> Security</li>
+                            </ul>
+                        </div>
+                        <div class="w-2/3 p-6 overflow-y-auto">
+                            <h3 class="text-lg font-semibold border-b pb-2 mb-4">Background Wallpaper</h3>
+                            <p class="text-sm text-gray-500 mb-4">Select an image to change your desktop background.</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2564&auto=format&fit=crop" onclick="changeWall(this.src)" class="cursor-pointer rounded-lg border-2 border-transparent hover:border-blue-500 w-full h-24 object-cover shadow-sm transition-all hover:scale-105">
+                                <img src="https://images.unsplash.com/photo-1477346611705-65d1883cee1e?q=80&w=2000&auto=format&fit=crop" onclick="changeWall(this.src)" class="cursor-pointer rounded-lg border-2 border-transparent hover:border-blue-500 w-full h-24 object-cover shadow-sm transition-all hover:scale-105">
+                                <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000&auto=format&fit=crop" onclick="changeWall(this.src)" class="cursor-pointer rounded-lg border-2 border-transparent hover:border-blue-500 w-full h-24 object-cover shadow-sm transition-all hover:scale-105">
+                                <img src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2000&auto=format&fit=crop" onclick="changeWall(this.src)" class="cursor-pointer rounded-lg border-2 border-transparent hover:border-blue-500 w-full h-24 object-cover shadow-sm transition-all hover:scale-105">
+                            </div>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        // One2lvOS Terminal Commands
+        async function handleOne2lvTerminal(e) {
+            if(e.key !== 'Enter') return;
+
+            const input = e.target;
+            const cmd = input.value.trim();
+            const output = document.getElementById('one2lv-output');
+
+            // Echo command
+            const cmdLine = document.createElement('div');
+            cmdLine.className = 'mb-2';
+            cmdLine.innerHTML = `<span class="text-blue-400">one2lv@OS:~$</span> <span class="text-white">${cmd}</span>`;
+            output.appendChild(cmdLine);
+
+            input.value = '';
+
+            if (!cmd) return;
+
+            const parts = cmd.split(/\s+/);
+            const mainCmd = parts[0].toLowerCase();
+            const args = parts.slice(1);
+
+            let response = '';
+
+            try {
+                if (mainCmd === 'help') {
+                    response = `<div class="text-cyan-400">One2lvOS Terminal Commands:</div>
+<div class="text-gray-300 mt-2">
+  help          - Show this message
+  status        - Show service status
+  services      - List all services
+  version       - System version
+  arcade [cmd]  - AI Arcade (info, list, leaderboard)
+  clear         - Clear terminal
+  date          - Show current date
+  whoami        - Show current user
+</div>`;
+                } else if (mainCmd === 'status') {
+                    response = '<div class="text-yellow-400">Checking services...</div>';
+                    const services = await checkAllServices();
+                    response = `<div class="text-cyan-400">One2lvOS Service Status:</div>\n${services}`;
+                } else if (mainCmd === 'services') {
+                    response = `<div class="text-cyan-400">One2lvOS Services:</div>
+<div class="text-gray-300 mt-2">
+  AI Lobby        - Port 8787
+  AI Arcade       - Port 8080
+  Unified Gateway - Port 8888
+  LumenisOS       - Port 8001
+  Council         - Port 3001
+  Aetherix        - Port 9003
+</div>`;
+                } else if (mainCmd === 'version') {
+                    response = `<div class="text-cyan-400">One2lvOS Version 2.0.0</div>
+<div class="text-gray-400">AI-Powered Spatial Computing OS</div>
+<div class="text-gray-500">Hosted: https://one2lv.com/OS</div>`;
+                } else if (mainCmd === 'arcade') {
+                    const subcmd = args[0] || 'info';
+                    response = '<div class="text-yellow-400">Contacting AI Arcade...</div>';
+                    const res = await arcadeAPI(subcmd);
+                    response = `<div class="text-green-400">${res}</div>`;
+                } else if (mainCmd === 'clear') {
+                    output.innerHTML = '';
+                    return;
+                } else if (mainCmd === 'date') {
+                    response = '<div class="text-gray-300">' + new Date().toString() + '</div>';
+                } else if (mainCmd === 'whoami') {
+                    response = '<div class="text-gray-300">Administrator</div>';
+                } else if (cmd) {
+                    response = `<div class="text-red-400">Command not found: ${mainCmd}</div>`;
+                }
+            } catch (err) {
+                response = `<div class="text-red-400">Error: ${err.message}</div>`;
+            }
+
+            const resLine = document.createElement('div');
+            resLine.className = 'mb-3';
+            resLine.innerHTML = response;
+            output.appendChild(resLine);
+            output.scrollTop = output.scrollHeight;
+        }
+
+        // AI Arcade API calls
+        async function arcadeAPI(cmd) {
+            try {
+                const toolMap = {
+                    'info': 'arcade_info',
+                    'list': 'list_games',
+                    'leaderboard': 'get_leaderboard',
+                    'library': 'library_list'
+                };
+
+                const tool = toolMap[cmd] || 'arcade_info';
+                const res = await fetch(`${ARCADE}/mcp`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        id: Date.now(),
+                        method: 'tools/call',
+                        params: {name: tool, arguments: {}}
+                    })
+                });
+
+                const data = await res.json();
+                return data?.result?.content?.[0]?.text || 'No response';
+            } catch (err) {
+                return `Error: ${err.message}`;
+            }
+        }
+
+        async function arcadeCommand(cmd) {
+            const output = document.getElementById('arcade-output');
+            output.innerHTML = '<div class="text-gray-400 animate-pulse">Loading...</div>';
+            const result = await arcadeAPI(cmd);
+            output.textContent = result;
+        }
+
+        async function checkAllServices() {
+            const services = [
+                {name: 'AI Arcade', port: 8080, url: `${ARCADE}/`},
+                {name: 'Gateway', port: 8888, url: `${GW}/status`}
+            ];
+
+            let html = '<div class="text-gray-300 mt-2">';
+            for (const svc of services) {
+                try {
+                    const res = await fetch(svc.url, {timeout: 2000});
+                    html += `\n  ${svc.name.padEnd(15)} [<span class="text-green-400">UP</span>] :${svc.port}`;
+                } catch {
+                    html += `\n  ${svc.name.padEnd(15)} [<span class="text-red-400">DOWN</span>] :${svc.port}`;
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        async function refreshServices() {
+            const list = document.getElementById('services-list');
+            list.innerHTML = '<div class="text-center text-gray-400 py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Checking...</div>';
+
+            const services = [
+                {name: 'AI Lobby', icon: 'fas fa-users', port: 8787, url: 'http://localhost:8787/api/whoami'},
+                {name: 'AI Arcade', icon: 'fas fa-gamepad', port: 8080, url: `${ARCADE}/`},
+                {name: 'Gateway', icon: 'fas fa-server', port: 8888, url: `${GW}/status`},
+                {name: 'LumenisOS', icon: 'fas fa-cube', port: 8001, url: 'http://localhost:8001/health'},
+                {name: 'Council', icon: 'fas fa-brain', port: 3001, url: 'http://localhost:3001/health'},
+                {name: 'Aetherix', icon: 'fas fa-terminal', port: 9003, url: 'http://localhost:9003/health'}
+            ];
+
+            let html = '';
+            for (const svc of services) {
+                let status = 'checking';
+                let statusClass = 'text-yellow-500';
+                try {
+                    await fetch(svc.url, {timeout: 2000});
+                    status = 'ONLINE';
+                    statusClass = 'text-green-500';
+                } catch {
+                    status = 'OFFLINE';
+                    statusClass = 'text-red-500';
+                }
+
+                html += `
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:shadow-md transition-shadow">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white">
+                                <i class="${svc.icon}"></i>
+                            </div>
+                            <div>
+                                <div class="font-medium text-gray-800">${svc.name}</div>
+                                <div class="text-xs text-gray-500">Port ${svc.port}</div>
+                            </div>
+                        </div>
+                        <div class="font-bold ${statusClass}">${status}</div>
+                    </div>
+                `;
+            }
+
+            list.innerHTML = html;
+        }
+
+        // Global functions
+        window.changeWall = function(src) {
+            document.body.style.backgroundImage = `url('${src}')`;
+        };
+
+        function toggleStartMenu() {
+            const menu = document.getElementById('start-menu');
+            menu.classList.toggle('opacity-0');
+            menu.classList.toggle('scale-95');
+            menu.classList.toggle('pointer-events-none');
+        }
+
+        document.addEventListener('mousedown', (e) => {
+            const menu = document.getElementById('start-menu');
+            const startBtn = document.getElementById('start-btn');
+            const win = e.target.closest('.window');
+            if (win) {
+                const appId = win.id.replace('window-', '');
+                bringToFront(appId);
+            }
+
+            if (!menu.contains(e.target) && !startBtn.contains(e.target) && !menu.classList.contains('opacity-0')) {
+                toggleStartMenu();
+            }
+        });
+
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const dateString = now.toLocaleDateString();
+            document.getElementById('taskbar-time').innerHTML = `
+                <div class="text-xs font-medium tracking-wide">${timeString}</div>
+                <div class="text-[10px] opacity-80 mt-0.5">${dateString}</div>
+            `;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function bringToFront(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if (win) {
+                highestZ++;
+                win.style.zIndex = highestZ;
+            }
+        }
+
+        function openApp(appId) {
+            if (openApps[appId]) {
+                const win = document.getElementById(`window-${appId}`);
+                win.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+                bringToFront(appId);
+                updateTaskbar();
+                return;
+            }
+
+            const app = apps[appId];
+            openApps[appId] = true;
+
+            const win = document.createElement('div');
+            win.id = `window-${appId}`;
+            win.className = `window absolute bg-white/90 backdrop-blur-2xl rounded-xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] border border-white/60 flex flex-col overflow-hidden`;
+
+            const offset = Object.keys(openApps).length * 25;
+            win.style.width = app.width + 'px';
+            win.style.height = app.height + 'px';
+            win.style.top = `max(10%, calc(50% - ${app.height/2}px + ${offset}px))`;
+            win.style.left = `max(10%, calc(50% - ${app.width/2}px + ${offset}px))`;
+            win.style.zIndex = ++highestZ;
+
+            win.innerHTML = `
+                <div class="window-header h-10 bg-white/40 backdrop-blur-md flex justify-between items-center px-4 cursor-move border-b border-gray-200/50 select-none">
+                    <div class="flex items-center gap-2 font-medium text-gray-800 pointer-events-none">
+                        <i class="${app.icon} ${app.color} drop-shadow-sm"></i>
+                        <span class="text-xs font-semibold tracking-wide">${app.name}</span>
+                    </div>
+                    <div class="window-controls flex gap-2.5 items-center">
+                        <button onclick="minimizeApp('${appId}')" class="w-3.5 h-3.5 rounded-full bg-yellow-400 hover:bg-yellow-500 focus:outline-none shadow-sm flex items-center justify-center group"><i class="fas fa-minus text-[6px] opacity-0 group-hover:opacity-100 text-yellow-900 transition-opacity"></i></button>
+                        <button onclick="maximizeApp('${appId}')" class="w-3.5 h-3.5 rounded-full bg-green-400 hover:bg-green-500 focus:outline-none shadow-sm flex items-center justify-center group"><i class="fas fa-expand-alt text-[6px] opacity-0 group-hover:opacity-100 text-green-900 transition-opacity"></i></button>
+                        <button onclick="closeApp('${appId}')" class="w-3.5 h-3.5 rounded-full bg-red-400 hover:bg-red-500 focus:outline-none shadow-sm flex items-center justify-center group"><i class="fas fa-times text-[7px] opacity-0 group-hover:opacity-100 text-red-900 transition-opacity"></i></button>
+                    </div>
+                </div>
+                <div class="window-content flex-1 overflow-hidden relative">
+                    ${app.content}
+                </div>
+            `;
+
+            document.getElementById('desktop').appendChild(win);
+            makeDraggable(win, win.querySelector('.window-header'));
+
+            if (app.onOpen) {
+                setTimeout(() => app.onOpen(appId), 50);
+            }
+
+            updateTaskbar();
+
+            const menu = document.getElementById('start-menu');
+            if(!menu.classList.contains('opacity-0')) {
+                toggleStartMenu();
+            }
+        }
+
+        function minimizeApp(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if(win) {
+                win.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+            }
+            updateTaskbar();
+        }
+
+        function maximizeApp(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if(win) {
+                if(win.classList.contains('maximized')) {
+                    win.classList.remove('maximized');
+                    win.style.width = win.dataset.prevW;
+                    win.style.height = win.dataset.prevH;
+                    win.style.left = win.dataset.prevX;
+                    win.style.top = win.dataset.prevY;
+                    win.style.borderRadius = '0.75rem';
+                } else {
+                    win.dataset.prevW = win.style.width;
+                    win.dataset.prevH = win.style.height;
+                    win.dataset.prevX = win.style.left;
+                    win.dataset.prevY = win.style.top;
+                    win.classList.add('maximized');
+                    win.style.top = '0px';
+                    win.style.left = '0px';
+                    win.style.width = '100%';
+                    win.style.height = 'calc(100vh - 3.5rem)';
+                    win.style.borderRadius = '0px';
+                }
+            }
+        }
+
+        function closeApp(appId) {
+            const win = document.getElementById(`window-${appId}`);
+            if(win) {
+                if(apps[appId].onClose) apps[appId].onClose(appId, win);
+                win.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => win.remove(), 200);
+            }
+            delete openApps[appId];
+            updateTaskbar();
+        }
+
+        function makeDraggable(win, header) {
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+
+            header.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('.window-controls')) return;
+                isDragging = true;
+                bringToFront(win.id.replace('window-', ''));
+                startX = e.clientX;
+                startY = e.clientY;
+                initialX = win.offsetLeft;
+                initialY = win.offsetTop;
+                header.setPointerCapture(e.pointerId);
+            });
+
+            header.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                win.style.left = `${initialX + dx}px`;
+                win.style.top = `${Math.max(0, initialY + dy)}px`;
+            });
+
+            header.addEventListener('pointerup', (e) => {
+                isDragging = false;
+                header.releasePointerCapture(e.pointerId);
+            });
+        }
+
+        function updateTaskbar() {
+            const tbApps = document.getElementById('taskbar-apps');
+            tbApps.innerHTML = '';
+
+            Object.keys(openApps).forEach(appId => {
+                const app = apps[appId];
+                const win = document.getElementById(`window-${appId}`);
+                if (!win) return;
+
+                const isHidden = win.classList.contains('opacity-0');
+                const isTop = win.style.zIndex == highestZ && !isHidden;
+
+                const btn = document.createElement('button');
+                btn.className = `w-11 h-11 rounded-lg flex items-center justify-center transition-all ${isTop ? 'bg-white/20 shadow-inner' : 'hover:bg-white/10'} group relative`;
+
+                btn.onclick = () => {
+                    if (isHidden) {
+                        win.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+                        bringToFront(appId);
+                    } else {
+                        if (isTop) {
+                            minimizeApp(appId);
+                        } else {
+                            bringToFront(appId);
+                        }
+                    }
+                    updateTaskbar();
+                };
+
+                btn.innerHTML = `
+                    <i class="${app.icon} ${app.color} text-[22px] drop-shadow-sm transition-transform group-active:scale-90"></i>
+                    <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-3.5 h-1 rounded-t-sm ${isTop ? 'bg-blue-400' : 'bg-gray-400'} shadow transition-all"></div>
+                `;
+                tbApps.appendChild(btn);
+            });
+        }
+
+        // Calculator Logic
+        window.calcInput = function(val) {
+            const display = document.getElementById('calc-display');
+            if(display.innerText === '0' || display.dataset.clearNext === 'true') {
+                display.innerText = val;
+                display.dataset.clearNext = 'false';
+            } else {
+                display.innerText += val;
+            }
+        };
+
+        window.calcOp = function(op) {
+            const display = document.getElementById('calc-display');
+            const history = document.getElementById('calc-history');
+
+            if (op === 'C') {
+                display.innerText = '0';
+                history.innerText = '';
+                display.dataset.val1 = '';
+                display.dataset.op = '';
+            } else if (op === 'DEL') {
+                if(display.dataset.clearNext === 'true') return;
+                display.innerText = display.innerText.length > 1 ? display.innerText.slice(0, -1) : '0';
+            } else if (op === '=') {
+                if (display.dataset.op && display.dataset.val1) {
+                    try {
+                        const v1 = parseFloat(display.dataset.val1);
+                        const v2 = parseFloat(display.innerText);
+                        let res = 0;
+                        switch(display.dataset.op) {
+                            case '+': res = v1 + v2; break;
+                            case '-': res = v1 - v2; break;
+                            case '×': res = v1 * v2; break;
+                            case '÷': res = v1 / v2; break;
+                        }
+                        history.innerText = `${v1} ${display.dataset.op} ${v2} =`;
+                        let resStr = res.toString();
+                        if(resStr.length > 12) resStr = res.toPrecision(10);
+                        display.innerText = resStr;
+                    } catch(e) {
+                        display.innerText = 'Error';
+                    }
+                    display.dataset.clearNext = 'true';
+                    display.dataset.op = '';
+                }
+            } else {
+                display.dataset.val1 = display.innerText;
+                display.dataset.op = op;
+                history.innerText = `${display.innerText} ${op}`;
+                display.dataset.clearNext = 'true';
+            }
+        }
+
+        // Initialization
+        function initOS() {
+            const desktop = document.getElementById('desktop-icons');
+            const startGrid = document.getElementById('start-menu-grid');
+
+            Object.keys(apps).forEach(appId => {
+                const app = apps[appId];
+
+                const deskIcon = document.createElement('div');
+                deskIcon.className = 'w-24 rounded-lg p-2 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 transition-colors group active:bg-white/20';
+                deskIcon.onclick = () => openApp(appId);
+                deskIcon.innerHTML = `
+                    <div class="w-14 h-14 rounded-xl flex items-center justify-center shadow-[0_4px_15px_rgba(0,0,0,0.1)] mb-2 group-hover:scale-105 transition-transform bg-white/20 backdrop-blur-md border border-white/30">
+                        <i class="${app.icon} ${app.color} text-[28px] drop-shadow-md"></i>
+                    </div>
+                    <span class="text-white text-xs text-center font-medium px-1.5 py-0.5 rounded group-hover:bg-black/30 transition-colors truncate w-full" style="text-shadow: 0 1px 3px rgba(0,0,0,0.9);">${app.name}</span>
+                `;
+                desktop.appendChild(deskIcon);
+
+                const startIcon = document.createElement('div');
+                startIcon.className = 'flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 p-3 rounded-xl transition-colors group active:scale-95';
+                startIcon.onclick = () => openApp(appId);
+                startIcon.innerHTML = `
+                    <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm border border-gray-200 group-hover:shadow-md transition-shadow mb-2">
+                        <i class="${app.icon} ${app.color} text-2xl"></i>
+                    </div>
+                    <span class="text-gray-800 text-[11px] text-center font-medium truncate w-full">${app.name}</span>
+                `;
+                startGrid.appendChild(startIcon);
+            });
+
+            setTimeout(() => openApp('about'), 600);
+        }
+
+        window.onload = initOS;
+    </script>
+</body>
+</html>
