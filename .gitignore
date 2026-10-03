@@ -48,8 +48,17 @@ node_modules/
 *.tar.gz
 *.zip
 
-# Environment variables (sensitive)
+# Environment variables (sensitive) - CRITICAL: NEVER COMMIT THESE
 .env
+.env.*
 .env.local
 .env.*.local
 .env.master
+.env.production
+.env.development
+*.env
+
+# Sovereign Architecture - Runtime directories
+∆Gemini_Root∆/
+∆Gemini_Memory∆/
+*.pid

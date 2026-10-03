@@ -3,8 +3,7 @@
   "version": "1.0.1-verification",
   "build_date": "2026-08-20T05:33:29Z",
   "status": "verification-freeze",
-  "
-": {
+  "versions": {
     "o2png_protocol": "1.0",
     "one2lvos_core": "1.0.0",
     "python_api": "1.0.0",

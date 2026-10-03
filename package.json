@@ -25,20 +25,21 @@
     "url": "https://github.com/one2lv-com/One2lvos.git"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "dotenv": "^16.3.1",
-    "cors": "^2.8.5",
     "@datastax/astra-db-ts": "^1.0.0",
-    "openai": "^4.20.1",
     "axios": "^1.6.2",
     "body-parser": "^1.20.2",
-    "ws": "^8.14.2",
-    "uuid": "^9.0.1"
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.22.3",
+    "http-proxy-middleware": "^4.2.0",
+    "openai": "^4.20.1",
+    "uuid": "^9.0.1",
+    "ws": "^8.14.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2",
-    "jest": "^29.7.0",
     "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4"
   },

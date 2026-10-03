@@ -214,7 +214,7 @@ class O2PNGDecoder:
             auth_tag = self.envelope[payload_end:payload_end + 16]
             payload_end += 16
 
-        self.payload = self.envelope[payload_start:payload_end - 16 if not auth_tag else payload_end]
+        self.payload = self.envelope[payload_start:payload_start + self.header['payload_length']]
         self.digest = self.envelope[payload_end:payload_end + 32] if not auth_tag else self.envelope[payload_end:payload_end + 32]
 
         # 4. Verify digest

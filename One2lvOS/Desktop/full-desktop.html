@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One2lvOS - Complete Desktop Environment</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ffff;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Aurora Background */
+        #aurora-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            opacity: 0.4;
+        }
+
+        /* Main Container */
+        #desktop-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+        }
+
+        /* Top System Bar */
+        #system-bar {
+            height: 40px;
+            background: rgba(0, 0, 0, 0.95);
+            border-bottom: 2px solid #00ffff;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            z-index: 2000;
+            box-shadow: 0 2px 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .system-logo {
+            font-size: 16px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            color: #00ffff;
+            text-shadow: 0 0 10px #00ffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-pulse {
+            width: 8px;
+            height: 8px;
+            background: #00ff00;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 10px #00ff00; }
+            50% { opacity: 0.5; }
+        }
+
+        .system-stats {
+            margin-left: auto;
+            display: flex;
+            gap: 20px;
+            font-size: 11px;
+            color: #00ff00;
+        }
+
+        .stat-item { display: flex; align-items: center; gap: 4px; }
+
+        /* Desktop Grid */
+        #desktop-grid {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Sidebar Dock */
+        #dock {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ffff;
+            border-radius: 16px;
+            padding: 12px 8px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 255, 255, 0.4);
+            z-index: 1500;
+        }
+
+        .dock-icon {
+            width: 56px;
+            height: 56px;
+            margin: 8px 0;
+            background: linear-gradient(135deg, #001a33, #003366);
+            border: 2px solid #00ffff;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .dock-icon:hover {
+            background: linear-gradient(135deg, #0066cc, #00ffff);
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+        }
+
+        .dock-label {
+            position: absolute;
+            left: 70px;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 6px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+            font-size: 11px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            border: 1px solid #00ffff;
+        }
+
+        .dock-icon:hover .dock-label {
+            opacity: 1;
+        }
+
+        /* Windows */
+        .window {
+            position: absolute;
+            background: rgba(10, 10, 30, 0.95);
+            border: 2px solid #00ffff;
+            border-radius: 12px;
+            box-shadow: 0 12px 48px rgba(0, 255, 255, 0.4);
+            backdrop-filter: blur(15px);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 100;
+        }
+
+        .window.active {
+            display: flex;
+        }
+
+        .window.maximized {
+            top: 40px !important;
+            left: 0 !important;
+            width: 100% !important;
+            height: calc(100% - 88px) !important;
+            border-radius: 0;
+        }
+
+        .window-titlebar {
+            height: 40px;
+            background: linear-gradient(135deg, #001a33, #003366);
+            border-bottom: 1px solid #00ffff;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 12px;
+            cursor: move;
+            user-select: none;
+        }
+
+        .window-title {
+            color: #00ffff;
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .window-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .window-control {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .window-control.minimize { background: #ffaa00; }
+        .window-control.maximize { background: #00ff00; }
+        .window-control.close { background: #ff0000; }
+
+        .window-control:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 12px currentColor;
+        }
+
+        .window-content {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+            position: relative;
+        }
+
+        /* Taskbar */
+        #taskbar {
+            height: 48px;
+            background: rgba(0, 0, 0, 0.95);
+            border-top: 2px solid #00ffff;
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 8px;
+            z-index: 2000;
+            box-shadow: 0 -4px 20px rgba(0, 255, 255, 0.3);
+        }
+
+        .taskbar-item {
+            height: 36px;
+            padding: 0 16px;
+            background: linear-gradient(135deg, #001a33, #003366);
+            border: 1px solid #00ffff;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        .taskbar-item:hover, .taskbar-item.active {
+            background: linear-gradient(135deg, #003366, #0066cc);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Terminal Styles */
+        .terminal {
+            background: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            padding: 12px;
+            height: 100%;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+
+        .terminal-line {
+            margin: 2px 0;
+            white-space: pre-wrap;
+        }
+
+        .terminal-prompt { color: #00ffff; }
+        .terminal-error { color: #ff0000; }
+        .terminal-success { color: #00ff00; }
+        .terminal-warning { color: #ffff00; }
+
+        .terminal-input-container {
+            display: flex;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .terminal-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #00ff00;
+            font-family: inherit;
+            font-size: inherit;
+        }
+
+        /* Galaxy Renderer */
+        .galaxy-container {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            position: relative;
+        }
+
+        #galaxy-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .galaxy-info {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 16px;
+            border: 1px solid #00ffff;
+            border-radius: 8px;
+            font-size: 12px;
+        }
+
+        /* AI Chat */
+        .ai-chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .ai-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .ai-message {
+            padding: 12px;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+
+        .ai-message.user {
+            background: rgba(0, 102, 204, 0.3);
+            align-self: flex-end;
+            border: 1px solid #0066cc;
+        }
+
+        .ai-message.assistant {
+            background: rgba(0, 255, 255, 0.2);
+            align-self: flex-start;
+            border: 1px solid #00ffff;
+        }
+
+        .ai-input-area {
+            height: 70px;
+            background: rgba(0, 0, 0, 0.6);
+            border-top: 1px solid #00ffff;
+            display: flex;
+            padding: 12px;
+            gap: 12px;
+        }
+
+        .ai-input {
+            flex: 1;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            outline: none;
+            resize: none;
+        }
+
+        .ai-send-btn {
+            background: linear-gradient(135deg, #0066cc, #00ffff);
+            border: none;
+            color: #000;
+            padding: 0 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .ai-send-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.6);
+        }
+
+        /* System Monitor */
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .monitor-card {
+            background: rgba(0, 50, 100, 0.3);
+            border: 1px solid #00ffff;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .monitor-card h3 {
+            color: #00ffff;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .monitor-stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 12px;
+        }
+
+        .stat-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ffff;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+
+        .stat-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ffff, #0066cc);
+            transition: width 0.5s;
+        }
+
+        /* File Browser */
+        .file-browser {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .file-toolbar {
+            height: 44px;
+            background: rgba(0, 50, 100, 0.3);
+            border-bottom: 1px solid #00ffff;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+        }
+
+        .file-toolbar button {
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .file-toolbar button:hover {
+            background: rgba(0, 255, 255, 0.4);
+        }
+
+        .file-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .file-item {
+            padding: 10px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-item:hover {
+            background: rgba(0, 255, 255, 0.1);
+        }
+
+        /* Web Browser */
+        .browser-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .browser-toolbar {
+            height: 44px;
+            background: rgba(0, 50, 100, 0.3);
+            border-bottom: 1px solid #00ffff;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+        }
+
+        .browser-toolbar button {
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .browser-address {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ffff;
+            color: #00ffff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: inherit;
+            outline: none;
+        }
+
+        .browser-frame {
+            flex: 1;
+            border: none;
+            background: #fff;
+        }
+
+        /* Reactor Core */
+        .reactor-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            padding: 16px;
+        }
+
+        .reactor-module {
+            background: rgba(0, 50, 100, 0.3);
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            padding: 16px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        .reactor-module:hover {
+            border-color: #00ff00;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+
+        .reactor-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin: 0 auto 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .reactor-status.online { background: #00ff00; }
+        .reactor-status.warning { background: #ffaa00; }
+        .reactor-status.offline { background: #ff0000; }
+
+        /* Notification */
+        #notification-container {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+        }
+
+        .notification {
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #00ffff;
+            padding: 12px 16px;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0, 255, 255, 0.3);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(400px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Context Menu */
+        #context-menu {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #00ffff;
+            border-radius: 6px;
+            padding: 4px 0;
+            min-width: 180px;
+            z-index: 10000;
+            display: none;
+            box-shadow: 0 4px 16px rgba(0, 255, 255, 0.4);
+        }
+
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+
+        .context-menu-item:hover {
+            background: rgba(0, 255, 255, 0.2);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00ffff;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ddaa;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="aurora-canvas"></canvas>
+
+    <div id="desktop-container">
+        <!-- System Bar -->
+        <div id="system-bar">
+            <div class="system-logo">
+                <div class="status-pulse"></div>
+                ∞ ONE2LVOS v1.0
+            </div>
+            <div class="system-stats">
+                <div class="stat-item">CPU: <span id="cpu-usage">0%</span></div>
+                <div class="stat-item">RAM: <span id="ram-usage">0MB</span></div>
+                <div class="stat-item">Agents: <span id="agent-count">0</span></div>
+                <div class="stat-item" id="clock"></div>
+            </div>
+        </div>
+
+        <!-- Desktop Grid with Dock -->
+        <div id="desktop-grid">
+            <!-- Dock -->
+            <div id="dock">
+                <div class="dock-icon" onclick="One2lvOS.openWindow('infinity-glass')">
+                    🌠
+                    <div class="dock-label">Infinity Glass</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('terminal')">
+                    ⌨️
+                    <div class="dock-label">Terminal</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('ai-lobby')">
+                    🧠
+                    <div class="dock-label">AI Lobby</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('files')">
+                    📁
+                    <div class="dock-label">Files</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('browser')">
+                    🌐
+                    <div class="dock-label">Browser</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('system-monitor')">
+                    📊
+                    <div class="dock-label">System Monitor</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('reactor')">
+                    ⚛️
+                    <div class="dock-label">Reactor Core</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('jwst')">
+                    🔭
+                    <div class="dock-label">JWST Gallery</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('symbolic')">
+                    ∫
+                    <div class="dock-label">Symbolic Engine</div>
+                </div>
+                <div class="dock-icon" onclick="One2lvOS.openWindow('voice')">
+                    🎤
+                    <div class="dock-label">Voice Agent</div>
+                </div>
+            </div>
+
+            <!-- Windows Container -->
+            <div id="windows"></div>
+        </div>
+
+        <!-- Taskbar -->
+        <div id="taskbar"></div>
+    </div>
+
+    <!-- Notifications -->
+    <div id="notification-container"></div>
+
+    <!-- Context Menu -->
+    <div id="context-menu"></div>
+
+    <!-- Load External Modules -->
+    <script src="agent.js"></script>
+    <script src="terminal.js"></script>
+
+    <script>
+        // One2lvOS Desktop Manager
+        const One2lvOS = {
+            windows: {},
+            nextZIndex: 100,
+            activeWindow: null,
+
+            init() {
+                this.setupAurora();
+                this.setupSystemStats();
+                this.setupContextMenu();
+                this.initializeModules();
+                this.showWelcome();
+            },
+
+            setupAurora() {
+                const canvas = document.getElementById('aurora-canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                let time = 0;
+                const animate = () => {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    for (let i = 0; i < 3; i++) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(0, ${150 + i * 50}, ${200 + i * 50}, 0.3)`;
+                        ctx.lineWidth = 2;
+
+                        for (let x = 0; x < canvas.width; x += 10) {
+                            const y = canvas.height / 2 +
+                                     Math.sin((x + time * 2 + i * 100) * 0.01) * 50 +
+                                     Math.sin((x + time * 3 + i * 150) * 0.005) * 30;
+                            if (x === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.stroke();
+                    }
+
+                    time += 1;
+                    requestAnimationFrame(animate);
+                };
+                animate();
+
+                window.addEventListener('resize', () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                });
+            },
+
+            setupSystemStats() {
+                setInterval(() => {
+                    document.getElementById('cpu-usage').textContent =
+                        Math.floor(Math.random() * 30 + 10) + '%';
+                    document.getElementById('ram-usage').textContent =
+                        Math.floor(Math.random() * 500 + 4000) + 'MB';
+                    document.getElementById('agent-count').textContent =
+                        window.AgentManager ? window.AgentManager.agents.size : 0;
+                }, 3000);
+
+                setInterval(() => {
+                    const now = new Date();
+                    document.getElementById('clock').textContent =
+                        now.toLocaleTimeString('en-US', { hour12: false });
+                }, 1000);
+            },
+
+            setupContextMenu() {
+                const menu = document.getElementById('context-menu');
+
+                document.addEventListener('contextmenu', e => {
+                    if (e.target.closest('.window')) return;
+                    e.preventDefault();
+                    menu.innerHTML = `
+                        <div class="context-menu-item" onclick="One2lvOS.openWindow('terminal')">🖥️ Open Terminal</div>
+                        <div class="context-menu-item" onclick="One2lvOS.openWindow('ai-lobby')">🧠 Open AI Lobby</div>
+                        <div class="context-menu-item" onclick="One2lvOS.openWindow('files')">📁 Open Files</div>
+                        <div class="context-menu-item" onclick="One2lvOS.openWindow('browser')">🌐 Open Browser</div>
+                        <div class="context-menu-item" onclick="One2lvOS.openWindow('system-monitor')">📊 System Monitor</div>
+                        <div class="context-menu-item" onclick="One2lvOS.notify('Refresh', 'System refreshed')">🔄 Refresh</div>
+                    `;
+                    menu.style.left = e.pageX + 'px';
+                    menu.style.top = e.pageY + 'px';
+                    menu.style.display = 'block';
+                });
+
+                document.addEventListener('click', e => {
+                    if (!e.target.closest('#context-menu')) {
+                        menu.style.display = 'none';
+                    }
+                });
+            },
+
+            initializeModules() {
+                if (window.AgentManager) {
+                    window.AgentManager.initialize();
+                    this.notify('AgentManager', 'Initialized with ' + window.AgentManager.agents.size + ' agents');
+                }
+            },
+
+            showWelcome() {
+                this.notify('Welcome', 'One2lvOS Desktop Environment Loaded');
+                setTimeout(() => {
+                    this.openWindow('infinity-glass');
+                }, 1000);
+            },
+
+            createWindow(id, title, content, width = 900, height = 600) {
+                if (this.windows[id]) {
+                    this.focusWindow(id);
+                    return this.windows[id];
+                }
+
+                const win = document.createElement('div');
+                win.className = 'window active';
+                win.id = 'win-' + id;
+                win.style.width = width + 'px';
+                win.style.height = height + 'px';
+                win.style.left = (window.innerWidth / 2 - width / 2 + Math.random() * 60 - 30) + 'px';
+                win.style.top = (window.innerHeight / 2 - height / 2 + Math.random() * 60 - 30) + 'px';
+                win.style.zIndex = this.nextZIndex++;
+
+                win.innerHTML = `
+                    <div class="window-titlebar">
+                        <div class="window-title">${title}</div>
+                        <div class="window-controls">
+                            <button class="window-control minimize">−</button>
+                            <button class="window-control maximize">□</button>
+                            <button class="window-control close">×</button>
+                        </div>
+                    </div>
+                    <div class="window-content">${content}</div>
+                `;
+
+                document.getElementById('windows').appendChild(win);
+                this.attachWindowBehavior(win, id);
+                this.windows[id] = win;
+                this.activeWindow = id;
+                this.addTaskbarItem(id, title);
+
+                return win;
+            },
+
+            attachWindowBehavior(win, id) {
+                const titlebar = win.querySelector('.window-titlebar');
+
+                // Dragging
+                let isDragging = false, initialX, initialY, currentX, currentY;
+
+                titlebar.addEventListener('mousedown', e => {
+                    if (e.target.closest('.window-control')) return;
+                    isDragging = true;
+                    this.focusWindow(id);
+                    initialX = e.clientX - win.offsetLeft;
+                    initialY = e.clientY - win.offsetTop;
+                    win.style.cursor = 'grabbing';
+                });
+
+                document.addEventListener('mousemove', e => {
+                    if (!isDragging) return;
+                    e.preventDefault();
+                    currentX = e.clientX - initialX;
+                    currentY = e.clientY - initialY;
+                    if (!win.classList.contains('maximized')) {
+                        win.style.left = currentX + 'px';
+                        win.style.top = currentY + 'px';
+                    }
+                });
+
+                document.addEventListener('mouseup', () => {
+                    isDragging = false;
+                    win.style.cursor = 'default';
+                });
+
+                // Window controls
+                win.querySelector('.minimize').onclick = () => {
+                    win.classList.remove('active');
+                    document.querySelector(`[data-window-id="${id}"]`).classList.remove('active');
+                };
+
+                win.querySelector('.maximize').onclick = () => {
+                    win.classList.toggle('maximized');
+                };
+
+                win.querySelector('.close').onclick = () => {
+                    win.remove();
+                    delete this.windows[id];
+                    document.querySelector(`[data-window-id="${id}"]`).remove();
+                };
+
+                win.addEventListener('mousedown', () => this.focusWindow(id));
+            },
+
+            focusWindow(id) {
+                Object.values(this.windows).forEach(w => w.style.zIndex = 100);
+                if (this.windows[id]) {
+                    this.windows[id].style.zIndex = this.nextZIndex++;
+                    this.windows[id].classList.add('active');
+                    this.activeWindow = id;
+                    document.querySelectorAll('.taskbar-item').forEach(item => {
+                        item.classList.toggle('active', item.dataset.windowId === id);
+                    });
+                }
+            },
+
+            addTaskbarItem(id, title) {
+                const taskbar = document.getElementById('taskbar');
+                const item = document.createElement('div');
+                item.className = 'taskbar-item active';
+                item.dataset.windowId = id;
+                item.textContent = title;
+                item.onclick = () => {
+                    if (this.windows[id].classList.contains('active')) {
+                        this.windows[id].classList.remove('active');
+                        item.classList.remove('active');
+                    } else {
+                        this.windows[id].classList.add('active');
+                        this.focusWindow(id);
+                    }
+                };
+                taskbar.appendChild(item);
+            },
+
+            openWindow(type) {
+                const configs = {
+                    'infinity-glass': {
+                        title: '🌠 Infinity Glass - Spatial Desktop',
+                        content: `<div class="galaxy-container">
+                            <canvas id="galaxy-canvas"></canvas>
+                            <div class="galaxy-info">
+                                <h3 style="color: #00ffff; margin-bottom: 12px;">Galaxy Renderer</h3>
+                                <div>Stars: <span style="color: #00ff00;">10,247</span></div>
+                                <div>FPS: <span style="color: #00ff00;" id="galaxy-fps">60</span></div>
+                                <div>Rotation: <span style="color: #00ff00;" id="galaxy-rotation">0°</span></div>
+                                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #00ffff;">
+                                    <button onclick="One2lvOS.openWindow('terminal')" style="width: 100%; margin: 4px 0; padding: 8px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer;">Terminal</button>
+                                    <button onclick="One2lvOS.openWindow('ai-lobby')" style="width: 100%; margin: 4px 0; padding: 8px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer;">AI Council</button>
+                                    <button onclick="One2lvOS.openWindow('system-monitor')" style="width: 100%; margin: 4px 0; padding: 8px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer;">System Monitor</button>
+                                    <button onclick="One2lvOS.openWindow('reactor')" style="width: 100%; margin: 4px 0; padding: 8px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer;">Reactor</button>
+                                    <button onclick="One2lvOS.openWindow('jwst')" style="width: 100%; margin: 4px 0; padding: 8px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer;">JWST</button>
+                                    <button onclick="One2lvOS.openWindow('symbolic')" style="width: 100%; margin: 4px 0; padding: 8px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer;">Symbolic</button>
+                                </div>
+                            </div>
+                        </div>`,
+                        width: 1200,
+                        height: 700,
+                        onLoad: win => this.startGalaxy(win)
+                    },
+                    'terminal': {
+                        title: '⌨️ Aetherix Terminal',
+                        content: this.createTerminalContent(),
+                        width: 800,
+                        height: 500,
+                        onLoad: win => this.initTerminal(win)
+                    },
+                    'ai-lobby': {
+                        title: '🧠 AI Lobby - Agentic Control',
+                        content: this.createAILobbyContent(),
+                        width: 700,
+                        height: 600,
+                        onLoad: win => this.initAILobby(win)
+                    },
+                    'files': {
+                        title: '📁 Interplanetary Disk - File Browser',
+                        content: this.createFileBrowserContent(),
+                        width: 800,
+                        height: 600
+                    },
+                    'browser': {
+                        title: '🌐 Chrome Browser',
+                        content: this.createBrowserContent(),
+                        width: 1100,
+                        height: 700
+                    },
+                    'system-monitor': {
+                        title: '📊 System Monitor',
+                        content: this.createSystemMonitorContent(),
+                        width: 900,
+                        height: 650,
+                        onLoad: win => this.startSystemMonitor(win)
+                    },
+                    'reactor': {
+                        title: '⚛️ Reactor Core - Lumenis',
+                        content: this.createReactorContent(),
+                        width: 1000,
+                        height: 600,
+                        onLoad: win => this.startReactor(win)
+                    },
+                    'jwst': {
+                        title: '🔭 JWST Image Gallery',
+                        content: this.createJWSTContent(),
+                        width: 900,
+                        height: 700
+                    },
+                    'symbolic': {
+                        title: '∫ Symbolic Engine',
+                        content: this.createSymbolicContent(),
+                        width: 800,
+                        height: 600
+                    },
+                    'voice': {
+                        title: '🎤 Voice Agent',
+                        content: this.createVoiceContent(),
+                        width: 600,
+                        height: 500
+                    }
+                };
+
+                const config = configs[type];
+                if (!config) return;
+
+                const win = this.createWindow(type, config.title, config.content, config.width, config.height);
+                if (config.onLoad) config.onLoad(win);
+            },
+
+            createTerminalContent() {
+                return `
+                    <div class="terminal" id="terminal-output"></div>
+                    <div class="terminal-input-container">
+                        <span class="terminal-prompt">user@one2lvos:~$</span>
+                        <input type="text" class="terminal-input" id="terminal-input" autofocus />
+                    </div>
+                `;
+            },
+
+            initTerminal(win) {
+                const output = win.querySelector('#terminal-output');
+                const input = win.querySelector('#terminal-input');
+
+                const writeLine = (text, className = '') => {
+                    const line = document.createElement('div');
+                    line.className = 'terminal-line ' + className;
+                    line.textContent = text;
+                    output.appendChild(line);
+                    output.scrollTop = output.scrollHeight;
+                };
+
+                writeLine('One2lvOS v1.0 [Kernel 0.9.4-generic x86_64]', 'terminal-success');
+                writeLine('Type "help" for available commands\n');
+
+                const commands = {
+                    help: () => 'Available: help, clear, ls, pwd, date, whoami, neofetch, agents, apps, reactor',
+                    clear: () => { output.innerHTML = ''; return ''; },
+                    ls: () => 'Desktop  Documents  Downloads  Pictures  Videos  Infinity_Glasses  Agentic_Control',
+                    pwd: () => '/home/user',
+                    date: () => new Date().toString(),
+                    whoami: () => 'user',
+                    neofetch: () => `One2lvOS v1.0\n----------------\nKernel: 0.9.4-generic\nShell: One2lvShell\nDE: Infinity Glass\nCPU: Intel i7\nRAM: 16GB\nAgents: ${window.AgentManager ? window.AgentManager.agents.size : 0}`,
+                    agents: () => {
+                        if (window.AgentManager) {
+                            const agents = Array.from(window.AgentManager.agents.values());
+                            return 'Active Agents:\n' + agents.map(a => `  ${a.name} (${a.role}) - ${a.status}`).join('\n');
+                        }
+                        return 'AgentManager not initialized';
+                    },
+                    apps: () => 'Installed Apps:\n  - Infinity Glass\n  - AI Lobby\n  - System Monitor\n  - Reactor Core\n  - JWST Gallery\n  - Symbolic Engine\n  - Voice Agent',
+                    reactor: () => { One2lvOS.openWindow('reactor'); return 'Opening Reactor Core...'; }
+                };
+
+                input.addEventListener('keypress', e => {
+                    if (e.key !== 'Enter') return;
+                    const cmd = input.value.trim();
+                    writeLine('user@one2lvos:~$ ' + cmd);
+
+                    if (commands[cmd]) {
+                        const result = commands[cmd]();
+                        if (result) writeLine(result, 'terminal-success');
+                    } else if (cmd) {
+                        writeLine('Command not found: ' + cmd, 'terminal-error');
+                    }
+
+                    input.value = '';
+                });
+            },
+
+            createAILobbyContent() {
+                return `
+                    <div class="ai-chat-container">
+                        <div class="ai-messages" id="ai-messages">
+                            <div class="ai-message assistant">
+                                Hello! I'm your One2lvOS AI Assistant with NVIDIA integration and Astra DB vector memory.
+                                How can I help you today?
+                            </div>
+                        </div>
+                        <div class="ai-input-area">
+                            <textarea class="ai-input" id="ai-input" placeholder="Type your message..." rows="2"></textarea>
+                            <button class="ai-send-btn" onclick="One2lvOS.sendAIMessage()">Send</button>
+                        </div>
+                    </div>
+                `;
+            },
+
+            initAILobby(win) {
+                win.querySelector('#ai-input').addEventListener('keypress', e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendAIMessage();
+                    }
+                });
+            },
+
+            sendAIMessage() {
+                const input = document.getElementById('ai-input');
+                const messages = document.getElementById('ai-messages');
+                const text = input.value.trim();
+
+                if (!text) return;
+
+                messages.innerHTML += `<div class="ai-message user">${text}</div>`;
+                input.value = '';
+
+                setTimeout(() => {
+                    const responses = [
+                        'Processing your request using NVIDIA Nemotron Super 49B model...',
+                        'I\'ve analyzed the system state. All 7 agents are online and operational.',
+                        'Checking Astra DB vector memory... Found relevant context.',
+                        'Based on the system metrics, everything is running smoothly.',
+                        'I can help you with terminal commands, file operations, or system monitoring.'
+                    ];
+                    const response = responses[Math.floor(Math.random() * responses.length)];
+                    messages.innerHTML += `<div class="ai-message assistant">${response}</div>`;
+                    messages.scrollTop = messages.scrollHeight;
+                }, 1000);
+            },
+
+            createFileBrowserContent() {
+                return `
+                    <div class="file-browser">
+                        <div class="file-toolbar">
+                            <button onclick="One2lvOS.notify('Files', 'Refresh')">🔄 Refresh</button>
+                            <button onclick="One2lvOS.notify('Files', 'New Folder')">📁 New Folder</button>
+                            <button onclick="One2lvOS.notify('Files', 'Upload')">⬆️ Upload</button>
+                        </div>
+                        <div class="file-list">
+                            <div class="file-item">📁 Desktop</div>
+                            <div class="file-item">📁 Documents</div>
+                            <div class="file-item">📁 Downloads</div>
+                            <div class="file-item">📁 Pictures</div>
+                            <div class="file-item">📁 Videos</div>
+                            <div class="file-item">📁 Infinity_Glasses</div>
+                            <div class="file-item">📁 Agentic_Control</div>
+                            <div class="file-item">📁 Interplanetary_Disk</div>
+                            <div class="file-item">📄 README.md</div>
+                            <div class="file-item">📄 config.json</div>
+                            <div class="file-item">📄 state_snapshot.png</div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            createBrowserContent() {
+                return `
+                    <div class="browser-container">
+                        <div class="browser-toolbar">
+                            <button onclick="history.back()">◀</button>
+                            <button onclick="history.forward()">▶</button>
+                            <button onclick="location.reload()">🔄</button>
+                            <input type="text" class="browser-address" id="browser-address" placeholder="Enter URL..." value="https://www.google.com" />
+                            <button onclick="One2lvOS.loadBrowserURL()">Go</button>
+                        </div>
+                        <iframe class="browser-frame" id="browser-frame" src="about:blank"></iframe>
+                    </div>
+                `;
+            },
+
+            loadBrowserURL() {
+                const address = document.getElementById('browser-address');
+                const frame = document.getElementById('browser-frame');
+                let url = address.value.trim();
+                if (!url.match(/^https?:\/\//)) url = 'https://' + url;
+                frame.src = url;
+            },
+
+            createSystemMonitorContent() {
+                return `
+                    <div class="monitor-grid">
+                        <div class="monitor-card">
+                            <h3>CPU Usage</h3>
+                            <div class="monitor-stat"><span>Load</span><span id="mon-cpu">0%</span></div>
+                            <div class="stat-bar"><div class="stat-fill" id="mon-cpu-bar" style="width: 0%"></div></div>
+                        </div>
+                        <div class="monitor-card">
+                            <h3>Memory Usage</h3>
+                            <div class="monitor-stat"><span>Used</span><span id="mon-ram">0 / 16GB</span></div>
+                            <div class="stat-bar"><div class="stat-fill" id="mon-ram-bar" style="width: 0%"></div></div>
+                        </div>
+                        <div class="monitor-card">
+                            <h3>Network</h3>
+                            <div class="monitor-stat"><span>Download</span><span id="mon-down">0 KB/s</span></div>
+                            <div class="monitor-stat"><span>Upload</span><span id="mon-up">0 KB/s</span></div>
+                        </div>
+                        <div class="monitor-card">
+                            <h3>Processes</h3>
+                            <div class="monitor-stat"><span>Active</span><span id="mon-proc">0</span></div>
+                            <div class="monitor-stat"><span>Windows</span><span id="mon-win">0</span></div>
+                        </div>
+                        <div class="monitor-card">
+                            <h3>Disk I/O</h3>
+                            <div class="monitor-stat"><span>Read</span><span id="mon-read">0 MB/s</span></div>
+                            <div class="monitor-stat"><span>Write</span><span id="mon-write">0 MB/s</span></div>
+                        </div>
+                        <div class="monitor-card">
+                            <h3>AI Agents</h3>
+                            <div class="monitor-stat"><span>Online</span><span id="mon-agents">0</span></div>
+                            <div class="monitor-stat"><span>Tasks</span><span id="mon-tasks">0</span></div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            startSystemMonitor(win) {
+                setInterval(() => {
+                    const cpu = Math.floor(Math.random() * 40 + 10);
+                    const ram = Math.floor(Math.random() * 8 + 4);
+
+                    win.querySelector('#mon-cpu').textContent = cpu + '%';
+                    win.querySelector('#mon-cpu-bar').style.width = cpu + '%';
+                    win.querySelector('#mon-ram').textContent = `${ram}GB / 16GB`;
+                    win.querySelector('#mon-ram-bar').style.width = (ram/16*100) + '%';
+                    win.querySelector('#mon-down').textContent = Math.floor(Math.random() * 500) + ' KB/s';
+                    win.querySelector('#mon-up').textContent = Math.floor(Math.random() * 100) + ' KB/s';
+                    win.querySelector('#mon-proc').textContent = Math.floor(Math.random() * 20 + 50);
+                    win.querySelector('#mon-win').textContent = Object.keys(this.windows).length;
+                    win.querySelector('#mon-read').textContent = Math.floor(Math.random() * 50) + ' MB/s';
+                    win.querySelector('#mon-write').textContent = Math.floor(Math.random() * 20) + ' MB/s';
+                    win.querySelector('#mon-agents').textContent = window.AgentManager ? window.AgentManager.agents.size : 0;
+                    win.querySelector('#mon-tasks').textContent = Math.floor(Math.random() * 5);
+                }, 2000);
+            },
+
+            createReactorContent() {
+                return `
+                    <div class="reactor-grid">
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>Kernel</h3>
+                            <div>Status: ONLINE</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>Event Bus</h3>
+                            <div>Status: ONLINE</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>Agent Manager</h3>
+                            <div>Status: ONLINE</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>Flux Compass</h3>
+                            <div>73.0 Hz</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>Lumenis Reactor</h3>
+                            <div>Status: ACTIVE</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>Registry</h3>
+                            <div>Status: SYNCED</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>ITT Council</h3>
+                            <div>9/9 Online</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>Memory Core</h3>
+                            <div>Astra DB</div>
+                        </div>
+                        <div class="reactor-module">
+                            <div class="reactor-status online"></div>
+                            <h3>AI Lobby</h3>
+                            <div>NVIDIA Active</div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            startReactor(win) {
+                setInterval(() => {
+                    const modules = win.querySelectorAll('.reactor-module');
+                    modules.forEach(mod => {
+                        const status = mod.querySelector('.reactor-status');
+                        if (Math.random() > 0.95) {
+                            status.className = 'reactor-status warning';
+                            setTimeout(() => status.className = 'reactor-status online', 1000);
+                        }
+                    });
+                }, 3000);
+            },
+
+            createJWSTContent() {
+                return `
+                    <div style="padding: 20px;">
+                        <h2 style="color: #00ffff; margin-bottom: 20px;">🔭 James Webb Space Telescope Gallery</h2>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                            <div style="border: 1px solid #00ffff; border-radius: 8px; padding: 12px; background: rgba(0,50,100,0.2);">
+                                <div style="height: 200px; background: linear-gradient(135deg, #1a1a2e, #0f3460); border-radius: 4px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; font-size: 48px;">🌌</div>
+                                <div style="font-size: 12px;">Carina Nebula</div>
+                            </div>
+                            <div style="border: 1px solid #00ffff; border-radius: 8px; padding: 12px; background: rgba(0,50,100,0.2);">
+                                <div style="height: 200px; background: linear-gradient(135deg, #4a148c, #880e4f); border-radius: 4px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; font-size: 48px;">🪐</div>
+                                <div style="font-size: 12px;">Southern Ring Nebula</div>
+                            </div>
+                            <div style="border: 1px solid #00ffff; border-radius: 8px; padding: 12px; background: rgba(0,50,100,0.2);">
+                                <div style="height: 200px; background: linear-gradient(135deg, #1b5e20, #004d40); border-radius: 4px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; font-size: 48px;">✨</div>
+                                <div style="font-size: 12px;">Stephen's Quintet</div>
+                            </div>
+                            <div style="border: 1px solid #00ffff; border-radius: 8px; padding: 12px; background: rgba(0,50,100,0.2);">
+                                <div style="height: 200px; background: linear-gradient(135deg, #b71c1c, #ff6f00); border-radius: 4px; margin-bottom: 8px; display: flex; align-items: center; justify-content: center; font-size: 48px;">🌠</div>
+                                <div style="font-size: 12px;">SMACS 0723</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            createSymbolicContent() {
+                return `
+                    <div style="padding: 20px;">
+                        <h2 style="color: #00ffff; margin-bottom: 20px;">∫ Symbolic Transformation Engine</h2>
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-size: 12px; margin-bottom: 8px;">Input Expression:</div>
+                            <input type="text" style="width: 100%; padding: 10px; background: rgba(0,255,255,0.1); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; font-family: 'Courier New';" placeholder="Enter expression..." value="x^2 + 2x + 1" />
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px;">
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">~</button>
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">|</button>
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">π</button>
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">√</button>
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">∆</button>
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">∫</button>
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">∂</button>
+                            <button style="padding: 12px; background: rgba(0,255,255,0.2); border: 1px solid #00ffff; color: #00ffff; border-radius: 4px; cursor: pointer; font-size: 18px;">∑</button>
+                        </div>
+                        <div style="background: rgba(0,0,0,0.5); border: 1px solid #00ffff; border-radius: 4px; padding: 16px; min-height: 200px;">
+                            <div style="font-size: 12px; color: #00ff00; margin-bottom: 8px;">Result:</div>
+                            <div style="font-size: 16px; font-family: 'Courier New';">(x + 1)²</div>
+                            <div style="font-size: 12px; color: #00ff00; margin-top: 16px;">Transformation Pipeline:</div>
+                            <div style="font-size: 11px; color: #00ffff;">1. Parse → 2. Simplify → 3. Factor → 4. Optimize</div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            createVoiceContent() {
+                return `
+                    <div style="padding: 20px; text-align: center;">
+                        <div style="font-size: 64px; margin: 40px 0;">🎤</div>
+                        <h2 style="color: #00ffff; margin-bottom: 20px;">Voice Agent</h2>
+                        <button onclick="One2lvOS.notify('Voice', 'Listening...')" style="padding: 16px 32px; background: linear-gradient(135deg, #0066cc, #00ffff); border: none; color: #000; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; margin: 20px;">🎙️ Start Listening</button>
+                        <div style="margin-top: 30px; font-size: 14px; color: #00ffff;">
+                            <div>Status: <span style="color: #00ff00;">Ready</span></div>
+                            <div style="margin-top: 12px; font-size: 12px; opacity: 0.8;">
+                                Say commands like:<br>
+                                "Open terminal"<br>
+                                "Show system monitor"<br>
+                                "Launch AI lobby"
+                            </div>
+                        </div>
+                    </div>
+                `;
+            },
+
+            startGalaxy(win) {
+                const canvas = win.querySelector('#galaxy-canvas');
+                const ctx = canvas.getContext('2d');
+                const container = canvas.parentElement;
+
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+
+                const stars = [];
+                for (let i = 0; i < 10247; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = Math.random() * 300;
+                    stars.push({
+                        x: Math.cos(angle) * radius,
+                        y: Math.sin(angle) * radius,
+                        z: Math.random() * 500,
+                        brightness: Math.random()
+                    });
+                }
+
+                let rotation = 0;
+                const animate = () => {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    const centerX = canvas.width / 2;
+                    const centerY = canvas.height / 2;
+
+                    stars.forEach(star => {
+                        const rotX = star.x * Math.cos(rotation) - star.y * Math.sin(rotation);
+                        const rotY = star.x * Math.sin(rotation) + star.y * Math.cos(rotation);
+
+                        const scale = 200 / (200 + star.z);
+                        const x = centerX + rotX * scale;
+                        const y = centerY + rotY * scale;
+                        const size = scale * 2;
+
+                        ctx.fillStyle = `rgba(0, ${150 + star.brightness * 105}, ${200 + star.brightness * 55}, ${star.brightness})`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+
+                    rotation += 0.001;
+                    const rotDeg = Math.floor((rotation * 180 / Math.PI) % 360);
+                    const fpsEl = win.querySelector('#galaxy-fps');
+                    const rotEl = win.querySelector('#galaxy-rotation');
+                    if (fpsEl) fpsEl.textContent = '60';
+                    if (rotEl) rotEl.textContent = rotDeg + '°';
+
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            },
+
+            notify(title, message) {
+                const container = document.getElementById('notification-container');
+                const notification = document.createElement('div');
+                notification.className = 'notification';
+                notification.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 4px;">${title}</div>
+                    <div style="font-size: 11px; opacity: 0.8;">${message}</div>
+                `;
+                container.appendChild(notification);
+                setTimeout(() => notification.remove(), 3000);
+            }
+        };
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            One2lvOS.init();
+        });
+    </script>
+</body>
+</html>
