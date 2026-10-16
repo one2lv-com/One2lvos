@@ -1,0 +1,13 @@
+{
+  "one2lvos": {
+    "version": "2.0.0",
+    "status": "operational",
+    "reactor_core": "online"
+  },
+  "dns_gateway": {
+    "domains": 9,
+    "suffix": ".one2lv.local",
+    "status": "active"
+  },
+  "timestamp": "2026-10-16T05:30:00Z"
+}

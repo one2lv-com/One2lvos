@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>One2lvOS - Mobile</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #0a0015 0%, #1a0533 50%, #0f0020 100%);
+            color: #00f0ff;
+            overflow-x: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(10, 0, 30, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(0, 240, 255, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: bold;
+            background: linear-gradient(90deg, #ff00d4, #00f0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: rgba(10, 0, 30, 0.8);
+            border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .nav-tab {
+            flex: 1;
+            min-width: 80px;
+            padding: 12px 16px;
+            text-align: center;
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .nav-tab.active {
+            color: #00f0ff;
+            border-bottom-color: #00f0ff;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            background: rgba(10, 0, 30, 0.7);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 20px rgba(0, 240, 255, 0.1);
+        }
+
+        .card-title {
+            font-size: 18px;
+            color: #ff00d4;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .chat-container {
+            height: calc(100vh - 280px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            margin-bottom: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .message {
+            margin-bottom: 12px;
+            padding: 10px 14px;
+            border-radius: 12px;
+            max-width: 80%;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .message.user {
+            background: rgba(0, 240, 255, 0.2);
+            margin-left: auto;
+            text-align: right;
+        }
+
+        .message.ai {
+            background: rgba(255, 0, 212, 0.2);
+            margin-right: auto;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input, textarea {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            color: #00f0ff;
+            font-size: 16px;
+            outline: none;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #00f0ff;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff00d4, #8b00ff);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 24px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(255, 0, 212, 0.3);
+        }
+
+        button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(255, 0, 212, 0.5);
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .stat-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            color: #00f0ff;
+            font-weight: bold;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-left: 3px solid #00f0ff;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .feature-item:active {
+            background: rgba(0, 240, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #ff00d4;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid rgba(255, 0, 212, 0.1);
+            border-top: 3px solid #ff00d4;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #00f0ff, #0080ff);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">ONE2LVOS</div>
+        <div class="status-indicator" id="status"></div>
+    </div>
+
+    <div class="nav-tabs">
+        <button class="nav-tab active" data-tab="chat">Chat</button>
+        <button class="nav-tab" data-tab="coach">AI Coach</button>
+        <button class="nav-tab" data-tab="game">Game</button>
+        <button class="nav-tab" data-tab="system">System</button>
+    </div>
+
+    <div class="content">
+        <!-- Chat Tab -->
+        <div class="tab-pane active" id="chat">
+            <div class="card">
+                <div class="card-title">AI Assistant</div>
+                <div class="chat-container">
+                    <div class="messages" id="messages"></div>
+                    <div class="input-group">
+                        <input type="text" id="chatInput" placeholder="Ask anything...">
+                        <button onclick="sendChat()">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coach Tab -->
+        <div class="tab-pane" id="coach">
+            <div class="card">
+                <div class="card-title">AI Gaming Coach</div>
+                <p style="color: #888; margin-bottom: 15px;">Get personalized coaching and tips</p>
+                <div class="messages" id="coachMessages" style="height: 300px; margin-bottom: 15px;"></div>
+                <div class="input-group">
+                    <input type="text" id="coachInput" placeholder="Ask your coach...">
+                    <button onclick="sendCoach()">Ask</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Quick Tips</div>
+                <button onclick="getRandomTip()" style="width: 100%;">Get Random Tip</button>
+            </div>
+        </div>
+
+        <!-- Game Tab -->
+        <div class="tab-pane" id="game">
+            <div class="card">
+                <div class="card-title">Game Status</div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-label">Games Played</div>
+                        <div class="stat-value" id="gamesPlayed">0</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Win Rate</div>
+                        <div class="stat-value" id="winRate">0%</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">AI Level</div>
+                        <div class="stat-value" id="aiLevel">1</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-label">Rank</div>
+                        <div class="stat-value" id="rank">-</div>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button onclick="startGame()">Start Game</button>
+                    <button onclick="viewLeaderboard()" class="btn-secondary">Leaderboard</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Tab -->
+        <div class="tab-pane" id="system">
+            <div class="card">
+                <div class="card-title">System Status</div>
+                <ul class="feature-list" id="systemStatus">
+                    <li class="feature-item">Loading...</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Features</div>
+                <ul class="feature-list">
+                    <li class="feature-item">AI Coach - Real-time gaming assistance</li>
+                    <li class="feature-item">AI Broadcaster - Live commentary</li>
+                    <li class="feature-item">AI Second Player - Practice opponent</li>
+                    <li class="feature-item">Memory System - Persistent learning</li>
+                    <li class="feature-item">Mesh Network - Distributed system</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Settings</div>
+                <button onclick="resetAI()" style="width: 100%; margin-bottom: 10px;">Reset AI</button>
+                <button onclick="testConnection()" class="btn-secondary" style="width: 100%;">Test Connection</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Processing...</div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:8080';
+        const WS_URL = 'ws://localhost:8080';
+        let ws = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initTabs();
+            connectWebSocket();
+            loadSystemStatus();
+            setupEnterKey();
+        });
+
+        // Tab navigation
+        function initTabs() {
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                });
+            });
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket(WS_URL);
+
+                ws.onopen = () => {
+                    updateStatus(true);
+                    console.log('Connected to One2lvOS');
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleWSMessage(data);
+                };
+
+                ws.onclose = () => {
+                    updateStatus(false);
+                    setTimeout(connectWebSocket, 3000);
+                };
+
+                ws.onerror = () => {
+                    updateStatus(false);
+                };
+            } catch (err) {
+                updateStatus(false);
+            }
+        }
+
+        function handleWSMessage(data) {
+            switch(data.type) {
+                case 'coach_response':
+                    addMessage('coachMessages', data.data, 'ai');
+                    break;
+                case 'commentary':
+                    addMessage('messages', data.data, 'ai');
+                    break;
+                case 'ai_decision':
+                    console.log('AI Decision:', data.data);
+                    break;
+            }
+        }
+
+        // Status indicator
+        function updateStatus(connected) {
+            const status = document.getElementById('status');
+            status.style.background = connected ? '#00ff00' : '#ff0000';
+            status.style.boxShadow = connected ? '0 0 10px #00ff00' : '0 0 10px #ff0000';
+        }
+
+        // Chat functions
+        async function sendChat() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage('messages', message, 'user');
+            input.value = '';
+            showLoading(true);
+
+            try {
+                const response = await fetch(`${API_URL}/api/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ input: message })
+                });
+
+                const data = await response.json();
+                addMessage('messages', data.ai || JSON.stringify(data), 'ai');
+            } catch (err) {
+                addMessage('messages', 'Error: Could not connect to server', 'ai');
+            }
+
+            showLoading(false);
+        }
+
+        async function sendCoach() {
+            const input = document.getElementById('coachInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addMessage('coachMessages', message, 'user');
+            input.value = '';
+            showLoading(true);
+
+            try {
+                const response = await fetch(`${API_URL}/api/coach/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                addMessage('coachMessages', data.response, 'ai');
+            } catch (err) {
+                addMessage('coachMessages', 'Error: Could not connect to coach', 'ai');
+            }
+
+            showLoading(false);
+        }
+
+        function addMessage(containerId, text, type) {
+            const container = document.getElementById(containerId);
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            container.appendChild(msg);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // Game functions
+        async function startGame() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_URL}/api/game/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playerName: 'Mobile Player' })
+                });
+                const data = await response.json();
+                alert('Game started!\n\n' + (data.commentary || 'Good luck!'));
+            } catch (err) {
+                alert('Error starting game');
+            }
+            showLoading(false);
+        }
+
+        async function viewLeaderboard() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_URL}/api/leaderboard?limit=10`);
+                const data = await response.json();
+                const board = data.leaderboard.map((p, i) =>
+                    `${i+1}. ${p.name} - ${p.score} pts`
+                ).join('\n');
+                alert('Leaderboard:\n\n' + (board || 'No data yet'));
+            } catch (err) {
+                alert('Error loading leaderboard');
+            }
+            showLoading(false);
+        }
+
+        // System functions
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch(`${API_URL}/api/system/status`);
+                const data = await response.json();
+
+                const statusList = document.getElementById('systemStatus');
+                statusList.innerHTML = `
+                    <li class="feature-item">System: ${data.system}</li>
+                    <li class="feature-item">Status: ${data.status}</li>
+                    <li class="feature-item">Node: ${data.nodeId}</li>
+                    <li class="feature-item">Mesh: ${data.mesh?.status || 'Unknown'}</li>
+                `;
+            } catch (err) {
+                console.error('Could not load system status');
+            }
+        }
+
+        async function resetAI() {
+            if (!confirm('Reset AI to level 1?')) return;
+            showLoading(true);
+            try {
+                await fetch(`${API_URL}/api/ai/reset`, { method: 'POST' });
+                alert('AI reset successfully!');
+            } catch (err) {
+                alert('Error resetting AI');
+            }
+            showLoading(false);
+        }
+
+        async function testConnection() {
+            showLoading(true);
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                alert(`Connection OK!\n\nStatus: ${data.status}\nVersion: ${data.version}\nUptime: ${Math.floor(data.uptime)}s`);
+            } catch (err) {
+                alert('Connection failed!\n\nPlease check that the server is running.');
+            }
+            showLoading(false);
+        }
+
+        async function getRandomTip() {
+            const tips = [
+                'Stay focused on your objectives',
+                'Practice makes perfect',
+                'Learn from every match',
+                'Adapt your strategy to your opponent',
+                'Keep calm under pressure'
+            ];
+            const tip = tips[Math.floor(Math.random() * tips.length)];
+            addMessage('coachMessages', tip, 'ai');
+        }
+
+        // Utility functions
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+
+        function setupEnterKey() {
+            document.getElementById('chatInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendChat();
+            });
+            document.getElementById('coachInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') sendCoach();
+            });
+        }
+    </script>
+</body>
+</html>

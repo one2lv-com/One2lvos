@@ -1,0 +1,83 @@
+{
+  "dns_gateway": {
+    "version": "2.0.0",
+    "domain_suffix": ".one2lv.local",
+    "dns_port": 5353,
+    "ttl_default": 3600
+  },
+  "core_services": [
+    {
+      "name": "reactor",
+      "domain": "reactor.one2lv.local",
+      "port": 8000,
+      "type": "reactor_core",
+      "description": "Main Reactor Core API with DNS Gateway"
+    },
+    {
+      "name": "ui",
+      "domain": "ui.one2lv.local",
+      "port": 4000,
+      "type": "infinity_glasses",
+      "description": "Infinity Glasses HUD Interface"
+    },
+    {
+      "name": "memory",
+      "domain": "memory.one2lv.local",
+      "port": 8001,
+      "type": "astra_memory",
+      "description": "Astra DB L1 Memory System"
+    },
+    {
+      "name": "ai",
+      "domain": "ai.one2lv.local",
+      "port": 8787,
+      "type": "ai_lobby",
+      "description": "AI Lobby & Neural Bridge"
+    },
+    {
+      "name": "gateway",
+      "domain": "gateway.one2lv.local",
+      "port": 5353,
+      "type": "dns_gateway",
+      "description": "DNS Gateway & Service Discovery"
+    },
+    {
+      "name": "minimax",
+      "domain": "minimax.one2lv.local",
+      "port": 8080,
+      "type": "minimax_engine",
+      "description": "Minimax AI Engine"
+    },
+    {
+      "name": "api",
+      "domain": "api.one2lv.local",
+      "port": 3002,
+      "type": "python_core",
+      "description": "Python API Backend"
+    },
+    {
+      "name": "dashboard",
+      "domain": "dashboard.one2lv.local",
+      "port": 9000,
+      "type": "dashboard",
+      "description": "One2lv Dashboard UI"
+    },
+    {
+      "name": "bios",
+      "domain": "bios.one2lv.local",
+      "port": 9001,
+      "type": "bios_recovery",
+      "description": "BIOS Boot & Recovery System"
+    }
+  ],
+  "routing_rules": {
+    "*.one2lv.local": {
+      "resolver": "internal",
+      "fallback": "127.0.0.1"
+    },
+    "*.one2lv.io": {
+      "resolver": "external",
+      "proxy": true
+    }
+  }
+}

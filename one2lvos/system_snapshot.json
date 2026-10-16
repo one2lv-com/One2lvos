@@ -1,0 +1,78 @@
+{
+    "success": true,
+    "domains": [
+        {
+            "domain": "reactor.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 8000,
+            "service": "reactor_core",
+            "url": "http://127.0.0.1:8000",
+            "created": "2026-10-16T05:24:46.247146"
+        },
+        {
+            "domain": "ui.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 4000,
+            "service": "infinity_glasses",
+            "url": "http://127.0.0.1:4000",
+            "created": "2026-10-16T05:24:46.247155"
+        },
+        {
+            "domain": "memory.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 8001,
+            "service": "astra_memory",
+            "url": "http://127.0.0.1:8001",
+            "created": "2026-10-16T05:24:46.247156"
+        },
+        {
+            "domain": "ai.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 8787,
+            "service": "ai_lobby",
+            "url": "http://127.0.0.1:8787",
+            "created": "2026-10-16T05:24:46.247158"
+        },
+        {
+            "domain": "gateway.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 5353,
+            "service": "dns_gateway",
+            "url": "http://127.0.0.1:5353",
+            "created": "2026-10-16T05:24:46.247159"
+        },
+        {
+            "domain": "minimax.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 8080,
+            "service": "minimax_engine",
+            "url": "http://127.0.0.1:8080",
+            "created": "2026-10-16T05:24:46.247160"
+        },
+        {
+            "domain": "api.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 3002,
+            "service": "python_core",
+            "url": "http://127.0.0.1:3002",
+            "created": "2026-10-16T05:24:46.247162"
+        },
+        {
+            "domain": "dashboard.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 9000,
+            "service": "dashboard",
+            "url": "http://127.0.0.1:9000",
+            "created": "2026-10-16T05:24:46.247163"
+        },
+        {
+            "domain": "bios.one2lv.local",
+            "ip": "127.0.0.1",
+            "port": 9001,
+            "service": "bios_recovery",
+            "url": "http://127.0.0.1:9001",
+            "created": "2026-10-16T05:24:46.247164"
+        }
+    ],
+    "count": 9
+}

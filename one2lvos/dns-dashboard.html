@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One2lvOS DNS Gateway Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0015 0%, #1a0030 100%);
+            color: #00f0ff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            border-bottom: 2px solid rgba(0, 240, 255, 0.3);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #ff00d4;
+            text-shadow: 0 0 20px rgba(255, 0, 212, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #00f0ff;
+            font-size: 1.1em;
+            opacity: 0.8;
+        }
+
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(6, 6, 15, 0.7);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.05);
+        }
+
+        .stat-label {
+            color: #fcee0a;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            color: #00f0ff;
+            font-weight: bold;
+        }
+
+        .stat-value.online { color: #00ff00; }
+        .stat-value.offline { color: #ff0000; }
+
+        .domains-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .domain-card {
+            background: rgba(6, 6, 15, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .domain-card:hover {
+            border-color: #ff00d4;
+            box-shadow: 0 0 30px rgba(255, 0, 212, 0.3);
+            transform: translateY(-5px);
+        }
+
+        .domain-name {
+            font-size: 1.2em;
+            color: #ff00d4;
+            margin-bottom: 10px;
+            word-break: break-all;
+        }
+
+        .domain-service {
+            color: #fcee0a;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .domain-url {
+            color: #00f0ff;
+            font-size: 0.95em;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .domain-url a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .domain-url a:hover {
+            text-decoration: underline;
+        }
+
+        .domain-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0, 240, 255, 0.2);
+            font-size: 0.85em;
+            color: #94a3b8;
+        }
+
+        .control-panel {
+            background: rgba(6, 6, 15, 0.85);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .control-title {
+            color: #ff00d4;
+            font-size: 1.3em;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            color: #fcee0a;
+            margin-bottom: 5px;
+            font-size: 0.9em;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid #00f0ff;
+            color: #00f0ff;
+            border-radius: 5px;
+            font-family: inherit;
+            font-size: 1em;
+        }
+
+        button {
+            background: linear-gradient(135deg, #ff00d4 0%, #00f0ff 100%);
+            border: none;
+            color: #000;
+            padding: 12px 30px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 0, 212, 0.5);
+        }
+
+        .loading {
+            text-align: center;
+            color: #fcee0a;
+            padding: 40px;
+            font-size: 1.2em;
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid rgba(255, 0, 0, 0.3);
+            color: #ff6b6b;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌐 ONE2LVOS DNS GATEWAY</h1>
+            <div class="subtitle">Sovereign Domain Name Resolution & Service Discovery</div>
+        </header>
+
+        <div class="status-bar" id="statusBar">
+            <div class="stat-card">
+                <div class="stat-label">Gateway Status</div>
+                <div class="stat-value online pulse" id="gatewayStatus">LOADING</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Registered Domains</div>
+                <div class="stat-value" id="domainCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Active Services</div>
+                <div class="stat-value" id="serviceCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Last Updated</div>
+                <div class="stat-value" style="font-size: 1.2em;" id="lastUpdate">-</div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="control-title">⚡ Register New Service</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
+                <div class="form-group">
+                    <label>Service Name</label>
+                    <input type="text" id="serviceName" placeholder="myservice">
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" id="servicePort" placeholder="8080">
+                </div>
+                <div class="form-group">
+                    <label>Service Type</label>
+                    <input type="text" id="serviceType" placeholder="custom">
+                </div>
+                <button onclick="registerService()">Register</button>
+            </div>
+            <div id="registerResult"></div>
+        </div>
+
+        <div id="errorMessage"></div>
+
+        <div id="domainsContainer">
+            <div class="loading">🔄 Loading domains...</div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let refreshInterval;
+
+        async function fetchDomains() {
+            try {
+                const response = await fetch(`${API_URL}/dns/list`);
+                const data = await response.json();
+
+                if (data.success) {
+                    displayDomains(data.domains);
+                    updateStats(data);
+                    clearError();
+                } else {
+                    showError('Failed to fetch domains');
+                }
+            } catch (error) {
+                showError(`Connection error: ${error.message}. Make sure Reactor Core is running on port 8000.`);
+            }
+        }
+
+        async function fetchStatus() {
+            try {
+                const response = await fetch(`${API_URL}/dns/status`);
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('gatewayStatus').textContent = data.status.status;
+                    document.getElementById('gatewayStatus').className =
+                        data.status.status === 'ONLINE' ? 'stat-value online pulse' : 'stat-value offline';
+                }
+            } catch (error) {
+                document.getElementById('gatewayStatus').textContent = 'OFFLINE';
+                document.getElementById('gatewayStatus').className = 'stat-value offline';
+            }
+        }
+
+        function displayDomains(domains) {
+            const container = document.getElementById('domainsContainer');
+
+            if (domains.length === 0) {
+                container.innerHTML = '<div class="loading">No domains registered</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="domains-grid">' +
+                domains.map(domain => `
+                    <div class="domain-card">
+                        <div class="domain-name">${domain.domain}</div>
+                        <div class="domain-service">🔧 ${domain.service}</div>
+                        <div class="domain-url">
+                            <a href="${domain.url}" target="_blank">🔗 ${domain.url}</a>
+                        </div>
+                        <div class="domain-meta">
+                            <span>📍 ${domain.ip}:${domain.port}</span>
+                            <span>⏰ ${new Date(domain.created).toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+                `).join('') +
+            '</div>';
+        }
+
+        function updateStats(data) {
+            document.getElementById('domainCount').textContent = data.count;
+
+            const services = new Set(data.domains.map(d => d.service));
+            document.getElementById('serviceCount').textContent = services.size;
+
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        }
+
+        async function registerService() {
+            const name = document.getElementById('serviceName').value;
+            const port = document.getElementById('servicePort').value;
+            const type = document.getElementById('serviceType').value || 'custom';
+
+            if (!name || !port) {
+                showRegisterResult('❌ Please provide service name and port', true);
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/dns/register`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        name: name,
+                        port: parseInt(port),
+                        service_type: type
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showRegisterResult(`✅ Registered: ${data.domain} → ${data.url}`, false);
+                    document.getElementById('serviceName').value = '';
+                    document.getElementById('servicePort').value = '';
+                    document.getElementById('serviceType').value = '';
+                    setTimeout(() => fetchDomains(), 500);
+                } else {
+                    showRegisterResult('❌ Registration failed', true);
+                }
+            } catch (error) {
+                showRegisterResult(`❌ Error: ${error.message}`, true);
+            }
+        }
+
+        function showRegisterResult(message, isError) {
+            const resultDiv = document.getElementById('registerResult');
+            resultDiv.innerHTML = `<div style="margin-top: 15px; padding: 10px; background: ${isError ? 'rgba(255,0,0,0.1)' : 'rgba(0,255,0,0.1)'}; border-radius: 5px; color: ${isError ? '#ff6b6b' : '#00ff00'};">${message}</div>`;
+            setTimeout(() => resultDiv.innerHTML = '', 5000);
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').innerHTML =
+                `<div class="error">⚠️ ${message}</div>`;
+        }
+
+        function clearError() {
+            document.getElementById('errorMessage').innerHTML = '';
+        }
+
+        // Initial load
+        fetchDomains();
+        fetchStatus();
+
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            fetchDomains();
+            fetchStatus();
+        }, 5000);
+    </script>
+</body>
+</html>

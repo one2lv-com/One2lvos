@@ -1,0 +1,22 @@
+{
+  "reactor_core": {
+    "status": "online",
+    "version": "2.0.0",
+    "dns_domains": 9
+  },
+  "services": [
+    "reactor.one2lv.local",
+    "ui.one2lv.local",
+    "memory.one2lv.local",
+    "ai.one2lv.local"
+  ],
+  "memory_system": {
+    "provider": "astra_db",
+    "collection": "aria_memory",
+    "dimensions": 1024
+  },
+  "ai_engine": {
+    "provider": "nvidia",
+    "model": "llama-3.3-nemotron-super-49b-v1"
+  }
+}

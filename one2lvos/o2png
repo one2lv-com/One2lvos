@@ -1,0 +1,4 @@
+#!/bin/bash
+# O2PNG wrapper script
+cd "$(dirname "$0")"
+python3 tools/o2png.py "$@"
