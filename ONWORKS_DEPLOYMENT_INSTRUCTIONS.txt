@@ -1,0 +1,191 @@
+================================================================================
+ONWORKS DEPLOYMENT - INSTRUCTIONS
+================================================================================
+
+OPTION 1: VIA LUMENIS (Automated)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Start Lumenis server (in one terminal):
+   cd /home/vercel-sandbox/One2lvos
+   python3 -m uvicorn lumenis-main:app --host 0.0.0.0 --port 8000
+
+2. Talk to Lumenis (in another terminal):
+   cd /home/vercel-sandbox/One2lvos
+   python3 talk_to_lumenis.py "Boot OnWorks and deploy semantic layer"
+
+3. Lumenis will:
+   - Launch OnWorks instance
+   - Set admin password
+   - Open terminal
+   - Run deployment script
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPTION 2: MANUAL ONWORKS DEPLOYMENT (Direct)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Go to https://www.onworks.net
+
+2. Launch your saved Ubuntu image (or fresh Ubuntu)
+
+3. In OnWorks terminal, run ONE command:
+   bash <(curl -s https://raw.githubusercontent.com/one2lv-com/One2lvos/main/semantic_layer/deploy_to_onworks.sh)
+
+4. Configure credentials:
+   cd /home/admin/One2lvos
+   nano .env
+
+   Add these lines:
+   ASTRA_DB_API_ENDPOINT=https://9b5b1939-fd21-477d-95b8-a1aecc5f90b9-us-east-2.apps.astra.datastax.com
+   ASTRA_DB_APPLICATION_TOKEN=AstraCS:wdhjJlzIvxbEWgIWnNApOWDA:e4393a627e01f234e99d366c0936793e0b61462dbc0b58542b3e0e6dd06c634a
+   ASTRA_DB_KEYSPACE=one2lvOS
+
+   Save: Ctrl+X, Y, Enter
+
+5. Load ontologies:
+   cd semantic_layer
+   python3 semantic_cli.py load
+
+6. Verify:
+   python3 semantic_cli.py list agents
+   # Should show: Lumenis, Aria
+
+7. Test Lumenis with semantic layer:
+   cd /home/admin/One2lvos
+   python3 lumenis_semantic_demo.py
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPTION 3: GIT CLONE METHOD
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If you already have One2lvOS cloned in OnWorks:
+
+1. Update repository:
+   cd /home/admin/One2lvos
+   git pull origin main
+
+2. Configure .env (if not done):
+   nano .env
+   # Add Astra DB credentials (see above)
+
+3. Load semantic layer:
+   cd semantic_layer
+   python3 semantic_cli.py load
+
+4. Test:
+   python3 semantic_cli.py stats
+   python3 ../lumenis_semantic_demo.py
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+VERIFICATION STEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After deployment, verify in OnWorks terminal:
+
+cd /home/admin/One2lvos/semantic_layer
+
+# Load ontologies
+python3 semantic_cli.py load
+→ Expected: "Loaded 2 ontologies, 46 triples"
+
+# Check statistics
+python3 semantic_cli.py stats
+→ Shows: total_triples, unique_subjects, etc.
+
+# List agents
+python3 semantic_cli.py list agents
+→ Expected: "Lumenis, Aria"
+
+# Query Lumenis
+python3 semantic_cli.py query Lumenis
+
+# Visualize relationships
+python3 semantic_cli.py visualize Lumenis
+
+# Run full demo
+cd /home/admin/One2lvos
+python3 lumenis_semantic_demo.py
+→ Shows complete semantic layer demonstration
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+TROUBLESHOOTING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Issue: "Astra DB credentials not configured"
+Solution:
+  export ASTRA_DB_API_ENDPOINT="https://9b5b1939-fd21-477d-95b8-a1aecc5f90b9-us-east-2.apps.astra.datastax.com"
+  export ASTRA_DB_APPLICATION_TOKEN="AstraCS:wdhjJlzIvxbEWgIWnNApOWDA:e4393a627e01f234e99d366c0936793e0b61462dbc0b58542b3e0e6dd06c634a"
+  export ASTRA_DB_KEYSPACE="one2lvOS"
+
+Issue: "Import Error"
+Solution:
+  cd /home/admin/One2lvos/semantic_layer
+  export PYTHONPATH="/home/admin/One2lvos/semantic_layer:$PYTHONPATH"
+
+Issue: OnWorks timeout
+Solution:
+  python3 onworks_keepalive.py &
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+KEEP ONWORKS ALIVE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OnWorks has strict timeout settings. Use keepalive:
+
+cd /home/admin/One2lvos
+python3 onworks_keepalive.py &
+
+Or run in screen:
+screen -S keepalive
+python3 onworks_keepalive.py
+# Press Ctrl+A, D to detach
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+SAVE YOUR WORK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+After successful deployment:
+1. Use OnWorks "Save" button
+2. Name: "One2lvOS-Semantic-Ready"
+3. Use this image for future sessions
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+WHAT'S DEPLOYED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Semantic Layer (14 files)
+✓ RDF Ontologies (2 ontologies, 46 triples)
+✓ Web Technology Ontology (9 classes, 19 instances)
+✓ Lumenis Design System (9 components)
+✓ CSS Analyzer Tool
+✓ Knowledge Graph Manager
+✓ CLI Tool (12+ commands)
+✓ Complete Documentation
+
+READY TO USE:
+✓ Lumenis self-awareness
+✓ Semantic search
+✓ Entity visualization
+✓ Knowledge graph queries
+✓ Design system
+✓ Component ontology
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+DOCUMENTATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Full guides available at:
+- semantic_layer/ONWORKS_DEPLOYMENT.md - Complete deployment guide
+- semantic_layer/LUMENIS_INTEGRATION.md - Integration instructions
+- semantic_layer/README.md - Usage guide
+- SEMANTIC_LAYER_COMPLETE.md - Complete summary
+- WEB_ONTOLOGY_COMPLETE.md - Web ontology documentation
+
+================================================================================

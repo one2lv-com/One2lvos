@@ -1,0 +1,168 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix one2lv: <http://one2lv.com/ontology#> .
+
+<http://one2lv.com/ontology> a owl:Ontology ;
+    dc:title "One2lvOS Ontology" ;
+    dc:description "Semantic ontology for the One2lvOS sovereign architecture" ;
+    dc:creator "One2lv" ;
+    owl:imports <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+# ============================================================================
+# CORE CLASSES
+# ============================================================================
+
+one2lv:Agent a owl:Class ;
+    rdfs:label "Agent" ;
+    rdfs:comment "An autonomous agent in the One2lvOS ecosystem" ;
+    rdfs:subClassOf owl:Thing .
+
+one2lv:Memory a owl:Class ;
+    rdfs:label "Memory" ;
+    rdfs:comment "A memory entry stored in the L1 vector database" ;
+    rdfs:subClassOf owl:Thing .
+
+one2lv:Skill a owl:Class ;
+    rdfs:label "Skill" ;
+    rdfs:comment "A computational skill or capability" ;
+    rdfs:subClassOf owl:Thing .
+
+one2lv:Tool a owl:Class ;
+    rdfs:label "Tool" ;
+    rdfs:comment "A tool used by agents to perform actions" ;
+    rdfs:subClassOf owl:Thing .
+
+one2lv:Reactor a owl:Class ;
+    rdfs:label "Reactor" ;
+    rdfs:comment "A reactor core processing unit" ;
+    rdfs:subClassOf owl:Thing .
+
+one2lv:Layer a owl:Class ;
+    rdfs:label "Layer" ;
+    rdfs:comment "An architectural layer in the sovereign stack" ;
+    rdfs:subClassOf owl:Thing .
+
+one2lv:Integration a owl:Class ;
+    rdfs:label "Integration" ;
+    rdfs:comment "An external service integration" ;
+    rdfs:subClassOf owl:Thing .
+
+one2lv:KnowledgeGraph a owl:Class ;
+    rdfs:label "KnowledgeGraph" ;
+    rdfs:comment "A knowledge graph entity" ;
+    rdfs:subClassOf owl:Thing .
+
+# ============================================================================
+# PROPERTIES
+# ============================================================================
+
+# Agent Properties
+one2lv:hasSkill a owl:ObjectProperty ;
+    rdfs:label "hasSkill" ;
+    rdfs:comment "Agent possesses a skill" ;
+    rdfs:domain one2lv:Agent ;
+    rdfs:range one2lv:Skill .
+
+one2lv:hasTool a owl:ObjectProperty ;
+    rdfs:label "hasTool" ;
+    rdfs:comment "Agent has access to a tool" ;
+    rdfs:domain one2lv:Agent ;
+    rdfs:range one2lv:Tool .
+
+one2lv:hasMemory a owl:ObjectProperty ;
+    rdfs:label "hasMemory" ;
+    rdfs:comment "Agent has stored memory" ;
+    rdfs:domain one2lv:Agent ;
+    rdfs:range one2lv:Memory .
+
+# Layer Properties
+one2lv:atLayer a owl:ObjectProperty ;
+    rdfs:label "atLayer" ;
+    rdfs:comment "Component exists at architectural layer" ;
+    rdfs:range one2lv:Layer .
+
+one2lv:connectsTo a owl:ObjectProperty ;
+    rdfs:label "connectsTo" ;
+    rdfs:comment "Component connects to another component" ;
+    rdfs:domain owl:Thing ;
+    rdfs:range owl:Thing .
+
+# Memory Properties
+one2lv:embedding a owl:DatatypeProperty ;
+    rdfs:label "embedding" ;
+    rdfs:comment "Vector embedding of the memory" ;
+    rdfs:domain one2lv:Memory ;
+    rdfs:range rdfs:Literal .
+
+one2lv:timestamp a owl:DatatypeProperty ;
+    rdfs:label "timestamp" ;
+    rdfs:comment "Timestamp of the entity" ;
+    rdfs:range rdfs:Literal .
+
+# Skill Properties
+one2lv:skillName a owl:DatatypeProperty ;
+    rdfs:label "skillName" ;
+    rdfs:comment "Name of the skill" ;
+    rdfs:domain one2lv:Skill ;
+    rdfs:range rdfs:Literal .
+
+one2lv:skillDescription a owl:DatatypeProperty ;
+    rdfs:label "skillDescription" ;
+    rdfs:comment "Description of the skill" ;
+    rdfs:domain one2lv:Skill ;
+    rdfs:range rdfs:Literal .
+
+# Integration Properties
+one2lv:integrationEndpoint a owl:DatatypeProperty ;
+    rdfs:label "integrationEndpoint" ;
+    rdfs:comment "API endpoint for the integration" ;
+    rdfs:domain one2lv:Integration ;
+    rdfs:range rdfs:Literal .
+
+one2lv:integrationType a owl:DatatypeProperty ;
+    rdfs:label "integrationType" ;
+    rdfs:comment "Type of integration (discord, twitch, nvidia, etc.)" ;
+    rdfs:domain one2lv:Integration ;
+    rdfs:range rdfs:Literal .
+
+# ============================================================================
+# INSTANCES
+# ============================================================================
+
+# Agents
+one2lv:Lumenis a one2lv:Agent ;
+    rdfs:label "Lumenis" ;
+    rdfs:comment "The primary AI agent of One2lvOS" .
+
+one2lv:Aria a one2lv:Agent ;
+    rdfs:label "Aria" ;
+    rdfs:comment "The ARIA agent subsystem" .
+
+# Layers
+one2lv:L1_Memory a one2lv:Layer ;
+    rdfs:label "L1 Memory Layer" ;
+    rdfs:comment "Astra DB vector memory layer" .
+
+one2lv:L2_Skills a one2lv:Layer ;
+    rdfs:label "L2 Skills Layer" ;
+    rdfs:comment "NVIDIA AI models and skills layer" .
+
+one2lv:L3_Integrations a one2lv:Layer ;
+    rdfs:label "L3 Integrations Layer" ;
+    rdfs:comment "External service integrations layer" .
+
+# Integrations
+one2lv:NvidiaIntegration a one2lv:Integration ;
+    rdfs:label "NVIDIA Integration" ;
+    one2lv:integrationType "nvidia" ;
+    one2lv:integrationEndpoint "https://integrate.api.nvidia.com/v1" .
+
+one2lv:DiscordIntegration a one2lv:Integration ;
+    rdfs:label "Discord Integration" ;
+    one2lv:integrationType "discord" .
+
+one2lv:MatonIntegration a one2lv:Integration ;
+    rdfs:label "Maton Integration" ;
+    one2lv:integrationType "maton" .

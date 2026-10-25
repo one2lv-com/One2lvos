@@ -1,0 +1,39 @@
+/* $Id: dyndns.11072001.min.css 24494 2011-08-02 14:24:15Z lswanson $ */
+/* Historical artifact from DynDNS - Stored in One2lvOS Semantic Layer */
+/* Date archived: 2026-10-25 */
+/* Source: Email from Brianne, Oct 1, 2017 */
+
+@font-face{
+    font-family:'P22UndergroundLight';
+    src:url('https://a.dyndns.com/css/fonts/p22underground-light-webfont.eot');
+    src:url('https://a.dyndns.com/css/fonts/p22underground-light-webfont.eot?#iefix') format('embedded-opentype'),
+        url('https://a.dyndns.com/css/fonts/p22underground-light-webfont.woff') format('woff'),
+        url('https://a.dyndns.com/css/fonts/p22underground-light-webfont.ttf') format('truetype');
+    font-weight:normal;
+    font-style:normal}
+@font-face{
+    font-family:'P22UndergroundBook';
+    src:url('https://a.dyndns.com/css/fonts/p22underground-book-webfont.eot');
+    src:url('https://a.dyndns.com/css/fonts/p22underground-book-webfont.eot?#iefix') format('embedded-opentype'),
+        url('https://a.dyndns.com/css/fonts/p22underground-book-webfont.woff') format('woff'),
+        url('https://a.dyndns.com/css/fonts/p22underground-book-webfont.ttf') format('truetype');
+    font-weight:normal;
+    font-style:normal}
+@font-face{
+    font-family:'jrhand';
+    src:url('https://a.dyndns.com/css/fonts/jrhand-webfont.eot');
+    src:url('https://a.dyndns.com/css/fonts/jrhand-webfont.eot?#iefix') format('embedded-opentype'),
+        url('https://a.dyndns.com/css/fonts/jrhand-webfont.woff') format('woff'),
+        url('https://a.dyndns.com/css/fonts/jrhand-webfont.ttf') format('truetype');
+    font-weight:normal;
+    font-style:normal}
+
+html,body,div,h1,h2,h2,h4,h5,h6,p,blockquote,pre,a,code,img,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;background:transparent}
+body{font:12px/1.4 "Lucida Grande",Tahoma,Arial,sans-serif;background:#fff;color:#333;width:100%}
+h1,h2,h3,h4,h5,#rfooter dt,.banner,.upsell-price span,.upsell-cta h3,.upsell-highlights,#rnav,.nav-title{font-family:'P22UndergroundBook',"Lucida Grande",Tahoma,Arial,sans-serif;font-weight:normal;color:#000}
+h2,h4,p,.main-content ul,.main-content ol,pre{margin:1.2em 0}
+.toc ul,.toc ol{margin:0}
+.main-content ul,.main-content ol{padding-left:40px}
+.signin_menu input,.right-box,.nav_button,.cta,.service_list,.packagegraybar,#topsearch,#navcontainer,#uncredited_banner,#sidebarForum,#sidenav-content .right-actions,#blendyboxcont,.actions_service a,.columns .col,.loginoptions,#dlbox,#host,#zone,.midbox,#checkout-content,#credit-card,.confirm table,.right-highlight,.warning-banner,#main-area,#related,.warningnote{-moz-border-radius:.5em;-o-border-radius:.5em;-webkit-border-radius:.5em;border-radius:.5em}
+
+/* Additional CSS content truncated for brevity - see original file */

@@ -1,6 +1,6 @@
 # skills.md — Lumenis Skill Catalog
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Last updated:** auto (writable by Lumenis)
 
 ---
@@ -62,6 +62,11 @@
 
 ## Learned Skills
 
-*Lumenis appends new skills here when acquired.*
-
-<!-- entries appended by Lumenis autonomously -->
+| Skill | Description | API Path |
+|---|---|---|
+| `cql.query` | Execute CQL statement against Astra DB | POST /api/tools/cql/query |
+| `cql.batch` | Atomic batch CQL write | POST /api/tools/cql/batch |
+| `build_spec.create` | Store build spec in Cassandra | POST /api/tools/build_spec/create |
+| `build_spec.list` | List all build specs | GET /api/tools/build_spec/list |
+| `build_spec.get` | Retrieve build spec by ID | GET /api/tools/build_spec/{spec_id} |
+| `nvidia.infer` | NVIDIA NIM model inference | POST /api/tools/nvidia/infer |

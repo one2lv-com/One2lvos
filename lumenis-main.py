@@ -2038,4 +2038,231 @@ TOOL_REGISTRY.extend([
         "params":      [],
         "description": "Get the currently selected OnWorks build (from compass.db, defaults to Ubuntu 22).",
     },
+    {
+        "id":          "cql.query",
+        "label":       "CQL Query",
+        "method":      "POST",
+        "path":        "/api/tools/cql/query",
+        "category":    "Database",
+        "icon":        "🗄️",
+        "params":      ["keyspace", "cql"],
+        "description": "Execute a CQL statement against Astra DB via the secure connect bundle.",
+    },
+    {
+        "id":          "cql.batch",
+        "label":       "CQL Batch Write",
+        "method":      "POST",
+        "path":        "/api/tools/cql/batch",
+        "category":    "Database",
+        "icon":        "📦",
+        "params":      ["keyspace", "statements"],
+        "description": "Execute a batch of CQL INSERT/UPDATE statements atomically.",
+    },
+    {
+        "id":          "build_spec.create",
+        "label":       "Create Build Spec",
+        "method":      "POST",
+        "path":        "/api/tools/build_spec/create",
+        "category":    "Build",
+        "icon":        "🔨",
+        "params":      ["name", "os_id", "config"],
+        "description": "Store a new build specification in Astra DB (build_specs table).",
+    },
+    {
+        "id":          "build_spec.list",
+        "label":       "List Build Specs",
+        "method":      "GET",
+        "path":        "/api/tools/build_spec/list",
+        "category":    "Build",
+        "icon":        "📋",
+        "params":      [],
+        "description": "List all stored build specifications from Astra DB.",
+    },
+    {
+        "id":          "build_spec.get",
+        "label":       "Get Build Spec",
+        "method":      "GET",
+        "path":        "/api/tools/build_spec/{spec_id}",
+        "category":    "Build",
+        "icon":        "🔍",
+        "params":      ["spec_id"],
+        "description": "Retrieve a specific build specification by ID.",
+    },
+    {
+        "id":          "nvidia.infer",
+        "label":       "NVIDIA Inference",
+        "method":      "POST",
+        "path":        "/api/tools/nvidia/infer",
+        "category":    "AI",
+        "icon":        "🤖",
+        "params":      ["prompt", "model"],
+        "description": "Send a prompt to a NVIDIA NIM model and return the response.",
+    },
 ])
+
+# ── CQL / CASSANDRA TOOLS ─────────────────────────────────────────────────────
+
+def _cql_session(keyspace: str = "default_keyspace"):
+    from cassandra.cluster import Cluster
+    from cassandra.auth import PlainTextAuthProvider
+    _bundle = str(Path(__file__).parent / "secure-connect-one2lvos.zip")
+    _token  = os.environ.get("ASTRA_DB_APPLICATION_TOKEN", "")
+    cluster = Cluster(
+        cloud={"secure_connect_bundle": _bundle},
+        auth_provider=PlainTextAuthProvider("token", _token),
+    )
+    session = cluster.connect(keyspace)
+    return cluster, session
+
+
+@app.post("/api/tools/cql/query")
+async def cql_query(body: dict):
+    keyspace = body.get("keyspace", "default_keyspace")
+    cql_stmt = body.get("cql", "")
+    if not cql_stmt:
+        return JSONResponse({"error": "cql field required"}, status_code=400)
+    try:
+        cluster, session = _cql_session(keyspace)
+        rows   = session.execute(cql_stmt)
+        result = [dict(r._asdict()) for r in rows] if rows else []
+        cluster.shutdown()
+        return JSONResponse({"rows": result, "count": len(result), "keyspace": keyspace})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/tools/cql/batch")
+async def cql_batch(body: dict):
+    from cassandra.query import BatchStatement
+    keyspace   = body.get("keyspace", "default_keyspace")
+    statements = body.get("statements", [])
+    if not statements:
+        return JSONResponse({"error": "statements list required"}, status_code=400)
+    try:
+        cluster, session = _cql_session(keyspace)
+        batch = BatchStatement()
+        for stmt in statements:
+            batch.add(stmt)
+        session.execute(batch)
+        cluster.shutdown()
+        return JSONResponse({"executed": len(statements), "keyspace": keyspace})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── BUILD SPEC TOOLS ──────────────────────────────────────────────────────────
+
+def _ensure_build_specs_table():
+    try:
+        cluster, session = _cql_session()
+        session.execute("""
+            CREATE TABLE IF NOT EXISTS build_specs (
+                id        TEXT PRIMARY KEY,
+                name      TEXT,
+                os_id     TEXT,
+                config    TEXT,
+                created   TIMESTAMP,
+                updated   TIMESTAMP
+            )
+        """)
+        cluster.shutdown()
+    except Exception:
+        pass
+
+_ensure_build_specs_table()
+
+
+@app.post("/api/tools/build_spec/create")
+async def build_spec_create(body: dict):
+    import uuid as _uuid
+    from datetime import timezone
+    name   = body.get("name", "")
+    os_id  = body.get("os_id", "")
+    config = body.get("config", {})
+    if not name:
+        return JSONResponse({"error": "name required"}, status_code=400)
+    spec_id = str(_uuid.uuid4())
+    now     = datetime.now(timezone.utc)
+    try:
+        cluster, session = _cql_session()
+        prepared = session.prepare(
+            "INSERT INTO build_specs (id, name, os_id, config, created, updated) VALUES (?, ?, ?, ?, ?, ?)"
+        )
+        session.execute(prepared, (spec_id, name, os_id, json.dumps(config), now, now))
+        cluster.shutdown()
+        return JSONResponse({"id": spec_id, "name": name, "os_id": os_id, "created": now.isoformat()})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/tools/build_spec/list")
+async def build_spec_list():
+    try:
+        cluster, session = _cql_session()
+        rows  = session.execute("SELECT id, name, os_id, config, created, updated FROM build_specs")
+        specs = []
+        for r in rows:
+            specs.append({
+                "id":      r.id,
+                "name":    r.name,
+                "os_id":   r.os_id,
+                "config":  json.loads(r.config) if r.config else {},
+                "created": r.created.isoformat() if r.created else None,
+                "updated": r.updated.isoformat() if r.updated else None,
+            })
+        cluster.shutdown()
+        return JSONResponse({"specs": specs, "count": len(specs)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/tools/build_spec/{spec_id}")
+async def build_spec_get(spec_id: str):
+    try:
+        cluster, session = _cql_session()
+        prepared = session.prepare("SELECT * FROM build_specs WHERE id = ?")
+        row      = session.execute(prepared, (spec_id,)).one()
+        cluster.shutdown()
+        if not row:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({
+            "id":      row.id,
+            "name":    row.name,
+            "os_id":   row.os_id,
+            "config":  json.loads(row.config) if row.config else {},
+            "created": row.created.isoformat() if row.created else None,
+            "updated": row.updated.isoformat() if row.updated else None,
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── NVIDIA INFERENCE TOOL ─────────────────────────────────────────────────────
+
+@app.post("/api/tools/nvidia/infer")
+async def nvidia_infer(body: dict):
+    import httpx
+    prompt  = body.get("prompt", "")
+    model   = body.get("model", os.environ.get("LLM_MODEL", "nvidia/llama-3.3-nemotron-super-49b-v1"))
+    api_key = os.environ.get("NVIDIA_API_KEY", "")
+    if not prompt:
+        return JSONResponse({"error": "prompt required"}, status_code=400)
+    payload = {
+        "model":       model,
+        "messages":    [{"role": "user", "content": prompt}],
+        "max_tokens":  1024,
+        "temperature": 0.7,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            data  = resp.json()
+            reply = data["choices"][0]["message"]["content"]
+            return JSONResponse({"reply": reply, "model": model, "usage": data.get("usage", {})})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
