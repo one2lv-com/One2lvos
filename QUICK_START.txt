@@ -1,0 +1,89 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║       🌷 ONE2LVOS - OFFLINE SETUP - QUICK START 🌷           ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+⚠️  YOUR ENVIRONMENT CANNOT INSTALL PACKAGES FROM INTERNET
+   (pip install / npm install are disabled)
+
+✅ SOLUTION: 3 Options Provided (No installation needed!)
+
+┌─────────────────────────────────────────────────────────────┐
+│  OPTION 1: SELF-CONTAINED DEMO (EASIEST) ⭐                  │
+└─────────────────────────────────────────────────────────────┘
+
+   Open demo-standalone.html in any browser:
+
+   python3 -m http.server 8080
+   # Then visit: http://localhost:8080/demo-standalone.html
+
+   OR just:
+   open demo-standalone.html
+
+   ✓ No server needed
+   ✓ No dependencies
+   ✓ Works 100% offline
+   ✓ Interactive UI with simulated responses
+
+┌─────────────────────────────────────────────────────────────┐
+│  OPTION 2: STANDALONE NODE.JS SERVER                        │
+└─────────────────────────────────────────────────────────────┘
+
+   Start server with Node.js built-in modules only:
+
+   node standalone-server.js
+
+   # Access at: http://localhost:9000
+
+   ✓ No npm packages required
+   ✓ Serves UI + proxies to Python backend
+   ✓ Embedded fallback demo
+
+┌─────────────────────────────────────────────────────────────┐
+│  OPTION 3: FULL SYSTEM (Requires Internet for AI)          │
+└─────────────────────────────────────────────────────────────┘
+
+   Terminal 1:
+   python3 lumenis-main.py
+
+   Terminal 2:
+   node standalone-server.js
+
+   # Access at: http://localhost:9000
+
+   ⚠️  Requires modification to use aiohttp instead of httpx
+   ⚠️  Requires internet for NVIDIA API calls
+   ✓ Full AI capabilities
+   ✓ Real memory persistence
+
+═══════════════════════════════════════════════════════════════
+
+WHAT HAPPENED?
+
+Your environment:
+  ❌ httpx package not installed (needed by reactor.py)
+  ❌ Cannot pip install / npm install from internet
+  ✅ aiohttp IS installed (can replace httpx)
+  ✅ Node.js built-in modules available
+
+Solutions created:
+  ✓ demo-standalone.html         (works in browser, no server)
+  ✓ standalone-server.js         (Node.js built-ins only)
+  ✓ reactor_aiohttp.py           (uses aiohttp instead)
+
+═══════════════════════════════════════════════════════════════
+
+RECOMMENDED: Start with Option 1
+
+   cd /home/vercel-sandbox/One2lvos
+   python3 -m http.server 8080
+
+   Then open: http://localhost:8080/demo-standalone.html
+
+═══════════════════════════════════════════════════════════════
+
+📖 Full guide:  cat OFFLINE_SETUP_GUIDE.md
+📊 Status check: ./system-status.sh
+
+═══════════════════════════════════════════════════════════════

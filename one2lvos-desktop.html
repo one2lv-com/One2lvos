@@ -93,6 +93,14 @@
         </div>
 
         <div class="flex items-center gap-2 h-full text-white">
+            <!-- State PNG buttons -->
+            <button onclick="saveStatePNG()" title="Save desktop state as PNG" class="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all group active:scale-95">
+                <i class="fas fa-camera text-sm text-blue-300 group-hover:text-blue-200 drop-shadow-sm transition-colors"></i>
+            </button>
+            <button onclick="loadStatePNG()" title="Load desktop state from PNG" class="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all group active:scale-95">
+                <i class="fas fa-folder-open text-sm text-green-300 group-hover:text-green-200 drop-shadow-sm transition-colors"></i>
+            </button>
+            <div class="w-px h-6 bg-white/20"></div>
             <div class="flex items-center gap-3 hover:bg-white/10 px-3 py-1.5 rounded-lg cursor-pointer transition-colors h-10">
                 <i class="fas fa-chevron-up text-[10px] text-gray-300"></i>
                 <i class="fas fa-wifi text-sm text-gray-100"></i>
@@ -114,9 +122,20 @@
         let highestZ = 10;
         let openApps = {};
 
-        // API Configuration
-        const ARCADE = 'http://localhost:8080';
-        const GW = 'http://localhost:8888';
+        // API Configuration — all One2lvOS service endpoints
+        const ARCADE      = 'http://localhost:8003';  // AI Arcade MCP
+        const GW          = 'http://localhost:8888';  // Unified Gateway
+        const LOBBY       = 'http://localhost:8006';  // AI Lobby
+        const LUMENIS_RC  = 'http://localhost:8000';  // Lumenis Reactor Core
+        const SOVEREIGN   = 'http://localhost:3003';  // Sovereign Agentic Core
+        const OS_CORE     = 'http://localhost:3002';  // One2lvOS Core
+        const WITNESS     = 'http://localhost:3001';  // Minimax Witness Proxy
+        const MINIMAX     = 'http://localhost:8080';  // Minimax Core API
+        const STEAMOS     = 'http://localhost:8005';  // SteamOS Lumenis v7 Node.js
+        const AETHERIX    = 'http://localhost:9003';  // Aetherix Terminal
+        const LUMENIS_OS  = 'http://localhost:9002';  // LumenisOS API
+        const LUMENIS_UI  = 'http://localhost:9001';  // Lumenis Space Agent UI
+        const LUMENIS_V7  = 'http://localhost:8005';  // Lumenis v7 Cosmic
 
         // Application Configurations
         const apps = {
@@ -285,6 +304,87 @@
                     </div>
                 `
             },
+            'lumenis-chat': {
+                name: 'Lumenis Chat',
+                icon: 'fas fa-brain',
+                color: 'text-cyan-400',
+                width: 980,
+                height: 700,
+                onOpen: () => setTimeout(() => lcInit(), 300),
+                content: `
+                    <div class="h-full flex flex-col" style="background:#07030f;font-family:'Segoe UI',system-ui,sans-serif;color:#ccd6f6">
+                        <!-- Header -->
+                        <div style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:#0e0620;border-bottom:1px solid rgba(0,240,255,.13);flex-shrink:0;height:44px">
+                            <span id="lc-dot" style="width:8px;height:8px;border-radius:50%;background:#5a6a88;flex-shrink:0;transition:background .3s"></span>
+                            <span style="font-size:.9rem;font-weight:700;color:#00f0ff;letter-spacing:3px">LUMENIS</span>
+                            <span style="color:rgba(0,240,255,.3);font-size:.8rem">|</span>
+                            <span style="font-size:.68rem;color:#5a6a88">ITT Council of Nine</span>
+                            <span id="lc-session" style="margin-left:auto;font-size:.62rem;color:#5a6a88"></span>
+                            <button onclick="lcClear()" style="background:rgba(255,255,255,.05);border:1px solid rgba(0,240,255,.15);color:#5a6a88;border-radius:5px;padding:2px 8px;font-size:.65rem;cursor:pointer" title="Clear chat">CLR</button>
+                            <button onclick="lcInit()" style="background:rgba(0,240,255,.08);border:1px solid rgba(0,240,255,.2);color:#00f0ff;border-radius:5px;padding:2px 8px;font-size:.65rem;cursor:pointer" title="Reconnect">&#x21BA;</button>
+                        </div>
+                        <!-- Council chips -->
+                        <div id="lc-chips" style="display:flex;flex-wrap:wrap;gap:5px;padding:6px 14px;background:#0e0620;border-bottom:1px solid rgba(0,240,255,.08);flex-shrink:0">
+                            <span class="lc-chip" data-seat="Sentinel"   style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Sentinel</span>
+                            <span class="lc-chip" data-seat="Navigator"  style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Navigator</span>
+                            <span class="lc-chip" data-seat="Witness"    style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Witness</span>
+                            <span class="lc-chip" data-seat="Forge"      style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Forge</span>
+                            <span class="lc-chip" data-seat="Oracle"     style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Oracle</span>
+                            <span class="lc-chip" data-seat="Weaver"     style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Weaver</span>
+                            <span class="lc-chip" data-seat="Hermes"     style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Hermes</span>
+                            <span class="lc-chip" data-seat="Architect"  style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Architect</span>
+                            <span class="lc-chip" data-seat="Gambit"     style="display:flex;align-items:center;gap:3px;padding:2px 8px;border-radius:10px;font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.4px;border:1px solid rgba(0,240,255,.13);color:#5a6a88;transition:all .25s">&#x25CF; Gambit</span>
+                        </div>
+                        <!-- Messages -->
+                        <div id="lc-msgs" style="flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;scrollbar-width:thin;scrollbar-color:rgba(0,240,255,.2) transparent"></div>
+                        <!-- Typing indicator -->
+                        <div id="lc-typing" style="display:none;padding:4px 18px 0;flex-shrink:0">
+                            <span style="font-size:.7rem;color:#5a6a88;font-style:italic">Lumenis is thinking...</span>
+                        </div>
+                        <!-- Input -->
+                        <div style="display:flex;gap:8px;padding:10px 14px;background:#0e0620;border-top:1px solid rgba(0,240,255,.1);flex-shrink:0">
+                            <input id="lc-inp" type="text" placeholder="Message Lumenis..." autocomplete="off"
+                                style="flex:1;background:rgba(0,0,0,.4);border:1px solid rgba(0,240,255,.2);color:#ccd6f6;border-radius:8px;padding:9px 13px;font-size:.85rem;outline:none;font-family:'Segoe UI',system-ui,sans-serif"
+                                onkeypress="if(event.key==='Enter')lcSend()"
+                                onfocus="this.style.borderColor='rgba(0,240,255,.5)'"
+                                onblur="this.style.borderColor='rgba(0,240,255,.2)'">
+                            <button onclick="lcSend()" style="background:linear-gradient(135deg,#00c4cc,#0070ff);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:.85rem;font-weight:600;cursor:pointer;transition:opacity .18s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                                Send
+                            </button>
+                        </div>
+                    </div>
+                `
+            },
+            'ai-lobby': {
+                name: 'AI Lobby',
+                icon: 'fas fa-satellite-dish',
+                color: 'text-purple-400',
+                width: 680,
+                height: 540,
+                content: `
+                    <div class="h-full flex flex-col bg-white">
+                        <div class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4 shadow-lg flex-shrink-0">
+                            <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-satellite-dish"></i> One2lvOS AI Lobby</h2>
+                            <p class="text-purple-200 text-xs mt-1">Central agent hub — register, discover, broadcast</p>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4 bg-gray-50">
+                            <div class="grid grid-cols-3 gap-3 mb-4">
+                                <button onclick="lobbyCmd('manifest')" class="bg-purple-500 hover:bg-purple-600 text-white px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow"><i class="fas fa-map mr-1"></i>Manifest</button>
+                                <button onclick="lobbyCmd('agents')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow"><i class="fas fa-robot mr-1"></i>Agents</button>
+                                <button onclick="lobbyCmd('systems')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow"><i class="fas fa-server mr-1"></i>Systems</button>
+                                <button onclick="lobbyCmd('broadcast')" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow"><i class="fas fa-broadcast-tower mr-1"></i>Broadcast Log</button>
+                                <button onclick="lobbyRegisterLumenis()" class="bg-cyan-500 hover:bg-cyan-600 text-white px-3 py-2 rounded-lg font-medium text-sm transition-colors shadow col-span-2"><i class="fas fa-plug mr-1"></i>Register Lumenis</button>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-lg p-3 font-mono text-xs overflow-auto h-64" id="lobby-output">
+                                Click a button to interact with the AI Lobby...
+                            </div>
+                        </div>
+                    </div>
+                `,
+                onOpen: (appId) => {
+                    setTimeout(() => lobbyCmd('agents'), 400);
+                }
+            },
             'settings': {
                 name: 'Settings',
                 icon: 'fas fa-cog',
@@ -297,7 +397,7 @@
                             <h2 class="font-bold text-xl mb-6">Settings</h2>
                             <ul class="space-y-2">
                                 <li class="p-2 bg-blue-50 text-blue-600 rounded font-medium cursor-pointer"><i class="fas fa-desktop w-6 text-center"></i> Personalization</li>
-                                <li class="p-2 hover:bg-gray-100 rounded cursor-pointer text-gray-700 transition-colors"><i class="fas fa-wifi w-6 text-center"></i> Network</li>
+                                <li class="p-2 hover:bg-gray-100 rounded cursor-pointer text-gray-700 transition-colors" onclick="openApp('network-mgr')"><i class="fas fa-wifi w-6 text-center"></i> Network</li>
                                 <li class="p-2 hover:bg-gray-100 rounded cursor-pointer text-gray-700 transition-colors"><i class="fas fa-shield-alt w-6 text-center"></i> Security</li>
                             </ul>
                         </div>
@@ -310,6 +410,455 @@
                                 <img src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2000&auto=format&fit=crop" onclick="changeWall(this.src)" class="cursor-pointer rounded-lg border-2 border-transparent hover:border-blue-500 w-full h-24 object-cover shadow-sm transition-all hover:scale-105">
                                 <img src="https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2000&auto=format&fit=crop" onclick="changeWall(this.src)" class="cursor-pointer rounded-lg border-2 border-transparent hover:border-blue-500 w-full h-24 object-cover shadow-sm transition-all hover:scale-105">
                             </div>
+                        </div>
+                    </div>
+                `
+            },
+            'minimax-hub': {
+                name: 'MiniMax Agent Hub',
+                icon: 'fas fa-robot',
+                color: 'text-emerald-500',
+                width: 780,
+                height: 600,
+                content: `
+                    <div class="h-full flex flex-col bg-[#0a0a14]">
+                        <div class="bg-gradient-to-r from-emerald-700 to-teal-700 text-white p-4 shadow-lg flex-shrink-0 flex items-center justify-between">
+                            <div>
+                                <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-robot"></i> MiniMax Agent Hub</h2>
+                                <p class="text-emerald-200 text-xs mt-0.5">NVIDIA NIM · minimax/minimax-01 · one2lv-agent-hub</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="mmCheckStatus()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"><i class="fas fa-heartbeat mr-1"></i>Status</button>
+                                <button onclick="window.open('minimax/agent-hub/dist/index.html','_blank')" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"><i class="fas fa-external-link-alt mr-1"></i>Open Full</button>
+                            </div>
+                        </div>
+                        <iframe src="minimax/agent-hub/dist/index.html" class="flex-1 w-full border-none bg-[#0a0a14]" id="minimax-iframe" onerror="document.getElementById('minimax-fallback').style.display='flex'"></iframe>
+                        <div id="minimax-fallback" class="flex-1 hidden flex-col items-center justify-center text-gray-400 p-8 text-center" style="display:none">
+                            <i class="fas fa-robot text-4xl mb-3 text-emerald-500"></i>
+                            <div class="font-medium mb-1">MiniMax Agent Hub</div>
+                            <div class="text-sm mb-4">Run <code class="bg-gray-800 text-emerald-400 px-1.5 py-0.5 rounded">npm run build</code> in minimax/agent-hub to generate dist files</div>
+                            <div class="text-xs font-mono bg-gray-900 border border-gray-700 rounded p-3 text-left w-full max-w-sm" id="mm-status-out">Click Status to check Minimax Core API (:8080)…</div>
+                        </div>
+                    </div>
+                `,
+                onOpen: () => setTimeout(() => {
+                    const fr = document.getElementById('minimax-iframe');
+                    if (fr) fr.onerror = () => { document.getElementById('minimax-fallback').style.display='flex'; fr.style.display='none'; };
+                }, 200)
+            },
+            'witness-proxy': {
+                name: 'Witness Proxy',
+                icon: 'fas fa-eye',
+                color: 'text-violet-500',
+                width: 620,
+                height: 500,
+                content: `
+                    <div class="h-full flex flex-col bg-white">
+                        <div class="bg-gradient-to-r from-violet-600 to-purple-600 text-white p-4 shadow-lg flex-shrink-0">
+                            <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-eye"></i> Minimax Witness Proxy v8</h2>
+                            <p class="text-violet-200 text-xs mt-0.5">Port 3001 · NVIDIA NIM passthrough · minimax/minimax-01</p>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4 bg-gray-50">
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <button onclick="witnessCmd('health')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-heartbeat mr-1"></i>Health</button>
+                                <button onclick="witnessCmd('status')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-info-circle mr-1"></i>Status</button>
+                                <button onclick="witnessChat()" class="bg-violet-500 hover:bg-violet-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow col-span-2"><i class="fas fa-comment mr-1"></i>Test Chat (MiniMax-01)</button>
+                            </div>
+                            <div class="bg-gray-900 border border-gray-700 rounded-lg p-3 font-mono text-xs text-green-400 overflow-auto h-64" id="witness-output">
+                                Click a button to interact with Witness Proxy...
+                            </div>
+                            <div class="mt-3 flex gap-2">
+                                <input id="witness-msg" type="text" class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-violet-400" placeholder="Message to MiniMax via proxy..." onkeypress="if(event.key==='Enter')witnessChat()">
+                                <button onclick="witnessChat()" class="bg-violet-500 hover:bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'steamos-dash': {
+                name: 'SteamOS Dashboard',
+                icon: 'fas fa-gamepad',
+                color: 'text-blue-400',
+                width: 900,
+                height: 650,
+                content: `
+                    <div class="h-full flex flex-col bg-[#1b2838]">
+                        <iframe src="${STEAMOS}" class="flex-1 w-full border-none" id="steamos-iframe"></iframe>
+                        <div class="bg-[#1b2838] text-gray-400 text-xs px-3 py-1.5 flex items-center justify-between flex-shrink-0 border-t border-gray-700">
+                            <span><i class="fas fa-gamepad mr-1"></i> SteamOS Dashboard · port 8081</span>
+                            <button onclick="document.getElementById('steamos-iframe').src=STEAMOS" class="hover:text-white transition-colors"><i class="fas fa-redo-alt"></i></button>
+                        </div>
+                    </div>
+                `
+            },
+            'aetherix': {
+                name: 'Aetherix Terminal',
+                icon: 'fas fa-satellite',
+                color: 'text-sky-400',
+                width: 860,
+                height: 640,
+                content: `
+                    <div class="h-full flex flex-col bg-[#050a14]">
+                        <iframe src="${AETHERIX}" class="flex-1 w-full border-none" id="aetherix-iframe"></iframe>
+                        <div class="bg-[#050a14] text-gray-500 text-xs px-3 py-1.5 flex items-center justify-between flex-shrink-0 border-t border-gray-800">
+                            <span><i class="fas fa-satellite mr-1 text-sky-400"></i> Aetherix Master Terminal · port 9003</span>
+                            <button onclick="document.getElementById('aetherix-iframe').src=AETHERIX" class="hover:text-sky-400 transition-colors"><i class="fas fa-redo-alt"></i></button>
+                        </div>
+                    </div>
+                `
+            },
+            'lumenis-os': {
+                name: 'LumenisOS API',
+                icon: 'fas fa-cube',
+                color: 'text-indigo-400',
+                width: 680,
+                height: 540,
+                content: `
+                    <div class="h-full flex flex-col bg-white">
+                        <div class="bg-gradient-to-r from-indigo-600 to-blue-600 text-white p-4 shadow-lg flex-shrink-0">
+                            <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-cube"></i> LumenisOS API Server</h2>
+                            <p class="text-indigo-200 text-xs mt-0.5">Port 9002 · TypeScript/Node.js · esbuild dist/index.mjs</p>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4 bg-gray-50">
+                            <div class="grid grid-cols-3 gap-3 mb-4">
+                                <button onclick="lumenosCmd('health')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-heartbeat mr-1"></i>Health</button>
+                                <button onclick="lumenosCmd('api')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-code mr-1"></i>API Info</button>
+                                <button onclick="lumenosCmd('status')" class="bg-indigo-500 hover:bg-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-server mr-1"></i>Status</button>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-lg p-3 font-mono text-xs overflow-auto h-72" id="lumenos-output">
+                                Click a button to interact with LumenisOS API...
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'sovereign-core': {
+                name: 'Sovereign Core',
+                icon: 'fas fa-crown',
+                color: 'text-amber-400',
+                width: 680,
+                height: 540,
+                content: `
+                    <div class="h-full flex flex-col bg-white">
+                        <div class="bg-gradient-to-r from-amber-600 to-orange-600 text-white p-4 shadow-lg flex-shrink-0">
+                            <h2 class="text-lg font-bold flex items-center gap-2"><i class="fas fa-crown"></i> Sovereign Agentic Core</h2>
+                            <p class="text-amber-200 text-xs mt-0.5">Port 3003 · FastAPI/uvicorn · control-plane-compilers</p>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4 bg-gray-50">
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <button onclick="sovereignCmd('status')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-info-circle mr-1"></i>Status</button>
+                                <button onclick="sovereignCmd('agents')" class="bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-robot mr-1"></i>Agents</button>
+                                <button onclick="sovereignCmd('health')" class="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-heartbeat mr-1"></i>Health</button>
+                                <button onclick="sovereignCmd('compile')" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors shadow"><i class="fas fa-code mr-1"></i>Compile Info</button>
+                            </div>
+                            <div class="bg-white border border-gray-200 rounded-lg p-3 font-mono text-xs overflow-auto h-64" id="sovereign-output">
+                                Click a button to interact with Sovereign Core...
+                            </div>
+                        </div>
+                    </div>
+                `
+            },
+            'lumenis-reactor': {
+                name: 'Lumenis Reactor',
+                icon: 'fas fa-atom',
+                color: 'text-cyan-400',
+                width: 700,
+                height: 560,
+                content: `
+                    <div class="h-full flex flex-col bg-[#07030f]">
+                        <div class="bg-gradient-to-r from-cyan-900 to-teal-900 text-white p-4 shadow-lg flex-shrink-0 flex items-center justify-between border-b border-cyan-800/40">
+                            <div>
+                                <h2 class="text-lg font-bold flex items-center gap-2 text-cyan-300"><i class="fas fa-atom"></i> Lumenis Reactor Core</h2>
+                                <p class="text-cyan-500 text-xs mt-0.5">Port 8000 · FastAPI + WebSocket · ITT Council of Nine · 34 tools</p>
+                            </div>
+                            <button onclick="reactorStatus()" class="bg-cyan-800/60 hover:bg-cyan-700/60 text-cyan-300 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors border border-cyan-700/40"><i class="fas fa-pulse mr-1"></i>Ping</button>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4 flex flex-col gap-3">
+                            <div class="bg-black/40 border border-cyan-900/50 rounded-lg p-3 font-mono text-xs text-cyan-300 overflow-auto h-48" id="reactor-output">
+                                [Lumenis Reactor] Connecting to ws://localhost:8000/ws...
+                            </div>
+                            <div class="flex gap-2">
+                                <input id="reactor-msg" type="text" class="flex-1 bg-black/30 border border-cyan-800/50 text-cyan-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/40 placeholder-cyan-700" placeholder="Message Lumenis..." onkeypress="if(event.key==='Enter')reactorSend()">
+                                <button onclick="reactorSend()" class="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button onclick="reactorStatus()" class="bg-cyan-900/50 hover:bg-cyan-800/50 text-cyan-300 px-2 py-1.5 rounded text-xs border border-cyan-800/30 transition-colors"><i class="fas fa-heartbeat mr-1"></i>Health</button>
+                                <button onclick="reactorTools()" class="bg-cyan-900/50 hover:bg-cyan-800/50 text-cyan-300 px-2 py-1.5 rounded text-xs border border-cyan-800/30 transition-colors"><i class="fas fa-tools mr-1"></i>Tools (34)</button>
+                                <button onclick="reactorCouncil()" class="bg-cyan-900/50 hover:bg-cyan-800/50 text-cyan-300 px-2 py-1.5 rounded text-xs border border-cyan-800/30 transition-colors"><i class="fas fa-users mr-1"></i>Council</button>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                onOpen: () => setTimeout(() => reactorStatus(), 500)
+            },
+            'network-mgr': {
+                name: 'Network Manager',
+                icon: 'fas fa-network-wired',
+                color: 'text-teal-400',
+                width: 980,
+                height: 700,
+                content: `
+                    <div class="h-full flex flex-col" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%)">
+                        <div id="net-app" class="flex-1 overflow-auto p-6">
+                            <!-- Header -->
+                            <div class="bg-white rounded-2xl shadow-2xl p-5 mb-5">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                                            <i class="fas fa-network-wired text-white text-2xl"></i>
+                                        </div>
+                                        <div>
+                                            <h1 class="text-2xl font-bold text-gray-800">Network Manager</h1>
+                                            <p class="text-gray-500 text-sm">Static Connections &amp; Mesh Routing · port 3003</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button onclick="netRefresh()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+                                        <button onclick="netShowAdd()" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-5 py-2 rounded-xl font-semibold hover:shadow-lg transition-all text-sm"><i class="fas fa-plus mr-2"></i>New Connection</button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-4 gap-3 mt-5">
+                                    <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-3 rounded-xl"><div class="text-blue-600 text-xs font-semibold">Total</div><div class="text-2xl font-bold text-blue-900" id="net-stat-total">0</div></div>
+                                    <div class="bg-gradient-to-br from-green-50 to-green-100 p-3 rounded-xl"><div class="text-green-600 text-xs font-semibold">Active</div><div class="text-2xl font-bold text-green-900" id="net-stat-active">0</div></div>
+                                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-3 rounded-xl"><div class="text-purple-600 text-xs font-semibold">Protocols</div><div class="text-2xl font-bold text-purple-900">2</div></div>
+                                    <div class="bg-gradient-to-br from-orange-50 to-orange-100 p-3 rounded-xl"><div class="text-orange-600 text-xs font-semibold">Mesh Nodes</div><div class="text-2xl font-bold text-orange-900">1</div></div>
+                                </div>
+                            </div>
+                            <!-- Connections grid -->
+                            <div class="grid grid-cols-3 gap-4" id="net-grid"></div>
+                            <div id="net-empty" class="bg-white rounded-2xl shadow-2xl p-10 text-center hidden">
+                                <i class="fas fa-plug text-5xl text-gray-300 mb-3"></i>
+                                <h3 class="text-xl font-bold text-gray-700 mb-2">No Connections</h3>
+                                <p class="text-gray-500 mb-5 text-sm">Create your first static connection to get started</p>
+                                <button onclick="netShowAdd()" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-5 py-2 rounded-xl font-semibold hover:shadow-lg transition-all text-sm"><i class="fas fa-plus mr-2"></i>Add Connection</button>
+                            </div>
+                        </div>
+                        <!-- Add Connection panel (hidden by default) -->
+                        <div id="net-add-panel" class="hidden absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+                            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-6 overflow-y-auto max-h-[90%]">
+                                <div class="p-5 border-b flex items-center justify-between">
+                                    <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-plug text-blue-500 mr-2"></i>New Connection</h2>
+                                    <button onclick="netHideAdd()" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+                                </div>
+                                <form id="net-form" class="p-5 space-y-4" onsubmit="netSaveConn(event)">
+                                    <div><label class="block text-sm font-semibold text-gray-700 mb-1">Connection Name</label>
+                                    <input type="text" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="My WebDAV Server"></div>
+                                    <div><label class="block text-sm font-semibold text-gray-700 mb-1">Protocol</label>
+                                    <select name="protocol" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" onchange="netUpdateProto(this)">
+                                        <option value="webdav">WebDAV</option><option value="ftp">FTP</option>
+                                    </select></div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Host</label>
+                                        <input type="text" name="host" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="example.com"></div>
+                                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Port</label>
+                                        <input type="number" name="port" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="80"></div>
+                                    </div>
+                                    <div id="net-path-field"><label class="block text-sm font-semibold text-gray-700 mb-1">Path</label>
+                                    <input type="text" name="path" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="/webdav" value="/"></div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+                                        <input type="text" name="username" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="admin"></div>
+                                        <div><label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+                                        <input type="password" name="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="••••••••"></div>
+                                    </div>
+                                    <div id="net-test-result" class="text-sm hidden"></div>
+                                    <div class="flex gap-3 pt-2">
+                                        <button type="button" onclick="netTestConn()" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-all text-sm"><i class="fas fa-vial mr-2"></i>Test</button>
+                                        <button type="submit" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:shadow-lg transition-all text-sm"><i class="fas fa-save mr-2"></i>Save</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                `,
+                onOpen: () => setTimeout(() => netRefresh(), 300)
+            },
+            'lumenis-v7': {
+                name: 'Lumenis v7 Cosmic',
+                icon: 'fas fa-star',
+                color: 'text-pink-400',
+                width: 820,
+                height: 620,
+                content: `
+                    <div class="h-full flex flex-col bg-[#0d0019]">
+                        <iframe src="${LUMENIS_V7}" class="flex-1 w-full border-none" id="lumenis-v7-iframe"></iframe>
+                        <div class="bg-[#0d0019] text-gray-500 text-xs px-3 py-1.5 flex items-center justify-between flex-shrink-0 border-t border-pink-900/40">
+                            <span><i class="fas fa-star mr-1 text-pink-400"></i> Lumenis v7 Cosmic · port 8005</span>
+                            <button onclick="document.getElementById('lumenis-v7-iframe').src=LUMENIS_V7" class="hover:text-pink-400 transition-colors"><i class="fas fa-redo-alt"></i></button>
+                        </div>
+                    </div>
+                `
+            },
+
+            // ── Resource: Linux Emulator + OnWorks Build Picker ────────────────
+            'linux-emulator': {
+                name: 'Linux Emulator',
+                icon: 'fab fa-linux',
+                color: 'text-green-500',
+                width: 1060,
+                height: 700,
+                onOpen: () => setTimeout(() => onworksInit(), 300),
+                content: `
+                    <div class="h-full flex flex-col bg-gray-950 text-white" style="font-family:'Segoe UI',system-ui,sans-serif">
+
+                        <!-- Header bar -->
+                        <div class="flex items-center gap-3 px-4 py-2.5 bg-gray-900 border-b border-green-900/40 flex-shrink-0">
+                            <span class="text-green-400 text-xl"><i class="fab fa-linux"></i></span>
+                            <div>
+                                <span class="font-bold text-green-400 text-sm tracking-wide">OnWorks Linux Emulator</span>
+                                <span id="ow-active-badge" class="ml-2 text-xs bg-green-900/50 text-green-400 border border-green-800/40 px-2 py-0.5 rounded-full">Ubuntu 22</span>
+                            </div>
+                            <span id="ow-category-badge" class="text-xs text-gray-500 bg-gray-800 px-2 py-0.5 rounded-full">ubuntu</span>
+                            <div class="ml-auto flex items-center gap-2">
+                                <span id="ow-status-dot" class="w-2 h-2 rounded-full bg-yellow-500"></span>
+                                <span id="ow-status-txt" class="text-xs text-gray-400">Loading…</span>
+                                <button onclick="onworksOpenTab()" class="bg-green-700 hover:bg-green-600 text-white text-xs px-2.5 py-1 rounded-md transition-colors"><i class="fas fa-external-link-alt mr-1"></i>Open Tab</button>
+                            </div>
+                        </div>
+
+                        <!-- Body: picker + frame -->
+                        <div class="flex flex-1 overflow-hidden">
+
+                            <!-- Left: Build picker -->
+                            <div class="w-52 flex-shrink-0 bg-gray-900 border-r border-gray-800 flex flex-col overflow-hidden">
+                                <!-- Category filter -->
+                                <div class="flex flex-wrap gap-1 p-2 border-b border-gray-800 flex-shrink-0">
+                                    <button onclick="onworksFilter('all')"     id="owf-all"     class="ow-filter-btn active-filter text-[10px] px-2 py-0.5 rounded-full border transition-colors">All</button>
+                                    <button onclick="onworksFilter('ubuntu')"  id="owf-ubuntu"  class="ow-filter-btn text-[10px] px-2 py-0.5 rounded-full border transition-colors">Ubuntu</button>
+                                    <button onclick="onworksFilter('debian')"  id="owf-debian"  class="ow-filter-btn text-[10px] px-2 py-0.5 rounded-full border transition-colors">Debian</button>
+                                    <button onclick="onworksFilter('rpm')"     id="owf-rpm"     class="ow-filter-btn text-[10px] px-2 py-0.5 rounded-full border transition-colors">RPM</button>
+                                    <button onclick="onworksFilter('special')" id="owf-special" class="ow-filter-btn text-[10px] px-2 py-0.5 rounded-full border transition-colors">Special</button>
+                                </div>
+                                <!-- Build list -->
+                                <div id="ow-build-list" class="flex-1 overflow-y-auto py-1">
+                                    <div class="text-center text-gray-500 text-xs py-6"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</div>
+                                </div>
+                            </div>
+
+                            <!-- Right: Active build iframe -->
+                            <div class="flex-1 flex flex-col overflow-hidden">
+                                <iframe id="ow-frame"
+                                    src="https://www.onworks.net/runos/create-os.html?os=ubuntu-22.04.3-desktop-amd64&home=init"
+                                    class="flex-1 w-full border-none"
+                                    title="OnWorks Linux Build"
+                                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals">
+                                </iframe>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="flex items-center gap-3 px-4 py-1.5 bg-gray-900 border-t border-gray-800 flex-shrink-0 text-xs text-gray-500">
+                            <span><i class="fas fa-link mr-1"></i><span id="ow-url-display" class="font-mono select-all text-gray-400 text-[10px]"></span></span>
+                            <button onclick="owCopyUrl()" class="ml-auto bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-0.5 rounded transition-colors"><i class="far fa-copy mr-1"></i>Copy</button>
+                            <button onclick="document.getElementById('ow-frame').src=document.getElementById('ow-frame').src" class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-0.5 rounded transition-colors"><i class="fas fa-redo-alt mr-1"></i>Reload</button>
+                            <span class="text-gray-600">· onworks.net · Lumenis resource.onworks</span>
+                        </div>
+                    </div>
+
+                    <style>
+                        .ow-filter-btn { background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.1); color: #9ca3af; }
+                        .ow-filter-btn:hover { background: rgba(255,255,255,.1); color: #d1d5db; }
+                        .ow-filter-btn.active-filter { background: rgba(74,222,128,.15); border-color: rgba(74,222,128,.4); color: #4ade80; }
+                        .ow-build-card { display:flex; align-items:center; gap:8px; padding:6px 10px; cursor:pointer; border-left:3px solid transparent; transition:all .15s; }
+                        .ow-build-card:hover { background:rgba(255,255,255,.05); }
+                        .ow-build-card.selected { border-left-color:#4ade80; background:rgba(74,222,128,.08); }
+                        .ow-cat-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
+                        .ow-cat-ubuntu  { background:#e95420; }
+                        .ow-cat-debian  { background:#d70a53; }
+                        .ow-cat-rpm     { background:#294172; }
+                        .ow-cat-special { background:#7c3aed; }
+                    </style>
+                `
+            },
+
+                        // ── Resource: Google API PHP Client ──────────────────────────────
+            'onworks-gdrive-php': {
+                name: 'Google API PHP Client',
+                icon: 'fab fa-php',
+                color: 'text-indigo-400',
+                width: 580,
+                height: 560,
+                onOpen: () => setTimeout(() => phpClientProbe(), 400),
+                content: `
+                    <div class="h-full flex flex-col bg-white" style="font-family:'Segoe UI',system-ui,sans-serif">
+                        <!-- Header -->
+                        <div class="flex items-center gap-3 px-5 py-3 text-white flex-shrink-0" style="background:linear-gradient(135deg,#4285f4,#6366f1)">
+                            <span class="text-3xl"><i class="fab fa-php"></i></span>
+                            <div class="flex-1">
+                                <div class="font-bold text-lg leading-tight">Google API PHP Client</div>
+                                <div class="text-blue-100 text-xs">OAuth2 · Drive · Gmail · Calendar · PHP integration</div>
+                            </div>
+                            <span id="php-dot" class="w-2.5 h-2.5 rounded-full bg-white/30 transition-colors duration-500 flex-shrink-0"></span>
+                            <span id="php-status" class="text-xs text-blue-100">Checking…</span>
+                        </div>
+
+                        <!-- Main content -->
+                        <div class="flex-1 overflow-auto p-5 space-y-4">
+
+                            <!-- Capabilities -->
+                            <div class="bg-blue-50 rounded-xl p-4 border border-blue-100">
+                                <div class="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2"><i class="fas fa-puzzle-piece mr-1"></i>Capabilities</div>
+                                <div class="flex flex-wrap gap-1.5">
+                                    <span class="bg-white text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-200 shadow-sm"><i class="fas fa-key mr-1"></i>OAuth2</span>
+                                    <span class="bg-white text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-200 shadow-sm"><i class="fab fa-google-drive mr-1"></i>Drive</span>
+                                    <span class="bg-white text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-200 shadow-sm"><i class="fas fa-envelope mr-1"></i>Gmail</span>
+                                    <span class="bg-white text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-200 shadow-sm"><i class="fas fa-calendar mr-1"></i>Calendar</span>
+                                    <span class="bg-white text-blue-700 text-xs px-2.5 py-1 rounded-full border border-blue-200 shadow-sm"><i class="fab fa-php mr-1"></i>PHP</span>
+                                </div>
+                            </div>
+
+                            <!-- Action buttons -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <button onclick="phpInstall()" class="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-4 py-3 rounded-xl font-medium text-sm transition-all shadow-md">
+                                    <i class="fab fa-google text-base"></i>
+                                    <span>Install via Google</span>
+                                </button>
+                                <button onclick="phpDownload()" class="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white px-4 py-3 rounded-xl font-medium text-sm transition-all shadow-md">
+                                    <i class="fas fa-download text-base"></i>
+                                    <span>Direct Download</span>
+                                </button>
+                            </div>
+
+                            <!-- URL display -->
+                            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200 space-y-2 text-xs">
+                                <div class="flex items-start gap-2">
+                                    <span class="text-gray-400 w-20 flex-shrink-0 pt-0.5">Install URL</span>
+                                    <span class="font-mono text-gray-600 break-all text-[10px] leading-relaxed" id="php-install-url"></span>
+                                    <button onclick="phpCopyInstall()" class="ml-auto flex-shrink-0 text-gray-400 hover:text-indigo-600 transition-colors"><i class="far fa-copy"></i></button>
+                                </div>
+                                <div class="flex items-start gap-2 border-t border-gray-100 pt-2">
+                                    <span class="text-gray-400 w-20 flex-shrink-0 pt-0.5">Download URL</span>
+                                    <span class="font-mono text-gray-600 break-all text-[10px] leading-relaxed" id="php-dl-url"></span>
+                                    <button onclick="phpCopyDownload()" class="ml-auto flex-shrink-0 text-gray-400 hover:text-indigo-600 transition-colors"><i class="far fa-copy"></i></button>
+                                </div>
+                            </div>
+
+                            <!-- Config panel -->
+                            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                <div class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2"><i class="fas fa-cog mr-1"></i>PHP Config</div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs text-gray-500 w-24 flex-shrink-0">Project Path</label>
+                                        <input id="php-project-path" type="text" placeholder="/var/www/html" class="flex-1 text-xs border border-gray-200 rounded-md px-2.5 py-1.5 outline-none focus:border-indigo-400 bg-white font-mono">
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs text-gray-500 w-24 flex-shrink-0">Client ID</label>
+                                        <input id="php-client-id" type="text" placeholder="your-client-id.apps.googleusercontent.com" class="flex-1 text-xs border border-gray-200 rounded-md px-2.5 py-1.5 outline-none focus:border-indigo-400 bg-white font-mono">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Status probe output -->
+                            <div id="php-probe-output" class="bg-gray-900 text-green-400 rounded-lg p-3 font-mono text-xs leading-relaxed hidden"></div>
+
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-t border-gray-200 flex-shrink-0 text-xs text-gray-400">
+                            <i class="fab fa-google text-blue-500"></i>
+                            <span>via OnWorks.net · Google API Catalog</span>
+                            <button onclick="phpClientProbe()" class="ml-auto bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-2.5 py-1 rounded-md transition-colors font-medium"><i class="fas fa-satellite-dish mr-1"></i>Check Availability</button>
+                            <span class="text-gray-300">· Lumenis resource.onworks_gdrive_php</span>
                         </div>
                     </div>
                 `
@@ -360,12 +909,19 @@
                 } else if (mainCmd === 'services') {
                     response = `<div class="text-cyan-400">One2lvOS Services:</div>
 <div class="text-gray-300 mt-2">
-  AI Lobby        - Port 8787
-  AI Arcade       - Port 8080
-  Unified Gateway - Port 8888
-  LumenisOS       - Port 8001
-  Council         - Port 3001
-  Aetherix        - Port 9003
+  Lumenis Reactor  - Port 8000  (FastAPI + WS, ITT Council)
+  Witness Proxy    - Port 3001  (Minimax NVIDIA NIM proxy)
+  One2lvOS Core    - Port 3002  (Flask core)
+  Sovereign Core   - Port 3003  (FastAPI control-plane)
+  AI Arcade MCP    - Port 8003  (Python MCP server)
+  Lumenis v7       - Port 8005  (Node.js Cosmic)
+  AI Lobby         - Port 8006  (Agent hub/registry)
+  Minimax Core     - Port 8080  (Node.js minimax/minimax-01)
+  SteamOS Dash     - Port 8081  (Python dashboard)
+  Unified Gateway  - Port 8888  (FastAPI gateway)
+  Lumenis UI       - Port 9001  (Static frontend)
+  LumenisOS API    - Port 9002  (Node.js API server)
+  Aetherix         - Port 9003  (Master terminal)
 </div>`;
                 } else if (mainCmd === 'version') {
                     response = `<div class="text-cyan-400">One2lvOS Version 2.0.0</div>
@@ -435,17 +991,28 @@
 
         async function checkAllServices() {
             const services = [
-                {name: 'AI Arcade', port: 8080, url: `${ARCADE}/`},
-                {name: 'Gateway', port: 8888, url: `${GW}/status`}
+                {name: 'Lumenis Reactor', port: 8000, url: `${LUMENIS_RC}/health`},
+                {name: 'Witness Proxy',   port: 3001, url: `${WITNESS}/api/health`},
+                {name: 'One2lvOS Core',   port: 3002, url: `${OS_CORE}/health`},
+                {name: 'Sovereign Core',  port: 3003, url: `${SOVEREIGN}/api/status`},
+                {name: 'AI Lobby',        port: 8006, url: `${LOBBY}/agents`},
+                {name: 'Minimax Core',    port: 8080, url: `${MINIMAX}/health`},
+                {name: 'SteamOS Dash',    port: 8081, url: `${STEAMOS}`},
+                {name: 'AI Arcade MCP',   port: 8003, url: `${ARCADE}/`},
+                {name: 'Lumenis v7',      port: 8005, url: `${LUMENIS_V7}`},
+                {name: 'Unified Gateway', port: 8888, url: `${GW}/status`},
+                {name: 'Lumenis UI',      port: 9001, url: `${LUMENIS_UI}`},
+                {name: 'LumenisOS API',   port: 9002, url: `${LUMENIS_OS}/api/healthz`},
+                {name: 'Aetherix',        port: 9003, url: `${AETHERIX}/health`}
             ];
 
             let html = '<div class="text-gray-300 mt-2">';
             for (const svc of services) {
                 try {
-                    const res = await fetch(svc.url, {timeout: 2000});
-                    html += `\n  ${svc.name.padEnd(15)} [<span class="text-green-400">UP</span>] :${svc.port}`;
+                    await fetch(svc.url, {signal: AbortSignal.timeout(2000)});
+                    html += `\n  ${svc.name.padEnd(18)} [<span class="text-green-400">UP</span>] :${svc.port}`;
                 } catch {
-                    html += `\n  ${svc.name.padEnd(15)} [<span class="text-red-400">DOWN</span>] :${svc.port}`;
+                    html += `\n  ${svc.name.padEnd(18)} [<span class="text-red-400">DOWN</span>] :${svc.port}`;
                 }
             }
             html += '</div>';
@@ -457,12 +1024,19 @@
             list.innerHTML = '<div class="text-center text-gray-400 py-4"><i class="fas fa-spinner fa-spin mr-2"></i>Checking...</div>';
 
             const services = [
-                {name: 'AI Lobby', icon: 'fas fa-users', port: 8787, url: 'http://localhost:8787/api/whoami'},
-                {name: 'AI Arcade', icon: 'fas fa-gamepad', port: 8080, url: `${ARCADE}/`},
-                {name: 'Gateway', icon: 'fas fa-server', port: 8888, url: `${GW}/status`},
-                {name: 'LumenisOS', icon: 'fas fa-cube', port: 8001, url: 'http://localhost:8001/health'},
-                {name: 'Council', icon: 'fas fa-brain', port: 3001, url: 'http://localhost:3001/health'},
-                {name: 'Aetherix', icon: 'fas fa-terminal', port: 9003, url: 'http://localhost:9003/health'}
+                {name: 'Lumenis Reactor', icon: 'fas fa-atom',          port: 8000, url: `${LUMENIS_RC}/health`},
+                {name: 'Witness Proxy',   icon: 'fas fa-eye',            port: 3001, url: `${WITNESS}/api/health`},
+                {name: 'One2lvOS Core',   icon: 'fas fa-laptop-code',    port: 3002, url: `${OS_CORE}/health`},
+                {name: 'Sovereign Core',  icon: 'fas fa-crown',          port: 3003, url: `${SOVEREIGN}/api/status`},
+                {name: 'AI Arcade MCP',   icon: 'fas fa-gamepad',        port: 8003, url: `${ARCADE}/`},
+                {name: 'Lumenis v7',      icon: 'fas fa-star',           port: 8005, url: `${LUMENIS_V7}`},
+                {name: 'AI Lobby',        icon: 'fas fa-satellite-dish', port: 8006, url: `${LOBBY}/agents`},
+                {name: 'Minimax Core',    icon: 'fas fa-robot',          port: 8080, url: `${MINIMAX}/health`},
+                {name: 'SteamOS Dash',    icon: 'fas fa-gamepad',        port: 8081, url: `${STEAMOS}`},
+                {name: 'Unified Gateway', icon: 'fas fa-server',         port: 8888, url: `${GW}/status`},
+                {name: 'Lumenis UI',      icon: 'fas fa-window-maximize',port: 9001, url: `${LUMENIS_UI}`},
+                {name: 'LumenisOS API',   icon: 'fas fa-cube',           port: 9002, url: `${LUMENIS_OS}/api/healthz`},
+                {name: 'Aetherix',        icon: 'fas fa-satellite',      port: 9003, url: `${AETHERIX}/health`}
             ];
 
             let html = '';
@@ -759,6 +1333,849 @@
                 history.innerText = `${display.innerText} ${op}`;
                 display.dataset.clearNext = 'true';
             }
+        }
+
+        // AI Lobby functions
+        async function lobbyCmd(cmd) {
+            const output = document.getElementById('lobby-output');
+            if (!output) return;
+            output.textContent = 'Loading...';
+            const LOBBY = 'http://localhost:8006';
+            const endpoints = {
+                manifest: { url: LOBBY + '/', method: 'GET' },
+                agents:   { url: LOBBY + '/agents', method: 'GET' },
+                systems:  { url: LOBBY + '/systems', method: 'GET' },
+                broadcast:{ url: LOBBY + '/broadcast', method: 'GET' }
+            };
+            const ep = endpoints[cmd];
+            if (!ep) return;
+            try {
+                const r = await fetch(ep.url, { method: ep.method, signal: AbortSignal.timeout(5000) });
+                const d = await r.json();
+                output.textContent = JSON.stringify(d, null, 2);
+            } catch (e) {
+                output.textContent = '[Lobby offline or unreachable] ' + e.message + '\n\nTo start: python3 ai_lobby.py';
+            }
+        }
+
+        async function lobbyRegisterLumenis() {
+            const output = document.getElementById('lobby-output');
+            if (!output) return;
+            output.textContent = 'Registering Lumenis with AI Lobby...';
+            try {
+                const r = await fetch('http://localhost:8006/agents/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: 'lumenis-reactor',
+                        name: 'Lumenis Reactor Core',
+                        role: 'sovereign_ai',
+                        description: 'ITT Council of Nine — memory, reasoning, tool access, terminal, network',
+                        ws_url: 'ws://localhost:8000/ws',
+                        api_url: 'http://localhost:8000',
+                        capabilities: ['chat','memory','tools','terminal','network','discord','github','supabase'],
+                        status: 'ACTIVE'
+                    }),
+                    signal: AbortSignal.timeout(5000)
+                });
+                const d = await r.json();
+                output.textContent = 'Registered:\n' + JSON.stringify(d, null, 2);
+            } catch (e) {
+                output.textContent = '[Lobby offline] ' + e.message + '\nStart lobby: python3 ai_lobby.py';
+            }
+        }
+
+        // ── Witness Proxy functions ──────────────────────────────────────
+        async function witnessCmd(cmd) {
+            const out = document.getElementById('witness-output');
+            if (!out) return;
+            out.textContent = 'Loading...';
+            const urls = { health: WITNESS + '/api/health', status: WITNESS + '/api/status' };
+            try {
+                const r = await fetch(urls[cmd] || WITNESS + '/api/health', {signal: AbortSignal.timeout(5000)});
+                const d = await r.json();
+                out.textContent = JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[Witness Proxy offline] ' + e.message + '\n\nStart: node minimax/one2lv-witness-v8/proxy/server.js';
+            }
+        }
+
+        async function witnessChat() {
+            const out = document.getElementById('witness-output');
+            const inp = document.getElementById('witness-msg');
+            if (!out || !inp) return;
+            const msg = inp.value.trim() || 'Hello MiniMax! Tell me about minimax/minimax-01.';
+            out.textContent = 'Sending to MiniMax via Witness Proxy...';
+            inp.value = '';
+            try {
+                const r = await fetch(WITNESS + '/api/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg, model: 'minimax/minimax-01'}),
+                    signal: AbortSignal.timeout(30000)
+                });
+                const d = await r.json();
+                out.textContent = d.response || d.content || JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[Chat error] ' + e.message;
+            }
+        }
+
+        // ── LumenisOS API functions ──────────────────────────────────────
+        async function lumenosCmd(cmd) {
+            const out = document.getElementById('lumenos-output');
+            if (!out) return;
+            out.textContent = 'Loading...';
+            const urls = {
+                health: LUMENIS_OS + '/api/healthz',
+                api:    LUMENIS_OS + '/api',
+                status: LUMENIS_OS + '/api/status'
+            };
+            try {
+                const r = await fetch(urls[cmd] || LUMENIS_OS + '/api/healthz', {signal: AbortSignal.timeout(5000)});
+                const d = await r.json();
+                out.textContent = JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[LumenisOS API offline] ' + e.message + '\n\nStart: node lumenis-os/artifacts/api-server/dist/index.mjs';
+            }
+        }
+
+        // ── Sovereign Core functions ─────────────────────────────────────
+        async function sovereignCmd(cmd) {
+            const out = document.getElementById('sovereign-output');
+            if (!out) return;
+            out.textContent = 'Loading...';
+            const urls = {
+                status:  SOVEREIGN + '/api/status',
+                agents:  SOVEREIGN + '/api/agents',
+                health:  SOVEREIGN + '/health',
+                compile: SOVEREIGN + '/api/compile'
+            };
+            try {
+                const r = await fetch(urls[cmd] || SOVEREIGN + '/api/status', {signal: AbortSignal.timeout(5000)});
+                const d = await r.json();
+                out.textContent = JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[Sovereign Core offline] ' + e.message + '\n\nStart: uvicorn main:app --port 3003 --app-dir sovereign-agentic-core';
+            }
+        }
+
+        // ── Lumenis Reactor functions ────────────────────────────────────
+        async function reactorStatus() {
+            const out = document.getElementById('reactor-output');
+            if (!out) return;
+            try {
+                const r = await fetch(LUMENIS_RC + '/health', {signal: AbortSignal.timeout(5000)});
+                const d = await r.json();
+                out.textContent = '[Health]\n' + JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[Lumenis Reactor offline] ' + e.message + '\n\nStart: python3 One2lvos/core_service.py or check start-all.sh';
+            }
+        }
+
+        async function reactorTools() {
+            const out = document.getElementById('reactor-output');
+            if (!out) return;
+            try {
+                const r = await fetch(LUMENIS_RC + '/tools', {signal: AbortSignal.timeout(5000)});
+                const d = await r.json();
+                out.textContent = '[Tools]\n' + JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[Reactor tools offline] ' + e.message;
+            }
+        }
+
+        async function reactorCouncil() {
+            const out = document.getElementById('reactor-output');
+            if (!out) return;
+            try {
+                const r = await fetch(LUMENIS_RC + '/council', {signal: AbortSignal.timeout(5000)});
+                const d = await r.json();
+                out.textContent = '[ITT Council of Nine]\n' + JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[Council offline] ' + e.message;
+            }
+        }
+
+        async function reactorSend() {
+            const out = document.getElementById('reactor-output');
+            const inp = document.getElementById('reactor-msg');
+            if (!out || !inp) return;
+            const msg = inp.value.trim();
+            if (!msg) return;
+            inp.value = '';
+            out.textContent = 'Sending to Lumenis Reactor...';
+            try {
+                const r = await fetch(LUMENIS_RC + '/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: msg}),
+                    signal: AbortSignal.timeout(30000)
+                });
+                const d = await r.json();
+                out.textContent = d.response || d.content || d.message || JSON.stringify(d, null, 2);
+            } catch(e) {
+                out.textContent = '[Reactor send error] ' + e.message;
+            }
+        }
+
+        // ── Network Manager (embedded, talks to :3003) ──────────────────
+        const NET_API = 'http://localhost:3003/api/network';
+        let _netConns = [];
+
+        async function netRefresh() {
+            const grid = document.getElementById('net-grid');
+            const empty = document.getElementById('net-empty');
+            if (!grid) return;
+            try {
+                const r = await fetch(NET_API + '/connections', {signal: AbortSignal.timeout(5000)});
+                _netConns = await r.json();
+                document.getElementById('net-stat-total').textContent = _netConns.length;
+                document.getElementById('net-stat-active').textContent = _netConns.filter(c => c.status === 'connected').length;
+                if (_netConns.length === 0) {
+                    grid.innerHTML = '';
+                    empty.classList.remove('hidden');
+                } else {
+                    empty.classList.add('hidden');
+                    grid.innerHTML = _netConns.map(c => netCardHTML(c)).join('');
+                }
+            } catch(e) {
+                if (grid) grid.innerHTML = `<div class="col-span-3 bg-white/80 rounded-2xl p-8 text-center text-gray-500"><i class="fas fa-plug text-4xl mb-3 text-red-400 block"></i><div class="font-semibold mb-1">Network service offline</div><div class="text-sm">Start with: <code class="bg-gray-100 px-1 py-0.5 rounded">node server/network-api.js</code></div></div>`;
+            }
+        }
+
+        function netCardHTML(c) {
+            const dot = {connected:'#10b981',disconnected:'#6b7280',connecting:'#f59e0b',error:'#ef4444'}[c.status]||'#6b7280';
+            const icon = c.protocol === 'webdav' ? 'fa-cloud' : 'fa-server';
+            const btns = c.status === 'connected'
+                ? `<button onclick="netDisconnect('${c.id}')" class="flex-1 bg-red-50 text-red-600 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-100 transition-all"><i class="fas fa-unlink mr-1"></i>Disconnect</button>`
+                : `<button onclick="netConnect('${c.id}')" class="flex-1 bg-green-50 text-green-600 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-100 transition-all"><i class="fas fa-plug mr-1"></i>Connect</button>`;
+            return `<div class="bg-white rounded-xl shadow-lg p-4 hover:-translate-y-0.5 transition-transform">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center"><i class="fas ${icon} text-white"></i></div>
+                        <div><div class="font-bold text-gray-800 text-sm">${c.id}</div><div class="text-xs text-gray-500">${c.protocol.toUpperCase()}</div></div>
+                    </div>
+                    <span style="width:8px;height:8px;border-radius:50%;background:${dot};display:inline-block;margin-top:6px"></span>
+                </div>
+                <div class="text-xs text-gray-600 space-y-1 mb-3">
+                    <div><i class="fas fa-server w-4"></i>${c.host}:${c.port}</div>
+                    <div><i class="fas fa-folder w-4"></i>${c.path||'/'}</div>
+                </div>
+                <div class="flex gap-2">${btns}
+                    <button onclick="netRemove('${c.id}')" class="bg-gray-100 text-gray-500 py-1.5 px-2.5 rounded-lg text-xs hover:bg-gray-200 transition-all"><i class="fas fa-trash"></i></button>
+                </div></div>`;
+        }
+
+        function netShowAdd() {
+            const p = document.getElementById('net-add-panel');
+            if (p) { p.classList.remove('hidden'); p.classList.add('flex'); }
+        }
+        function netHideAdd() {
+            const p = document.getElementById('net-add-panel');
+            if (p) { p.classList.add('hidden'); p.classList.remove('flex'); }
+            const f = document.getElementById('net-form');
+            if (f) f.reset();
+            const r = document.getElementById('net-test-result');
+            if (r) r.classList.add('hidden');
+        }
+        function netUpdateProto(sel) {
+            const pf = document.getElementById('net-path-field');
+            const port = sel.closest('form').querySelector('[name="port"]');
+            if (sel.value === 'ftp') { if(pf) pf.style.display='none'; if(port) port.placeholder='21'; }
+            else { if(pf) pf.style.display=''; if(port) port.placeholder='80'; }
+        }
+
+        async function netSaveConn(e) {
+            e.preventDefault();
+            const f = new FormData(e.target);
+            const cfg = {
+                protocol: f.get('protocol'), host: f.get('host'),
+                port: parseInt(f.get('port')) || (f.get('protocol')==='ftp'?21:80),
+                path: f.get('path') || '/',
+                credentials: {username: f.get('username'), password: f.get('password')},
+                persistent: true, autoReconnect: true
+            };
+            try {
+                const r = await fetch(NET_API + '/connections', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cfg)});
+                if (r.ok) { netHideAdd(); netRefresh(); }
+                else { alert('Failed to save connection'); }
+            } catch(err) { alert('Error: ' + err.message); }
+        }
+
+        async function netTestConn() {
+            const f = new FormData(document.getElementById('net-form'));
+            const res = document.getElementById('net-test-result');
+            if (res) { res.classList.remove('hidden'); res.textContent = 'Testing...'; res.className = 'text-sm text-gray-500'; }
+            try {
+                const r = await fetch(NET_API + '/test', {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({protocol:f.get('protocol'),host:f.get('host'),port:parseInt(f.get('port'))||21,path:f.get('path')||'/',credentials:{username:f.get('username'),password:f.get('password')}})});
+                const d = await r.json();
+                if (res) { res.textContent = d.success ? '✓ Connection successful!' : '✗ ' + d.message; res.className = 'text-sm ' + (d.success ? 'text-green-600' : 'text-red-600'); }
+            } catch(err) { if(res){res.textContent='✗ '+err.message; res.className='text-sm text-red-600';} }
+        }
+
+        async function netConnect(id) {
+            await fetch(NET_API + '/connections/' + id + '/connect', {method:'POST'}).catch(()=>{});
+            netRefresh();
+        }
+        async function netDisconnect(id) {
+            await fetch(NET_API + '/connections/' + id + '/disconnect', {method:'POST'}).catch(()=>{});
+            netRefresh();
+        }
+        async function netRemove(id) {
+            if (!confirm('Remove this connection?')) return;
+            await fetch(NET_API + '/connections/' + id, {method:'DELETE'}).catch(()=>{});
+            netRefresh();
+        }
+
+        // ── MiniMax Hub status ───────────────────────────────────────────
+        async function mmCheckStatus() {
+            const out = document.getElementById('mm-status-out');
+            if (!out) return;
+            try {
+                const r = await fetch(MINIMAX + '/health', {signal: AbortSignal.timeout(5000)});
+                const d = await r.json();
+                if(out) out.textContent = JSON.stringify(d, null, 2);
+            } catch(e) {
+                if(out) out.textContent = '[Minimax Core offline :8080] ' + e.message;
+            }
+            // Also show fallback if iframe failed
+            const fr = document.getElementById('minimax-iframe');
+            const fb = document.getElementById('minimax-fallback');
+            if (fr && fb && fr.contentDocument && !fr.contentDocument.body.innerHTML) {
+                fr.style.display = 'none';
+                fb.style.display = 'flex';
+            }
+        }
+
+        // ── PNG State Save / Load ────────────────────────────────────────
+
+        // CRC32 lookup table (required for PNG chunk integrity)
+        const _crc32Table = (() => {
+            const t = new Uint32Array(256);
+            for (let i = 0; i < 256; i++) {
+                let c = i;
+                for (let j = 0; j < 8; j++) c = (c & 1) ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+                t[i] = c;
+            }
+            return t;
+        })();
+        function _crc32(data) {
+            let crc = 0xFFFFFFFF;
+            for (const b of data) crc = _crc32Table[(crc ^ b) & 0xFF] ^ (crc >>> 8);
+            return (crc ^ 0xFFFFFFFF) >>> 0;
+        }
+
+        // Collect the current desktop state
+        function captureDesktopState() {
+            const state = {
+                version: '2.0',
+                timestamp: Date.now(),
+                wallpaper: document.body.style.backgroundImage || '',
+                windows: []
+            };
+            Object.keys(openApps).forEach(appId => {
+                const win = document.getElementById(`window-${appId}`);
+                if (!win) return;
+                state.windows.push({
+                    id: appId,
+                    x: parseInt(win.style.left) || 0,
+                    y: parseInt(win.style.top) || 0,
+                    w: parseInt(win.style.width) || (apps[appId] ? apps[appId].width : 600),
+                    h: parseInt(win.style.height) || (apps[appId] ? apps[appId].height : 400),
+                    minimized: win.classList.contains('opacity-0'),
+                    maximized: win.classList.contains('maximized'),
+                    zIndex: parseInt(win.style.zIndex) || 10
+                });
+            });
+            return state;
+        }
+
+        // Inject a tEXt metadata chunk into an existing PNG byte array
+        function _injectPNGtEXt(pngBytes, keyword, text) {
+            const enc = new TextEncoder();
+            const kw = enc.encode(keyword);
+            const tx = enc.encode(text);
+            const chunkData = new Uint8Array(kw.length + 1 + tx.length);
+            chunkData.set(kw);
+            chunkData[kw.length] = 0; // null separator
+            chunkData.set(tx, kw.length + 1);
+
+            const typeBytes = new Uint8Array([0x74, 0x45, 0x58, 0x74]); // "tEXt"
+            const crcInput = new Uint8Array(4 + chunkData.length);
+            crcInput.set(typeBytes);
+            crcInput.set(chunkData, 4);
+            const crc = _crc32(crcInput);
+
+            const chunk = new Uint8Array(4 + 4 + chunkData.length + 4);
+            const dv = new DataView(chunk.buffer);
+            dv.setUint32(0, chunkData.length, false);
+            chunk.set(typeBytes, 4);
+            chunk.set(chunkData, 8);
+            dv.setUint32(8 + chunkData.length, crc, false);
+
+            // Insert after IHDR (PNG sig 8 bytes + IHDR chunk 25 bytes = offset 33)
+            const insertAt = 33;
+            const out = new Uint8Array(pngBytes.length + chunk.length);
+            out.set(pngBytes.slice(0, insertAt));
+            out.set(chunk, insertAt);
+            out.set(pngBytes.slice(insertAt), insertAt + chunk.length);
+            return out;
+        }
+
+        // Extract a tEXt chunk value by keyword from PNG bytes
+        function _extractPNGtEXt(bytes, keyword) {
+            const dec = new TextDecoder();
+            let offset = 8; // skip 8-byte PNG signature
+            while (offset < bytes.length - 12) {
+                const dv = new DataView(bytes.buffer, bytes.byteOffset);
+                const len = dv.getUint32(offset, false);
+                const type = dec.decode(bytes.slice(offset + 4, offset + 8));
+                if (type === 'tEXt') {
+                    const data = bytes.slice(offset + 8, offset + 8 + len);
+                    const nullIdx = data.indexOf(0);
+                    if (nullIdx !== -1 && dec.decode(data.slice(0, nullIdx)) === keyword) {
+                        return dec.decode(data.slice(nullIdx + 1));
+                    }
+                }
+                if (type === 'IEND') break;
+                offset += 12 + len;
+            }
+            return null;
+        }
+
+        // Save current desktop state as a PNG with embedded JSON metadata
+        function saveStatePNG() {
+            const state = captureDesktopState();
+            const stateJSON = JSON.stringify(state);
+
+            // Draw a mini-map of the desktop as the PNG visual
+            const canvas = document.createElement('canvas');
+            canvas.width = 640; canvas.height = 360;
+            const ctx = canvas.getContext('2d');
+
+            // Background gradient
+            const grad = ctx.createLinearGradient(0, 0, 640, 360);
+            grad.addColorStop(0, '#1e1b4b'); grad.addColorStop(1, '#312e81');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, 640, 360);
+
+            // Draw window thumbnails scaled to canvas
+            const scaleX = 640 / window.innerWidth;
+            const scaleY = 360 / Math.max(window.innerHeight - 56, 1);
+            const palette = ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899','#14b8a6'];
+            state.windows.forEach((w, i) => {
+                if (w.minimized) return;
+                const col = palette[i % palette.length];
+                ctx.fillStyle = col + '55';
+                ctx.strokeStyle = col + 'cc';
+                ctx.lineWidth = 1.5;
+                const rx = Math.max(0, w.x * scaleX), ry = Math.max(0, w.y * scaleY);
+                const rw = Math.min(w.w * scaleX, 640 - rx), rh = Math.min(w.h * scaleY, 360 - ry);
+                ctx.fillRect(rx, ry, rw, rh);
+                ctx.strokeRect(rx, ry, rw, rh);
+                // App name label
+                ctx.fillStyle = '#ffffff99';
+                ctx.font = '10px monospace';
+                ctx.fillText(w.id, rx + 4, ry + 14);
+            });
+
+            // Header overlay
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.fillRect(0, 0, 640, 72);
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 18px Inter, sans-serif';
+            ctx.fillText('One2lvOS Desktop State', 14, 26);
+            ctx.font = '11px monospace';
+            ctx.fillStyle = '#a5b4fc';
+            ctx.fillText(new Date(state.timestamp).toLocaleString(), 14, 45);
+            ctx.fillStyle = '#86efac';
+            ctx.fillText(`${state.windows.length} window(s) open`, 14, 62);
+
+            // Footer badge
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(0, 330, 640, 30);
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px monospace';
+            ctx.fillText('one2lvos-state v2.0 · embedded metadata PNG', 14, 349);
+
+            // Get raw PNG bytes, inject tEXt chunk with state JSON
+            const dataURL = canvas.toDataURL('image/png');
+            const raw = Uint8Array.from(atob(dataURL.split(',')[1]), c => c.charCodeAt(0));
+            const pngWithState = _injectPNGtEXt(raw, 'one2lvos-state', stateJSON);
+
+            // Download
+            const blob = new Blob([pngWithState], {type: 'image/png'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `one2lvos-state-${state.timestamp}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            _showNotif(`State saved — ${state.windows.length} window(s)`, 'fas fa-camera text-blue-400');
+
+            // Also notify Lumenis
+            _notifyLumenisSaveState(state);
+        }
+
+        // Load state PNG — open file picker, extract JSON, restore desktop
+        function loadStatePNG() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/png';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const buf = await file.arrayBuffer();
+                const bytes = new Uint8Array(buf);
+                const stateJSON = _extractPNGtEXt(bytes, 'one2lvos-state');
+                if (!stateJSON) {
+                    _showNotif('No One2lvOS state found in this PNG', 'fas fa-exclamation-triangle text-red-400');
+                    return;
+                }
+                try {
+                    const state = JSON.parse(stateJSON);
+                    _restoreDesktopState(state);
+                    _showNotif(`State loaded — ${state.windows.length} window(s) restored`, 'fas fa-folder-open text-green-400');
+                } catch(err) {
+                    _showNotif('Failed to parse state: ' + err.message, 'fas fa-exclamation-triangle text-red-400');
+                }
+            };
+            input.click();
+        }
+
+        // Restore desktop from a saved state object
+        function _restoreDesktopState(state) {
+            // Close all open windows
+            [...Object.keys(openApps)].forEach(id => closeApp(id));
+            // Restore wallpaper
+            if (state.wallpaper) document.body.style.backgroundImage = state.wallpaper;
+            // Reopen windows in z-order
+            const sorted = [...state.windows].sort((a, b) => a.zIndex - b.zIndex);
+            sorted.forEach((w, i) => {
+                setTimeout(() => {
+                    if (!apps[w.id]) return;
+                    openApp(w.id);
+                    requestAnimationFrame(() => {
+                        const win = document.getElementById(`window-${w.id}`);
+                        if (!win) return;
+                        win.style.left = w.x + 'px';
+                        win.style.top = Math.max(0, w.y) + 'px';
+                        win.style.width = w.w + 'px';
+                        win.style.height = w.h + 'px';
+                        win.style.zIndex = w.zIndex;
+                        if (w.minimized) win.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+                        if (w.maximized) maximizeApp(w.id);
+                    });
+                }, i * 80);
+            });
+        }
+
+        // Toast notification helper
+        function _showNotif(msg, iconClass = 'fas fa-info-circle text-blue-400') {
+            const el = document.createElement('div');
+            el.className = 'fixed bottom-20 right-4 bg-white/90 backdrop-blur-xl border border-white/50 shadow-xl rounded-xl px-4 py-3 flex items-center gap-3 z-[9999] transition-all duration-300';
+            el.innerHTML = `<i class="${iconClass}"></i><span class="text-sm font-medium text-gray-800">${msg}</span>`;
+            document.body.appendChild(el);
+            setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; setTimeout(() => el.remove(), 300); }, 3500);
+        }
+
+        // Tell Lumenis about the saved state
+        async function _notifyLumenisSaveState(state) {
+            const summary = `Desktop state snapshot saved as PNG. ${state.windows.length} open window(s): ${state.windows.map(w=>w.id).join(', ')}. Timestamp: ${new Date(state.timestamp).toISOString()}. Please store this as a memory fact: the user saved their One2lvOS desktop state.`;
+            try {
+                // Store as a fact in compass.db via the API
+                await fetch(LUMENIS_RC + '/api/facts', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({content: summary, tags: ['desktop-state','png-save']}),
+                    signal: AbortSignal.timeout(5000)
+                });
+            } catch(_) {}
+            // Also send a chat message
+            try {
+                const ws = new WebSocket('ws://localhost:8000/ws');
+                ws.onopen = () => {
+                    ws.send(JSON.stringify({action:'chat', message: summary}));
+                    setTimeout(() => ws.close(), 5000);
+                };
+            } catch(_) {}
+        }
+
+
+        // ── Lumenis Chat (native WebSocket) ─────────────────────────────
+        let _lcWs = null, _lcSession = null, _lcAiEl = null;
+
+        function lcSetDot(state) {
+            const d = document.getElementById('lc-dot');
+            if (!d) return;
+            const styles = {on:'background:#00ff88;box-shadow:0 0 7px #00ff88', busy:'background:#fcee0a', off:'background:#5a6a88'};
+            d.style.cssText = 'width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .3s;' + (styles[state]||styles.off);
+        }
+
+        function lcChip(seat, active) {
+            const chips = document.querySelectorAll('#lc-chips .lc-chip');
+            chips.forEach(c => {
+                if (c.dataset.seat === seat) {
+                    if (active) {
+                        c.style.borderColor = 'rgba(0,240,255,.6)';
+                        c.style.color = '#00f0ff';
+                        c.style.background = 'rgba(0,240,255,.07)';
+                        c.style.boxShadow = '0 0 7px rgba(0,240,255,.15)';
+                    } else {
+                        c.style.borderColor = 'rgba(0,240,255,.13)';
+                        c.style.color = '#5a6a88';
+                        c.style.background = 'transparent';
+                        c.style.boxShadow = 'none';
+                    }
+                }
+            });
+        }
+
+        function lcAddMsg(role, text) {
+            const box = document.getElementById('lc-msgs');
+            if (!box) return null;
+            const wrap = document.createElement('div');
+            const isUser = role === 'user';
+            const isSys = role === 'sys';
+            wrap.style.cssText = 'display:flex;flex-direction:column;max-width:88%;gap:3px;' +
+                (isUser ? 'align-self:flex-end;align-items:flex-end' :
+                 isSys  ? 'align-self:center;align-items:center;max-width:100%' :
+                          'align-self:flex-start;align-items:flex-start');
+            const lbl = document.createElement('div');
+            lbl.style.cssText = 'font-size:.62rem;color:#5a6a88;padding:0 3px';
+            lbl.textContent = isUser ? 'You' : isSys ? '' : 'Lumenis';
+            const bubble = document.createElement('div');
+            bubble.style.cssText = 'padding:9px 13px;border-radius:11px;font-size:.855rem;line-height:1.65;word-break:break-word;white-space:pre-wrap;' +
+                (isUser ? 'background:rgba(0,240,255,.09);border:1px solid rgba(0,240,255,.25);border-radius:11px 2px 11px 11px' :
+                 isSys  ? 'background:rgba(255,0,212,.05);border:1px solid rgba(255,0,212,.18);border-radius:7px;color:#5a6a88;font-size:.72rem;padding:5px 14px;text-align:center' :
+                          'background:#160a2e;border:1px solid rgba(0,240,255,.13);border-radius:2px 11px 11px 11px');
+            bubble.textContent = text || '';
+            if (!isSys) wrap.appendChild(lbl);
+            wrap.appendChild(bubble);
+            box.appendChild(wrap);
+            box.scrollTop = box.scrollHeight;
+            return bubble;
+        }
+
+        function lcInit() {
+            const dot = document.getElementById('lc-dot');
+            if (!dot) return; // window not open yet
+            if (_lcWs) { try { _lcWs.close(); } catch(_) {} }
+            lcSetDot('off');
+            _lcWs = null; _lcSession = null; _lcAiEl = null;
+            lcAddMsg('sys', 'Connecting to Lumenis Reactor...');
+            try {
+                _lcWs = new WebSocket('ws://localhost:8000/ws');
+                _lcWs.onopen = () => lcSetDot('on');
+                _lcWs.onclose = () => { lcSetDot('off'); setTimeout(() => { if (document.getElementById('lc-dot')) lcAddMsg('sys', 'Disconnected. Click ↺ to reconnect.'); }, 100); };
+                _lcWs.onerror = () => lcAddMsg('sys', 'Connection error — is the reactor running? (python3 lumenis-main.py)');
+                _lcWs.onmessage = (e) => {
+                    let d;
+                    try { d = JSON.parse(e.data); } catch(_) { return; }
+                    const t = d.type || '';
+                    if (t === 'session_created') {
+                        _lcSession = d.session_id;
+                        const s = document.getElementById('lc-session');
+                        if (s) s.textContent = 'session ' + (_lcSession||'').slice(0,8);
+                        lcAddMsg('sys', 'Connected — ITT Council of Nine online');
+                    } else if (t === 'processing_start') {
+                        lcSetDot('busy');
+                        const ty = document.getElementById('lc-typing');
+                        if (ty) ty.style.display = 'block';
+                        _lcAiEl = lcAddMsg('ai', '');
+                    } else if (t === 'response_chunk') {
+                        const ty = document.getElementById('lc-typing');
+                        if (ty) ty.style.display = 'none';
+                        if (!_lcAiEl) _lcAiEl = lcAddMsg('ai', '');
+                        _lcAiEl.textContent += (d.text || '');
+                        const box = document.getElementById('lc-msgs');
+                        if (box) box.scrollTop = box.scrollHeight;
+                    } else if (t === 'processing_done') {
+                        lcSetDot('on');
+                        const ty = document.getElementById('lc-typing');
+                        if (ty) ty.style.display = 'none';
+                        _lcAiEl = null;
+                        document.querySelectorAll('#lc-chips .lc-chip').forEach(c => lcChip(c.dataset.seat, false));
+                    } else if (t === 'seat_activity') {
+                        const seat = d.seat || d.name;
+                        if (seat) { lcChip(seat, true); setTimeout(() => lcChip(seat, false), 2000); }
+                    }
+                };
+            } catch(err) { lcAddMsg('sys', 'WebSocket error: ' + err.message); }
+        }
+
+        function lcSend() {
+            const inp = document.getElementById('lc-inp');
+            if (!inp) return;
+            const msg = inp.value.trim();
+            if (!msg) return;
+            if (!_lcWs || _lcWs.readyState !== WebSocket.OPEN) { lcAddMsg('sys', 'Not connected — click ↺'); return; }
+            inp.value = '';
+            lcAddMsg('user', msg);
+            _lcWs.send(JSON.stringify({action:'chat', message: msg, session_id: _lcSession}));
+        }
+
+        function lcClear() {
+            const box = document.getElementById('lc-msgs');
+            if (box) box.innerHTML = '';
+        }
+
+        // ── OnWorks Build Picker helpers ─────────────────────────────────────────────
+        let _owBuilds = [];
+        let _owSelected = 'ubuntu22';
+        let _owFilter = 'all';
+
+        async function onworksInit() {
+            // Load selected build from Lumenis memory
+            try {
+                const sel = await fetch(`${LUMENIS_RC}/api/resources/onworks/selected`).then(r=>r.json());
+                if (sel.build) {
+                    _owSelected = sel.build.build_id || sel.build.id || 'ubuntu22';
+                    const url = sel.build.launch_url;
+                    const frame = document.getElementById('ow-frame');
+                    if (frame && url) frame.src = url;
+                    onworksUpdateHeader(sel.build);
+                }
+            } catch(e) {}
+
+            // Load full catalog
+            try {
+                const data = await fetch(`${LUMENIS_RC}/api/resources/onworks/builds`).then(r=>r.json());
+                _owBuilds = data.builds || [];
+                onworksRender(_owBuilds, _owSelected, _owFilter);
+                const dot = document.getElementById('ow-status-dot');
+                const txt = document.getElementById('ow-status-txt');
+                if (dot) dot.style.background = '#22c55e';
+                if (txt) txt.textContent = `${_owBuilds.length} builds`;
+            } catch(e) {
+                const dot = document.getElementById('ow-status-dot');
+                if (dot) dot.style.background = '#ef4444';
+                const txt = document.getElementById('ow-status-txt');
+                if (txt) txt.textContent = 'Lumenis offline';
+            }
+        }
+
+        function onworksRender(builds, selectedId, filter) {
+            const list = document.getElementById('ow-build-list');
+            if (!list) return;
+            const visible = filter === 'all' ? builds : builds.filter(b => b.category === filter);
+            list.innerHTML = visible.map(b => `
+                <div class="ow-build-card ${b.id === selectedId ? 'selected' : ''}" onclick="onworksSelect('${b.id}')">
+                    <span class="ow-cat-dot ow-cat-${b.category}"></span>
+                    <i class="${b.icon} text-gray-400 w-4 text-center text-xs"></i>
+                    <span class="text-xs text-gray-300 truncate flex-1">${b.name}</span>
+                </div>
+            `).join('');
+        }
+
+        async function onworksSelect(buildId) {
+            const b = _owBuilds.find(x => x.id === buildId);
+            if (!b) return;
+            _owSelected = buildId;
+
+            // Update iframe
+            const frame = document.getElementById('ow-frame');
+            if (frame) frame.src = b.launch_url;
+
+            // Update header
+            onworksUpdateHeader(b);
+
+            // Re-render list with new selection
+            onworksRender(_owBuilds, _owSelected, _owFilter);
+
+            // Persist to Lumenis
+            try {
+                await fetch(`${LUMENIS_RC}/api/resources/onworks/select`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({build_id: buildId})
+                });
+            } catch(e) {}
+        }
+
+        function onworksUpdateHeader(b) {
+            const badge = document.getElementById('ow-active-badge');
+            const catBadge = document.getElementById('ow-category-badge');
+            const urlDisplay = document.getElementById('ow-url-display');
+            if (badge) badge.textContent = b.name || b.build_id;
+            if (catBadge) catBadge.textContent = b.category || '';
+            if (urlDisplay) urlDisplay.textContent = b.launch_url || '';
+        }
+
+        function onworksFilter(cat) {
+            _owFilter = cat;
+            // Update filter button styles
+            ['all','ubuntu','debian','rpm','special'].forEach(c => {
+                const btn = document.getElementById(`owf-${c}`);
+                if (btn) btn.classList.toggle('active-filter', c === cat);
+            });
+            onworksRender(_owBuilds, _owSelected, cat);
+        }
+
+        function onworksOpenTab() {
+            const b = _owBuilds.find(x => x.id === _owSelected);
+            if (b) window.open(b.launch_url, '_blank');
+        }
+
+        function owCopyUrl() {
+            const url = document.getElementById('ow-url-display');
+            if (!url) return;
+            navigator.clipboard.writeText(url.textContent).then(() => {
+                const btn = event.target.closest('button');
+                if (!btn) return;
+                const orig = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check mr-1 text-green-400"></i>Copied!';
+                setTimeout(() => btn.innerHTML = orig, 1400);
+            });
+        }
+
+                // ── Google API PHP Client helpers ─────────────────────────────────────────
+        const PHP_INSTALL_URL = 'https://apis.google.com/additnow/l?applicationid=796898949162&__ls=ogb&__lu=https%3A%2F%2Fwww.onworks.net%2Fthirdparty%2Fgdrive%2Fgoogle-api-php-client%2Fcore%2Fdownload.php';
+        const PHP_DL_URL      = 'https://www.onworks.net/thirdparty/gdrive/google-api-php-client/core/download.php';
+
+        async function phpClientProbe() {
+            const dot    = document.getElementById('php-dot');
+            const status = document.getElementById('php-status');
+            const out    = document.getElementById('php-probe-output');
+            if (!dot) return;
+            dot.style.background = 'rgba(255,255,255,0.5)'; status.textContent = 'Probing…';
+            if (out) { out.classList.remove('hidden'); out.textContent = 'Fetching resource info from Lumenis…'; }
+            try {
+                const r = await fetch(`${LUMENIS_RC}/api/resources/onworks_gdrive_php/info`);
+                const d = await r.json();
+                dot.style.background = '#22c55e'; status.textContent = 'Available';
+                if (out) out.textContent = JSON.stringify(d, null, 2);
+                // Populate URL fields
+                const instEl = document.getElementById('php-install-url');
+                const dlEl   = document.getElementById('php-dl-url');
+                if (instEl) instEl.textContent = d.install_url || PHP_INSTALL_URL;
+                if (dlEl)   dlEl.textContent   = d.download_url || PHP_DL_URL;
+            } catch(e) {
+                dot.style.background = '#ef4444'; status.textContent = 'Error';
+                if (out) out.textContent = 'Probe error: ' + e.message;
+            }
+        }
+
+        function phpInstall()     { window.open(PHP_INSTALL_URL, '_blank'); }
+        function phpDownload()    { window.open(PHP_DL_URL, '_blank'); }
+
+        function phpCopyInstall() {
+            navigator.clipboard.writeText(PHP_INSTALL_URL).then(() => {
+                const btn = event.target.closest('button');
+                const orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                setTimeout(() => btn.innerHTML = orig, 1500);
+            });
+        }
+
+        function phpCopyDownload() {
+            navigator.clipboard.writeText(PHP_DL_URL).then(() => {
+                const btn = event.target.closest('button');
+                const orig = btn.innerHTML; btn.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+                setTimeout(() => btn.innerHTML = orig, 1500);
+            });
         }
 
         // Initialization

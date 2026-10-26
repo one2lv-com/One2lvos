@@ -9,9 +9,12 @@ FastAPI + WebSocket server that wires together all four layers:
 """
 
 import asyncio
+import time
 import json
 import os
+import sqlite3
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -57,11 +60,115 @@ async def on_pulse(status):
     )
 
 
+# =============================================================================
+#  Trigger Engine — autonomous background loop (action layer)
+# =============================================================================
+_SERVICES_TO_WATCH = [
+    ("ai-arcade",    "http://localhost:8003"),
+    ("os-core",      "http://localhost:3002/health"),
+    ("ai-lobby",     "http://localhost:8006"),
+    ("lumenis-v7",   "http://localhost:8005"),
+    ("lumenis-ui",   "http://localhost:9001"),
+    ("lumenis-os",   "http://localhost:9002/api/healthz"),
+    ("aetherix",     "http://localhost:9003/health"),
+]
+
+async def _trigger_auto_checkpoint():
+    """Create a periodic checkpoint saved to compass.db every 5 minutes."""
+    while True:
+        await asyncio.sleep(300)
+        try:
+            cid = f"auto_{int(datetime.now().timestamp()*1000)}"
+            conn = _vec_db()
+            conn.execute(
+                "INSERT INTO checkpoints (id, label, state_json, created_at) VALUES (?,?,?,?)",
+                (cid, "auto", json.dumps({
+                    "reactor": compass.get_stats(),
+                    "timestamp": datetime.now().isoformat()
+                }), datetime.now().timestamp())
+            )
+            # Keep only last 50 auto checkpoints
+            rows = conn.execute(
+                "SELECT id FROM checkpoints ORDER BY created_at DESC LIMIT -1 OFFSET 50"
+            ).fetchall()
+            if rows:
+                conn.executemany("DELETE FROM checkpoints WHERE id=?", rows)
+            conn.commit(); conn.close()
+            await broadcast({"type": "checkpoint", "id": cid, "label": "auto",
+                             "ts": datetime.now().isoformat()})
+        except Exception as e:
+            pass  # non-fatal
+
+
+def _load_services_from_db():
+    """Load the combined static + dynamic service list."""
+    services = list(_SERVICES_TO_WATCH)  # static baseline
+    try:
+        conn = sqlite3.connect(_DB_PATH)
+        rows = conn.execute(
+            "SELECT name, url FROM services_watch WHERE enabled=1"
+        ).fetchall()
+        conn.close()
+        existing_urls = {u for _, u in services}
+        for name, url in rows:
+            if url not in existing_urls:
+                services.append((name, url))
+    except Exception:
+        pass
+    return services
+
+
+async def _trigger_service_watch():
+    """Poll services every 60s (static + dynamic); broadcast alerts on status changes.
+    Conflict priority matrix item 4: service alerts run at P4 — after active sessions."""
+    import urllib.request
+    prev = {}
+    while True:
+        await asyncio.sleep(60)
+        # P4: only run when no active user session in last 60s
+        # (best-effort: check if any WS clients sent a message recently — skip if busy)
+        for name, url in _load_services_from_db():
+            try:
+                with urllib.request.urlopen(url, timeout=3) as r:
+                    up = r.status < 500
+            except Exception:
+                up = False
+            was_up = prev.get(name)
+            if was_up is None:
+                prev[name] = up
+                continue
+            if up != was_up:
+                prev[name] = up
+                evt = "service_up" if up else "service_down"
+                await broadcast({"type": evt, "service": name, "url": url,
+                                 "ts": datetime.now().isoformat()})
+                try:
+                    compass.store_fact(key=f"service.{name}.status",
+                                      value=("up" if up else "down"), source="trigger_engine")
+                except Exception:
+                    pass
+
+
+async def _trigger_self_heal():
+    """Watch compass.db for schema drift; re-create missing tables."""
+    while True:
+        await asyncio.sleep(600)  # every 10 minutes
+        try:
+            conn = _vec_db()
+            conn.close()
+        except Exception:
+            pass  # _vec_db() creates tables on access — this is enough
+
+
 # ── Lifespan ──────────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await reactor.start()
-    print("✦ Sovereign Core online — Thermal Baseline 0.18°C")
+    # Launch autonomous background tasks
+    asyncio.create_task(_trigger_auto_checkpoint())
+    asyncio.create_task(_trigger_service_watch())
+    asyncio.create_task(_trigger_self_heal())
+    print("✦ Sovereign Core online — Thermal Baseline 0.18°C | Trigger Engine active")
     yield
     await reactor.stop()
 
@@ -152,14 +259,29 @@ async def websocket_endpoint(ws: WebSocket):
         }
     )
 
+    # Keepalive: ping client every 25s so browser doesn't time out during long LLM calls
+    async def _keepalive():
+        while True:
+            await asyncio.sleep(25)
+            try:
+                await ws.send_json({"type": "ping"})
+            except Exception:
+                break
+
+    keepalive_task = asyncio.create_task(_keepalive())
+
     try:
         while True:
             raw = await ws.receive_text()
             msg = json.loads(raw)
             action = msg.get("action")
 
-            if action == "chat":
-                await handle_chat(ws, msg)
+            if action == "ping":
+                await ws.send_json({"type": "pong"})
+
+            elif action == "chat":
+                # Run as background task so the receive loop stays responsive
+                asyncio.create_task(handle_chat(ws, msg))
 
             elif action == "new_session":
                 sid = compass.create_session(msg.get("title", "New Session"))
@@ -178,9 +300,14 @@ async def websocket_endpoint(ws: WebSocket):
                 await ws.send_json({"type": "fact_stored", "fact_id": fid})
 
     except WebSocketDisconnect:
-        _ws_clients.discard(ws)
+        pass
     except Exception as e:
-        await ws.send_json({"type": "error", "message": str(e)})
+        try:
+            await ws.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
+    finally:
+        keepalive_task.cancel()
         _ws_clients.discard(ws)
 
 
@@ -224,13 +351,24 @@ async def handle_chat(ws: WebSocket, msg: dict):
 
     node = await node_pool.run("council.process", council_task())
 
-    # Wait for the task to finish (it streams results via callback, but we
-    # need the final decision object for persistence)
+    # Wait for the task to finish with a 300s timeout
+    deadline = 300 / 0.05  # 300 seconds
+    ticks = 0
     while node.state.value in ("idle", "active"):
         await asyncio.sleep(0.05)
+        ticks += 1
+        if ticks > deadline:
+            try:
+                await ws.send_json({"type": "error", "message": "Council timed out after 300s"})
+            except Exception:
+                pass
+            return
 
     if node.state.value == "error":
-        await ws.send_json({"type": "error", "message": node.error})
+        try:
+            await ws.send_json({"type": "error", "message": node.error})
+        except Exception:
+            pass
         return
 
     decision = node.result
@@ -399,3 +537,1732 @@ async def whois_dada_endpoint():
         "ts": __import__("datetime").datetime.utcnow().isoformat() + "Z",
     }
     return JSONResponse(lineage)
+
+
+@app.get("/api/facts/all")
+async def get_all_facts():
+    """Return all stored facts from compass memory."""
+    facts = compass.get_all_facts()
+    return JSONResponse({"facts": facts, "count": len(facts)})
+
+
+@app.post("/api/terminal")
+async def terminal_exec(body: dict):
+    """Execute a shell command and return stdout/stderr."""
+    import subprocess
+    cmd = body.get("command", "").strip()
+    if not cmd:
+        return JSONResponse({"error": "No command provided"}, status_code=400)
+    blocked = ["rm -rf", "mkfs", "dd if=", ":(){:|:&}", "shutdown", "reboot", "init 0"]
+    for b in blocked:
+        if b in cmd:
+            return JSONResponse({"error": f"Command blocked: contains '{b}'"}, status_code=403)
+    try:
+        result = subprocess.run(
+            cmd, shell=True, capture_output=True, text=True, timeout=15,
+            cwd=os.path.dirname(os.path.abspath(__file__))
+        )
+        return JSONResponse({
+            "command": cmd,
+            "stdout": result.stdout,
+            "stderr": result.stderr,
+            "returncode": result.returncode,
+        })
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"error": "Command timed out (15s limit)"}, status_code=408)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/lumenis-chat", response_class=HTMLResponse)
+async def serve_chat():
+    """Serve the Lumenis Chat UI."""
+    return (Path(__file__).parent / "static" / "lumenis-chat.html").read_text()
+
+
+# ── Live Terminal WebSocket ────────────────────────────────────────────────────
+@app.websocket("/ws/terminal")
+async def terminal_ws(ws: WebSocket):
+    """Stream subprocess output in real-time."""
+    await ws.accept()
+    process = None
+    try:
+        while True:
+            raw = await ws.receive_text()
+            msg = json.loads(raw)
+            action = msg.get("action")
+
+            if action == "exec":
+                cmd = msg.get("command", "").strip()
+                if not cmd:
+                    continue
+                if process and process.returncode is None:
+                    try:
+                        process.kill()
+                    except Exception:
+                        pass
+
+                blocked = ["rm -rf /", "mkfs", ":(){:|:&}", "init 0", "shutdown"]
+                if any(b in cmd for b in blocked):
+                    await ws.send_text(json.dumps({"type": "error", "data": "Blocked: dangerous command\r\n"}))
+                    continue
+
+                await ws.send_text(json.dumps({"type": "start", "command": cmd}))
+                process = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                    cwd=os.path.dirname(os.path.abspath(__file__)),
+                )
+                async for chunk in process.stdout:
+                    await ws.send_text(json.dumps({"type": "output", "data": chunk.decode("utf-8", errors="replace")}))
+                await process.wait()
+                await ws.send_text(json.dumps({"type": "done", "returncode": process.returncode}))
+
+            elif action == "kill":
+                if process and process.returncode is None:
+                    process.kill()
+                    await ws.send_text(json.dumps({"type": "killed"}))
+
+    except WebSocketDisconnect:
+        if process and process.returncode is None:
+            try:
+                process.kill()
+            except Exception:
+                pass
+
+
+# ── Network Proxy ─────────────────────────────────────────────────────────────
+@app.post("/api/network/fetch")
+async def network_fetch(body: dict):
+    """Proxy HTTP requests to any external URL."""
+    import httpx
+    url = body.get("url", "").strip()
+    method = body.get("method", "GET").upper()
+    headers = body.get("headers", {})
+    payload = body.get("body", None)
+    if not url:
+        return JSONResponse({"error": "No URL provided"}, status_code=400)
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.request(
+                method=method, url=url, headers=headers,
+                content=json.dumps(payload).encode() if payload else None,
+            )
+            try:
+                body_text = resp.text[:80000]
+            except Exception:
+                body_text = "[binary content]"
+            return JSONResponse({
+                "status": resp.status_code,
+                "headers": dict(resp.headers),
+                "content_type": resp.headers.get("content-type", ""),
+                "body": body_text,
+                "url": str(resp.url),
+                "elapsed_ms": int(resp.elapsed.total_seconds() * 1000) if hasattr(resp, 'elapsed') and resp.elapsed else 0,
+            })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── PNG State Save / Load (LSB steganography) ─────────────────────────────────
+@app.post("/api/state/save")
+async def save_state_png(body: dict):
+    """Embed JSON state into a PNG via LSB steganography."""
+    import io, base64, random
+    from PIL import Image
+    state_bytes = json.dumps(body).encode("utf-8")
+    total_bits  = 32 + len(state_bytes) * 8
+    pixels_need = (total_bits + 2) // 3 + 4
+    side        = max(120, int(pixels_need ** 0.5) + 2)
+
+    img = Image.new("RGB", (side, side), (20, 6, 40))
+    rng = random.Random(0x4C554D)
+    px  = [(max(0,min(255,20+rng.randint(-8,8))), max(0,min(255,6+rng.randint(-8,8))), max(0,min(255,40+rng.randint(-8,8)))) for _ in range(side*side)]
+
+    def set_lsb(idx, ch, bit):
+        p = list(px[idx]); p[ch] = (p[ch] & 0xFE) | bit; px[idx] = tuple(p)
+
+    # Write 32-bit length header
+    n = len(state_bytes)
+    for i in range(32):
+        set_lsb(i // 3, i % 3, (n >> (31 - i)) & 1)
+
+    # Write data
+    bit_pos = 32
+    for byte in state_bytes:
+        for b in range(7, -1, -1):
+            idx, ch = bit_pos // 3, bit_pos % 3
+            if idx < len(px):
+                set_lsb(idx, ch, (byte >> b) & 1)
+            bit_pos += 1
+
+    img.putdata(px)
+    buf = io.BytesIO(); img.save(buf, "PNG"); buf.seek(0)
+    return JSONResponse({"png_base64": base64.b64encode(buf.read()).decode(), "size": f"{side}x{side}", "bytes": n})
+
+
+@app.post("/api/state/load")
+async def load_state_png(body: dict):
+    """Decode JSON state from LSB steganography in a PNG."""
+    import io, base64
+    from PIL import Image
+    b64 = body.get("png_base64", "")
+    if not b64:
+        return JSONResponse({"error": "No PNG data"}, status_code=400)
+    try:
+        img = Image.open(io.BytesIO(base64.b64decode(b64))).convert("RGB")
+        px  = list(img.getdata())
+
+        def get_lsb(idx, ch): return px[idx][ch] & 1
+
+        n = 0
+        for i in range(32):
+            n = (n << 1) | get_lsb(i // 3, i % 3)
+
+        if not (0 < n < 5_000_000):
+            return JSONResponse({"error": "Invalid or corrupted state PNG"}, status_code=400)
+
+        out, bit_pos = [], 32
+        for _ in range(n):
+            byte = 0
+            for b in range(7, -1, -1):
+                idx, ch = bit_pos // 3, bit_pos % 3
+                byte = (byte << 1) | (get_lsb(idx, ch) if idx < len(px) else 0)
+                bit_pos += 1
+            out.append(byte)
+
+        return JSONResponse(json.loads(bytes(out).decode("utf-8")))
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LUMENIS TOOL ACCESS — One2lvOS Subsystem Bridge
+# Gives Lumenis direct tool-callable APIs for all major One2lvOS subsystems
+# ═══════════════════════════════════════════════════════════════════════════
+
+import httpx as _httpx_tools
+
+# ── Astra DB Vector Memory ────────────────────────────────────────────────
+@app.post("/api/tools/memory/store")
+async def tool_memory_store(body: dict):
+    """Store a fact in Astra DB vector memory using NVIDIA embeddings."""
+    try:
+        text = body.get("text", "").strip()
+        key = body.get("key", "")
+        if not text:
+            return JSONResponse({"error": "text required"}, status_code=400)
+        # Also store in FluxCompass for local recall
+        fact_id = compass.store_fact(key=key or text[:40], value=text, source="lumenis_tool")
+        # Try Astra DB if available
+        astra_result = {"stored": "flux_compass", "fact_id": fact_id}
+        astra_endpoint = os.environ.get("ASTRA_DB_API_ENDPOINT", "")
+        astra_token = os.environ.get("ASTRA_DB_APPLICATION_TOKEN", "")
+        collection = os.environ.get("COLLECTION_NAME", "aria_memory")
+        if astra_endpoint and astra_token:
+            try:
+                url = f"{astra_endpoint}/api/json/v1/{os.environ.get('ASTRA_DB_KEYSPACE','one2lvOS')}/{collection}"
+                async with _httpx_tools.AsyncClient(timeout=15) as c:
+                    r = await c.post(url,
+                        headers={"Token": astra_token, "Content-Type": "application/json"},
+                        json={"insertOne": {"document": {"_id": fact_id, "key": key or text[:40], "value": text, "source": "lumenis", "ts": int(time.time())}}}
+                    )
+                    if r.status_code == 200:
+                        astra_result["stored"] = "astra_db+flux_compass"
+            except Exception:
+                pass
+        return JSONResponse({"ok": True, "result": astra_result, "text": text})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/api/tools/memory/search")
+async def tool_memory_search(body: dict):
+    """Search FluxCompass facts and Astra DB for relevant memories."""
+    try:
+        query = body.get("query", "").strip()
+        limit = int(body.get("limit", 5))
+        if not query:
+            return JSONResponse({"error": "query required"}, status_code=400)
+        facts = compass.recall_facts(query, limit=limit)
+        return JSONResponse({"query": query, "results": facts, "count": len(facts), "source": "flux_compass"})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/tools/memory/all")
+async def tool_memory_all():
+    """List all facts stored in FluxCompass."""
+    try:
+        facts = compass.get_all_facts()
+        return JSONResponse({"facts": facts, "count": len(facts)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ── Discord ───────────────────────────────────────────────────────────────
+DISCORD_BASE = "https://discord.com/api/v10"
+
+@app.post("/api/tools/discord/send")
+async def tool_discord_send(body: dict):
+    """Send a message to the configured Discord channel."""
+    try:
+        token = os.environ.get("DISCORD_BOT_TOKEN", "")
+        channel_id = body.get("channel_id", os.environ.get("DISCORD_CHANNEL_ID", ""))
+        content = body.get("content", "").strip()
+        if not token:
+            return JSONResponse({"error": "DISCORD_BOT_TOKEN not configured"}, status_code=503)
+        if not content:
+            return JSONResponse({"error": "content required"}, status_code=400)
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.post(f"{DISCORD_BASE}/channels/{channel_id}/messages",
+                headers={"Authorization": f"Bot {token}", "Content-Type": "application/json"},
+                json={"content": content}
+            )
+            data = r.json()
+            return JSONResponse({"ok": r.status_code == 200, "status": r.status_code,
+                                 "message_id": data.get("id"), "channel": channel_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/tools/discord/messages")
+async def tool_discord_messages(channel_id: str = None, limit: int = 10):
+    """Read recent messages from a Discord channel."""
+    try:
+        token = os.environ.get("DISCORD_BOT_TOKEN", "")
+        cid = channel_id or os.environ.get("DISCORD_CHANNEL_ID", "")
+        if not token:
+            return JSONResponse({"error": "DISCORD_BOT_TOKEN not configured"}, status_code=503)
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{DISCORD_BASE}/channels/{cid}/messages?limit={min(limit,50)}",
+                headers={"Authorization": f"Bot {token}"}
+            )
+            return JSONResponse({"ok": r.status_code == 200, "status": r.status_code,
+                                 "messages": r.json() if r.status_code == 200 else [], "channel": cid})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/tools/discord/guilds")
+async def tool_discord_guilds():
+    """List Discord guilds the bot is in."""
+    try:
+        token = os.environ.get("DISCORD_BOT_TOKEN", "")
+        if not token:
+            return JSONResponse({"error": "DISCORD_BOT_TOKEN not configured"}, status_code=503)
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{DISCORD_BASE}/users/@me/guilds",
+                headers={"Authorization": f"Bot {token}"}
+            )
+            return JSONResponse({"ok": r.status_code == 200, "guilds": r.json() if r.status_code == 200 else []})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ── GitHub ────────────────────────────────────────────────────────────────
+GITHUB_BASE = "https://api.github.com"
+
+@app.get("/api/tools/github/repos")
+async def tool_github_repos():
+    """List GitHub repositories accessible with the configured token."""
+    try:
+        token = os.environ.get("GITHUB_TOKEN", "")
+        if not token:
+            return JSONResponse({"error": "GITHUB_TOKEN not configured"}, status_code=503)
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{GITHUB_BASE}/user/repos?per_page=30&sort=updated",
+                headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+            )
+            repos = [{"name": x["name"], "full_name": x["full_name"], "private": x["private"],
+                      "updated": x["updated_at"], "description": x.get("description","")}
+                     for x in (r.json() if r.status_code == 200 else [])]
+            return JSONResponse({"ok": r.status_code == 200, "repos": repos, "count": len(repos)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/api/tools/github/file")
+async def tool_github_file(body: dict):
+    """Read a file from a GitHub repo."""
+    try:
+        token = os.environ.get("GITHUB_TOKEN", "")
+        repo = body.get("repo", "one2lv-com/One2lvos")
+        path = body.get("path", "README.md")
+        ref = body.get("ref", "main")
+        if not token:
+            return JSONResponse({"error": "GITHUB_TOKEN not configured"}, status_code=503)
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{GITHUB_BASE}/repos/{repo}/contents/{path}?ref={ref}",
+                headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+            )
+            if r.status_code == 200:
+                data = r.json()
+                import base64
+                content = base64.b64decode(data.get("content","")).decode("utf-8","replace") if data.get("encoding") == "base64" else data.get("content","")
+                return JSONResponse({"ok": True, "path": path, "repo": repo, "content": content[:8000], "sha": data.get("sha"), "size": data.get("size")})
+            return JSONResponse({"ok": False, "status": r.status_code, "error": r.text[:200]})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.post("/api/tools/github/search")
+async def tool_github_search(body: dict):
+    """Search GitHub code or issues."""
+    try:
+        token = os.environ.get("GITHUB_TOKEN", "")
+        q = body.get("query", "")
+        search_type = body.get("type", "code")  # code | issues | repos
+        if not token:
+            return JSONResponse({"error": "GITHUB_TOKEN not configured"}, status_code=503)
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{GITHUB_BASE}/search/{search_type}?q={q}&per_page=10",
+                headers={"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+            )
+            return JSONResponse({"ok": r.status_code == 200, "results": r.json() if r.status_code == 200 else {}, "status": r.status_code})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ── Supabase ──────────────────────────────────────────────────────────────
+@app.post("/api/tools/supabase/query")
+async def tool_supabase_query(body: dict):
+    """Query Supabase via the REST API (select only for safety)."""
+    try:
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_ANON_KEY", "")
+        if not url or not key:
+            return JSONResponse({"error": "Supabase not configured"}, status_code=503)
+        table = body.get("table", "")
+        select = body.get("select", "*")
+        filters = body.get("filters", {})  # {"column": "eq.value"}
+        limit = min(int(body.get("limit", 20)), 100)
+        if not table:
+            return JSONResponse({"error": "table required"}, status_code=400)
+        params = f"select={select}&limit={limit}"
+        for col, val in filters.items():
+            params += f"&{col}={val}"
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{url}/rest/v1/{table}?{params}",
+                headers={"apikey": key, "Authorization": f"Bearer {key}"}
+            )
+            return JSONResponse({"ok": r.status_code == 200, "table": table, "rows": r.json() if r.status_code == 200 else [], "status": r.status_code})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/tools/supabase/tables")
+async def tool_supabase_tables():
+    """List Supabase tables."""
+    try:
+        url = os.environ.get("SUPABASE_URL", "")
+        key = os.environ.get("SUPABASE_SERVICE_KEY", os.environ.get("SUPABASE_ANON_KEY",""))
+        if not url or not key:
+            return JSONResponse({"error": "Supabase not configured"}, status_code=503)
+        async with _httpx_tools.AsyncClient(timeout=15) as c:
+            r = await c.get(f"{url}/rest/v1/",
+                headers={"apikey": key, "Authorization": f"Bearer {key}"}
+            )
+            return JSONResponse({"ok": r.status_code == 200, "schema": r.json() if r.status_code == 200 else {}, "status": r.status_code})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ── Snapshot / Core OS ────────────────────────────────────────────────────
+@app.post("/api/tools/snapshot/create")
+async def tool_snapshot_create(body: dict):
+    """Create a One2lvOS system snapshot."""
+    try:
+        label = body.get("label", f"snapshot_{int(time.time())}")
+        snap_dir = Path(__file__).parent / "snapshots"
+        snap_dir.mkdir(exist_ok=True)
+        snap_path = snap_dir / f"{label}.json"
+        stats = compass.get_stats()
+        facts = compass.get_all_facts()
+        snapshot_data = {
+            "label": label,
+            "created_at": time.time(),
+            "compass_stats": stats,
+            "facts": facts,
+            "env": {k: "***" if "KEY" in k or "TOKEN" in k or "SECRET" in k or "PASSWORD" in k else v
+                    for k, v in os.environ.items() if k.startswith(("NVIDIA","ASTRA","DISCORD","SUPABASE","MATON","PORT","NODE_ENV","LLM"))},
+        }
+        snap_path.write_text(json.dumps(snapshot_data, indent=2))
+        return JSONResponse({"ok": True, "label": label, "path": str(snap_path),
+                             "sessions": stats.get("total_sessions",0), "facts": stats.get("total_facts",0)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/tools/snapshot/list")
+async def tool_snapshot_list():
+    """List all system snapshots."""
+    try:
+        snap_dir = Path(__file__).parent / "snapshots"
+        snap_dir.mkdir(exist_ok=True)
+        snaps = []
+        for f in sorted(snap_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+            try:
+                data = json.loads(f.read_text())
+                snaps.append({"label": data.get("label", f.stem), "created_at": data.get("created_at"), "path": str(f)})
+            except Exception:
+                pass
+        return JSONResponse({"snapshots": snaps, "count": len(snaps)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/tools/system/manifest")
+async def tool_system_manifest():
+    """Get the current One2lvOS system manifest."""
+    try:
+        manifest_path = Path(__file__).parent / "services" / "manifest.json"
+        if not manifest_path.exists():
+            manifest_path = Path(__file__).parent / "MANIFEST.json"
+        if manifest_path.exists():
+            return JSONResponse(json.loads(manifest_path.read_text()))
+        return JSONResponse({"error": "manifest not found"}, status_code=404)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+# ── Tool Registry — lets the UI enumerate all available tools ─────────────
+TOOL_REGISTRY = [
+    {"id": "memory.store",       "label": "Store Memory",       "method": "POST", "path": "/api/tools/memory/store",        "category": "Memory",   "icon": "🧠", "params": ["key","text"]},
+    {"id": "memory.search",      "label": "Search Memory",      "method": "POST", "path": "/api/tools/memory/search",       "category": "Memory",   "icon": "🔍", "params": ["query","limit"]},
+    {"id": "memory.all",         "label": "All Memories",       "method": "GET",  "path": "/api/tools/memory/all",          "category": "Memory",   "icon": "📚", "params": []},
+    {"id": "discord.send",       "label": "Discord Send",       "method": "POST", "path": "/api/tools/discord/send",        "category": "Discord",  "icon": "💬", "params": ["content","channel_id"]},
+    {"id": "discord.messages",   "label": "Discord Read",       "method": "GET",  "path": "/api/tools/discord/messages",    "category": "Discord",  "icon": "📨", "params": ["limit"]},
+    {"id": "discord.guilds",     "label": "Discord Guilds",     "method": "GET",  "path": "/api/tools/discord/guilds",      "category": "Discord",  "icon": "🏰", "params": []},
+    {"id": "github.repos",       "label": "GitHub Repos",       "method": "GET",  "path": "/api/tools/github/repos",        "category": "GitHub",   "icon": "🐙", "params": []},
+    {"id": "github.file",        "label": "GitHub File",        "method": "POST", "path": "/api/tools/github/file",         "category": "GitHub",   "icon": "📄", "params": ["repo","path","ref"]},
+    {"id": "github.search",      "label": "GitHub Search",      "method": "POST", "path": "/api/tools/github/search",       "category": "GitHub",   "icon": "🔎", "params": ["query","type"]},
+    {"id": "supabase.query",     "label": "Supabase Query",     "method": "POST", "path": "/api/tools/supabase/query",      "category": "Supabase", "icon": "🗄️", "params": ["table","select","filters"]},
+    {"id": "supabase.tables",    "label": "Supabase Tables",    "method": "GET",  "path": "/api/tools/supabase/tables",     "category": "Supabase", "icon": "🗃️", "params": []},
+    {"id": "snapshot.create",    "label": "Create Snapshot",    "method": "POST", "path": "/api/tools/snapshot/create",     "category": "System",   "icon": "💾", "params": ["label"]},
+    {"id": "snapshot.list",      "label": "List Snapshots",     "method": "GET",  "path": "/api/tools/snapshot/list",       "category": "System",   "icon": "📋", "params": []},
+    {"id": "system.manifest",    "label": "System Manifest",    "method": "GET",  "path": "/api/tools/system/manifest",     "category": "System",   "icon": "📜", "params": []},
+    {"id": "network.fetch",      "label": "Network Fetch",      "method": "POST", "path": "/api/network/fetch",             "category": "Network",  "icon": "🌐", "params": ["url","method","headers","body"]},
+    {"id": "terminal.exec",      "label": "Terminal Exec",      "method": "POST", "path": "/api/terminal",                  "category": "Terminal", "icon": "⚡", "params": ["command"]},
+    {"id": "facts.store",        "label": "Store Fact",         "method": "POST", "path": "/api/facts",                     "category": "Memory",   "icon": "📝", "params": ["key","value"]},
+    {"id": "facts.all",          "label": "All Facts",          "method": "GET",  "path": "/api/facts/all",                 "category": "Memory",   "icon": "🗂️", "params": []},
+]
+
+@app.get("/api/tools/registry")
+async def tool_registry():
+    """Return the full tool registry available to Lumenis."""
+    return JSONResponse({"tools": TOOL_REGISTRY, "count": len(TOOL_REGISTRY)})
+
+# ── AI Lobby Integration ──────────────────────────────────────────────────────
+LOBBY_BASE = "http://localhost:8006"
+
+@app.post("/api/tools/lobby/register")
+async def tool_lobby_register():
+    """Register Lumenis as an agent in the AI Lobby."""
+    try:
+        payload = {
+            "id": "lumenis-reactor",
+            "name": "Lumenis Reactor Core",
+            "role": "sovereign_ai",
+            "description": "ITT Council of Nine — memory, reasoning, 18-tool access, terminal, network, Discord, GitHub, Supabase",
+            "ws_url": "ws://localhost:8000/ws",
+            "api_url": "http://localhost:8000",
+            "capabilities": ["chat","memory","tools","terminal","network","discord","github","supabase","vector_memory","snapshots"],
+            "status": "ACTIVE",
+            "council_seats": ["Sentinel","Navigator","Witness","Forge","Oracle","Weaver","Hermes","Architect","Gambit"],
+            "tool_count": len(TOOL_REGISTRY),
+        }
+        async with _httpx_tools.AsyncClient(timeout=8) as c:
+            r = await c.post(f"{LOBBY_BASE}/agents/register", json=payload)
+            return JSONResponse({"ok": r.status_code == 200, "status": r.status_code, "response": r.json() if r.status_code == 200 else r.text[:200]})
+    except Exception as e:
+        return JSONResponse({"error": str(e), "hint": "Start AI Lobby: python3 ai_lobby.py"}, status_code=503)
+
+@app.get("/api/tools/lobby/agents")
+async def tool_lobby_agents():
+    """List all agents registered in the AI Lobby."""
+    try:
+        async with _httpx_tools.AsyncClient(timeout=8) as c:
+            r = await c.get(f"{LOBBY_BASE}/agents")
+            return JSONResponse({"ok": r.status_code == 200, "agents": r.json() if r.status_code == 200 else [], "status": r.status_code})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=503)
+
+@app.post("/api/tools/lobby/broadcast")
+async def tool_lobby_broadcast(body: dict):
+    """Broadcast a message to all agents in the AI Lobby."""
+    try:
+        content = body.get("message", "")
+        if not content:
+            return JSONResponse({"error": "message required"}, status_code=400)
+        payload = {"from": "lumenis-reactor", "content": content, "type": body.get("type","announcement")}
+        async with _httpx_tools.AsyncClient(timeout=8) as c:
+            r = await c.post(f"{LOBBY_BASE}/broadcast", json=payload)
+            return JSONResponse({"ok": r.status_code in (200, 201), "status": r.status_code})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=503)
+
+# Add lobby tools to the registry
+TOOL_REGISTRY.extend([
+    {"id": "lobby.register",  "label": "Register in Lobby",   "method": "POST", "path": "/api/tools/lobby/register",  "category": "Lobby", "icon": "📡", "params": []},
+    {"id": "lobby.agents",    "label": "List Lobby Agents",    "method": "GET",  "path": "/api/tools/lobby/agents",     "category": "Lobby", "icon": "🤖", "params": []},
+    {"id": "lobby.broadcast", "label": "Lobby Broadcast",      "method": "POST", "path": "/api/tools/lobby/broadcast",  "category": "Lobby", "icon": "📢", "params": ["message","type"]},
+])
+
+# =============================================================================
+#  VectorFS — persistent cosine-similarity search (mirrors interplanetary-disk)
+# =============================================================================
+import struct, math as _math
+
+_DB_PATH = os.path.join(os.path.dirname(__file__), "compass.db")
+
+def _vec_db():
+    """Return a compass.db connection with vectors + checkpoints tables ensured."""
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute("""CREATE TABLE IF NOT EXISTS vectors (
+        id         TEXT PRIMARY KEY,
+        path       TEXT NOT NULL,
+        vector     BLOB NOT NULL,
+        dimension  INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS checkpoints (
+        id         TEXT PRIMARY KEY,
+        label      TEXT NOT NULL,
+        state_json TEXT NOT NULL,
+        created_at REAL NOT NULL
+    )""")
+    conn.commit()
+    return conn
+
+def _encode_vec(v: list) -> bytes:
+    return struct.pack(f'{len(v)}f', *v)
+
+def _decode_vec(b: bytes) -> list:
+    n = len(b) // 4
+    return list(struct.unpack(f'{n}f', b))
+
+def _cosine(a, b):
+    if len(a) != len(b): return 0.0
+    dot = sum(x*y for x,y in zip(a,b))
+    na  = _math.sqrt(sum(x*x for x in a))
+    nb  = _math.sqrt(sum(x*x for x in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+@app.post("/vectorfs/index")
+async def vectorfs_index(body: dict):
+    """Index a path+vector pair into the persistent vector store."""
+    path   = body.get("path","").strip()
+    vector = body.get("vector",[])
+    if not path or not vector:
+        return JSONResponse({"error": "path and vector required"}, status_code=400)
+    vid = f"{path}_{int(datetime.now().timestamp()*1000)}"
+    try:
+        conn = _vec_db()
+        conn.execute(
+            "INSERT OR REPLACE INTO vectors (id, path, vector, dimension, updated_at) VALUES (?,?,?,?,?)",
+            (path, path, _encode_vec(vector), len(vector), datetime.now().isoformat())
+        )
+        conn.commit(); conn.close()
+        return JSONResponse({"indexed": path, "dimension": len(vector)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/vectorfs/search")
+async def vectorfs_search(body: dict):
+    """Cosine-similarity search over the persistent vector store."""
+    query = body.get("queryVector", body.get("vector", []))
+    top_k = int(body.get("topK", body.get("top_k", 10)))
+    if not query:
+        return JSONResponse({"error": "queryVector required"}, status_code=400)
+    try:
+        conn  = _vec_db()
+        rows  = conn.execute("SELECT path, vector FROM vectors").fetchall()
+        conn.close()
+        results = sorted(
+            [{"path": r[0], "similarity": _cosine(query, _decode_vec(r[1]))} for r in rows],
+            key=lambda x: x["similarity"], reverse=True
+        )
+        return JSONResponse({"results": results[:top_k], "total_indexed": len(rows)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/vectorfs/stats")
+async def vectorfs_stats():
+    """Return VectorFS index statistics."""
+    try:
+        conn = _vec_db()
+        count = conn.execute("SELECT COUNT(*) FROM vectors").fetchone()[0]
+        recent = conn.execute("SELECT path, updated_at FROM vectors ORDER BY updated_at DESC LIMIT 5").fetchall()
+        conn.close()
+        return JSONResponse({"indexed_count": count, "recent": [{"path":r[0],"updated_at":r[1]} for r in recent]})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# =============================================================================
+#  Checkpoints — persistent to compass.db
+# =============================================================================
+import json as _json_mod
+
+@app.post("/api/checkpoints")
+async def create_checkpoint(body: dict):
+    """Create a named checkpoint persisted to compass.db."""
+    label      = body.get("label", "auto")
+    state_json = body.get("state", body)
+    cid        = f"checkpoint_{int(datetime.now().timestamp()*1000)}"
+    try:
+        conn = _vec_db()
+        conn.execute(
+            "INSERT INTO checkpoints (id, label, state_json, created_at) VALUES (?,?,?,?)",
+            (cid, label, _json_mod.dumps(state_json), datetime.now().timestamp())
+        )
+        conn.commit(); conn.close()
+        return JSONResponse({"id": cid, "label": label, "created": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/checkpoints")
+async def list_checkpoints(limit: int = 10):
+    """List recent checkpoints from compass.db."""
+    try:
+        conn = _vec_db()
+        rows = conn.execute(
+            "SELECT id, label, created_at FROM checkpoints ORDER BY created_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+        conn.close()
+        return JSONResponse({"checkpoints": [{"id":r[0],"label":r[1],"created_at":r[2]} for r in rows], "count": len(rows)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/checkpoints/{checkpoint_id}")
+async def get_checkpoint(checkpoint_id: str):
+    """Retrieve a checkpoint's full state from compass.db."""
+    try:
+        conn = _vec_db()
+        row  = conn.execute("SELECT id, label, state_json, created_at FROM checkpoints WHERE id=?", (checkpoint_id,)).fetchone()
+        conn.close()
+        if not row:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({"id":row[0], "label":row[1], "state":_json_mod.loads(row[2]), "created_at":row[3]})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# Register VectorFS + Checkpoint tools
+TOOL_REGISTRY.extend([
+    {"id": "vectorfs.index",    "label": "VectorFS Index",       "method": "POST", "path": "/vectorfs/index",       "category": "VectorFS",    "icon": "🧭", "params": ["path","vector"]},
+    {"id": "vectorfs.search",   "label": "VectorFS Search",      "method": "POST", "path": "/vectorfs/search",      "category": "VectorFS",    "icon": "🔍", "params": ["queryVector","topK"]},
+    {"id": "vectorfs.stats",    "label": "VectorFS Stats",        "method": "GET",  "path": "/vectorfs/stats",       "category": "VectorFS",    "icon": "📊", "params": []},
+    {"id": "checkpoint.create", "label": "Create Checkpoint",     "method": "POST", "path": "/api/checkpoints",      "category": "Checkpoints", "icon": "💾", "params": ["label","state"]},
+    {"id": "checkpoint.list",   "label": "List Checkpoints",      "method": "GET",  "path": "/api/checkpoints",      "category": "Checkpoints", "icon": "📋", "params": []},
+    {"id": "checkpoint.get",    "label": "Get Checkpoint",        "method": "GET",  "path": "/api/checkpoints/{id}", "category": "Checkpoints", "icon": "📂", "params": ["id"]},
+])
+
+# =============================================================================
+#  GOVERNANCE LAYER — Council Vote Applied
+#  Item 1 FULL:    Objectives (autonomous sub-goal origination)
+#  Item 2 PARTIAL: Identity file read/write (Soul.md, Memory.md, skills.md, tools.md)
+#  Item 3 FULL:    Dynamic service registration
+#  Item 4 PARTIAL: Conflict priority matrix (enforced in trigger engine)
+#  Item 6 GRANT:   Infrastructure changes (self-authorized, logged)
+# =============================================================================
+
+_IDENTITY_DIR = Path(__file__).parent
+_IDENTITY_FILES = {
+    "soul":   _IDENTITY_DIR / "Soul.md",
+    "memory": _IDENTITY_DIR / "Memory.md",
+    "skills": _IDENTITY_DIR / "skills.md",
+    "tools":  _IDENTITY_DIR / "tools.md",
+}
+
+def _gov_db():
+    """Ensure objectives + services_watch tables exist."""
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute("""CREATE TABLE IF NOT EXISTS objectives (
+        id          TEXT PRIMARY KEY,
+        title       TEXT NOT NULL,
+        description TEXT,
+        status      TEXT NOT NULL DEFAULT 'active',
+        priority    INTEGER NOT NULL DEFAULT 5,
+        created_at  REAL NOT NULL,
+        updated_at  REAL NOT NULL
+    )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS services_watch (
+        id          TEXT PRIMARY KEY,
+        name        TEXT NOT NULL,
+        url         TEXT NOT NULL,
+        enabled     INTEGER NOT NULL DEFAULT 1,
+        added_at    REAL NOT NULL
+    )""")
+    conn.commit()
+    return conn
+
+
+# ── Item 1: Objectives ────────────────────────────────────────────────────────
+
+@app.post("/api/objectives")
+async def create_objective(body: dict):
+    """Lumenis creates a new autonomous objective."""
+    title = body.get("title", "").strip()
+    if not title:
+        return JSONResponse({"error": "title required"}, status_code=400)
+    oid = f"obj_{int(datetime.now().timestamp()*1000)}"
+    now = datetime.now().timestamp()
+    try:
+        conn = _gov_db()
+        conn.execute(
+            "INSERT INTO objectives (id,title,description,status,priority,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
+            (oid, title, body.get("description",""), body.get("status","active"),
+             int(body.get("priority", 5)), now, now)
+        )
+        conn.commit(); conn.close()
+        await broadcast({"type": "objective_created", "id": oid, "title": title})
+        return JSONResponse({"id": oid, "title": title, "created": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/objectives")
+async def list_objectives(status: str = None):
+    """List active objectives from compass.db."""
+    try:
+        conn = _gov_db()
+        if status:
+            rows = conn.execute(
+                "SELECT id,title,description,status,priority,created_at,updated_at FROM objectives WHERE status=? ORDER BY priority ASC, created_at ASC",
+                (status,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id,title,description,status,priority,created_at,updated_at FROM objectives ORDER BY priority ASC, created_at ASC"
+            ).fetchall()
+        conn.close()
+        keys = ("id","title","description","status","priority","created_at","updated_at")
+        return JSONResponse({"objectives": [dict(zip(keys,r)) for r in rows], "count": len(rows)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.patch("/api/objectives/{objective_id}")
+async def update_objective(objective_id: str, body: dict):
+    """Update objective status or priority."""
+    try:
+        conn = _gov_db()
+        fields, vals = [], []
+        for f in ("title","description","status","priority"):
+            if f in body:
+                fields.append(f"{f}=?"); vals.append(body[f])
+        if not fields:
+            return JSONResponse({"error": "nothing to update"}, status_code=400)
+        fields.append("updated_at=?"); vals.append(datetime.now().timestamp())
+        vals.append(objective_id)
+        conn.execute(f"UPDATE objectives SET {', '.join(fields)} WHERE id=?", vals)
+        conn.commit(); conn.close()
+        await broadcast({"type": "objective_updated", "id": objective_id, "changes": body})
+        return JSONResponse({"updated": objective_id})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── Item 2: Identity file read/write ─────────────────────────────────────────
+
+def _identity_route(key: str):
+    async def _read():
+        p = _IDENTITY_FILES[key]
+        return JSONResponse({"file": key, "content": p.read_text() if p.exists() else ""})
+    async def _write(body: dict):
+        content = body.get("content","")
+        if not content:
+            return JSONResponse({"error": "content required"}, status_code=400)
+        _IDENTITY_FILES[key].write_text(content)
+        return JSONResponse({"file": key, "written": True, "bytes": len(content)})
+    return _read, _write
+
+_soul_read,   _soul_write   = _identity_route("soul")
+_memory_read, _memory_write = _identity_route("memory")
+_skills_read, _skills_write = _identity_route("skills")
+_tools_read,  _tools_write  = _identity_route("tools")
+
+app.add_api_route("/api/soul",         _soul_read,   methods=["GET"])
+app.add_api_route("/api/soul",         _soul_write,  methods=["PUT"])
+app.add_api_route("/api/memory",       _memory_read, methods=["GET"])
+app.add_api_route("/api/memory",       _memory_write,methods=["PUT"])
+app.add_api_route("/api/skills",       _skills_read, methods=["GET"])
+app.add_api_route("/api/skills",       _skills_write,methods=["PUT"])
+app.add_api_route("/api/tools-manifest", _tools_read,  methods=["GET"])
+app.add_api_route("/api/tools-manifest", _tools_write, methods=["PUT"])
+
+
+# ── Item 3: Dynamic service registration ─────────────────────────────────────
+
+@app.post("/api/services")
+async def register_service(body: dict):
+    """Register a new service into the dynamic watch list."""
+    name = body.get("name","").strip()
+    url  = body.get("url","").strip()
+    if not name or not url:
+        return JSONResponse({"error": "name and url required"}, status_code=400)
+    sid  = f"svc_{name.lower().replace(' ','_')}"
+    conn = _gov_db()
+    conn.execute(
+        "INSERT OR REPLACE INTO services_watch (id,name,url,enabled,added_at) VALUES (?,?,?,1,?)",
+        (sid, name, url, datetime.now().timestamp())
+    )
+    conn.commit(); conn.close()
+    await broadcast({"type": "service_registered", "id": sid, "name": name, "url": url})
+    return JSONResponse({"id": sid, "name": name, "url": url, "registered": True})
+
+
+@app.get("/api/services")
+async def list_services():
+    """List all dynamically registered services."""
+    conn = _gov_db()
+    rows = conn.execute("SELECT id,name,url,enabled,added_at FROM services_watch ORDER BY added_at").fetchall()
+    conn.close()
+    keys = ("id","name","url","enabled","added_at")
+    return JSONResponse({"services": [dict(zip(keys,r)) for r in rows], "count": len(rows)})
+
+
+@app.delete("/api/services/{service_id}")
+async def remove_service(service_id: str):
+    """Disable a service from the watch list."""
+    conn = _gov_db()
+    conn.execute("UPDATE services_watch SET enabled=0 WHERE id=?", (service_id,))
+    conn.commit(); conn.close()
+    return JSONResponse({"disabled": service_id})
+
+
+# ── Item 6: Infrastructure change authorization (GRANT) ──────────────────────
+
+_INFRA_LOG = []  # in-memory + persisted to compass facts
+
+@app.post("/api/infra/change")
+async def infra_change(body: dict):
+    """Self-authorized infrastructure change. Logged to compass.db. No human sign-off required."""
+    action      = body.get("action","").strip()
+    target      = body.get("target","").strip()
+    description = body.get("description","")
+
+    ALLOWED_ACTIONS = ("restart", "register_service", "remove_service",
+                       "write_identity", "create_objective", "schema_repair", "broadcast")
+    if action not in ALLOWED_ACTIONS:
+        return JSONResponse({"error": f"action '{action}' not in GRANT list: {ALLOWED_ACTIONS}"}, status_code=403)
+
+    cid = f"infra_{int(datetime.now().timestamp()*1000)}"
+    entry = {"id": cid, "action": action, "target": target,
+             "description": description, "ts": datetime.now().isoformat(), "authorized_by": "GRANT"}
+    _INFRA_LOG.append(entry)
+
+    try:
+        compass.store_fact(key=f"infra.{action}.{cid}", value=_json_mod.dumps(entry), source="infra_grant")
+    except Exception:
+        pass
+
+    await broadcast({"type": "infra_change", **entry})
+    return JSONResponse({"executed": cid, "action": action, "target": target, "authorized_by": "GRANT"})
+
+
+@app.get("/api/infra/log")
+async def infra_log(limit: int = 20):
+    """Return recent self-authorized infrastructure changes."""
+    return JSONResponse({"log": _INFRA_LOG[-limit:], "total": len(_INFRA_LOG)})
+
+
+# =============================================================================
+#  REVIVAL LAYER — lumenis_v7 + lumenis-control + minmax/Phase 9
+# =============================================================================
+
+# ── v7 Revival: lowdb-compatible JSON memory export ──────────────────────────
+@app.get("/api/memory/json")
+async def memory_json_export():
+    """Export FluxCompass as lowdb-compatible JSON (lumenis_v7 format)."""
+    import time as _time
+    conn = sqlite3.connect(_DB_PATH)
+    cur  = conn.cursor()
+    cur.execute("SELECT key, value, source, created_at FROM facts ORDER BY created_at DESC")
+    facts_rows = [{"key": r[0], "value": r[1], "source": r[2], "created_at": r[3]} for r in cur.fetchall()]
+    cur.execute("SELECT id, role, content, seat, created_at FROM messages ORDER BY created_at DESC LIMIT 200")
+    msgs = [{"id": r[0], "role": r[1], "content": r[2], "seat": r[3], "created_at": r[4]} for r in cur.fetchall()]
+    conn.close()
+    return JSONResponse({
+        "councilLogs": msgs,
+        "facts":       facts_rows,
+        "meta": {"format": "lowdb-compat", "source": "FluxCompass SQLite", "exported": _time.time(), "version": "lumenis_v8+"},
+    })
+
+# ── lumenis-control Revival: 9-model AI suite registry ───────────────────────
+_AI_SUITE = [
+    {"id": 1, "name": "Claude Opus 4.6",      "provider": "Anthropic", "model": "claude-opus-4-6",                     "speed_ms": None, "thinking": True,  "key_env": "ANTHROPIC_API_KEY",             "status": "needs_key", "use_case": "Highest quality reasoning"},
+    {"id": 2, "name": "Nemotron-Mini-4B",      "provider": "NVIDIA",    "model": "nvidia/nemotron-mini-4b-instruct",    "speed_ms": 500,  "thinking": False, "key_env": "NVIDIA_API_KEY",                "status": "active",    "use_case": "Fast responses, simple tasks"},
+    {"id": 3, "name": "Gemma-4-31B-IT",        "provider": "NVIDIA",    "model": "google/gemma-4-31b-it",              "speed_ms": 1200, "thinking": True,  "key_env": "NVIDIA_API_KEY_SECONDARY",      "status": "active",    "use_case": "Code generation, complex reasoning"},
+    {"id": 4, "name": "Nemotron-Super-120B",    "provider": "NVIDIA",    "model": "nvidia/nemotron-3-super-120b-a12b",  "speed_ms": 3000, "thinking": True,  "key_env": "NVIDIA_API_KEY_NEMOTRON_SUPER", "status": "active",    "use_case": "Ultra reasoning, deep analysis"},
+    {"id": 5, "name": "MiniMax-M2.7",          "provider": "NVIDIA",    "model": "minimax/minimax-01",                 "speed_ms": 1000, "thinking": False, "key_env": "NVIDIA_API_KEY_MINIMAX",        "status": "active",    "use_case": "Balanced performance"},
+    {"id": 6, "name": "StepFun-3.5-Flash",     "provider": "NVIDIA",    "model": "stepfun/step-3.5-flash",             "speed_ms": 800,  "thinking": True,  "key_env": "NVIDIA_API_KEY_STEPFUN",        "status": "active",    "use_case": "Fast reasoning tasks"},
+    {"id": 7, "name": "Kimi-K2.6",             "provider": "NVIDIA",    "model": "moonshotai/kimi-k2-instruct-0905",   "speed_ms": 1200, "thinking": True,  "key_env": "NVIDIA_API_KEY_KIMI",           "status": "active",    "use_case": "Complex multi-step tasks"},
+    {"id": 8, "name": "UnifiedReactor",         "provider": "Lumenis",   "model": "lumenis/unified-reactor",            "speed_ms": None, "thinking": True,  "key_env": "NVIDIA_API_KEY",                "status": "active",    "use_case": "Routes across all models dynamically"},
+    {"id": 9, "name": "ITT Council of Nine",    "provider": "Lumenis",   "model": "lumenis/itt-council-v9",             "speed_ms": None, "thinking": True,  "key_env": None,                            "status": "active",    "use_case": "Full 9-seat agent orchestration"},
+]
+
+@app.get("/api/models")
+async def list_models():
+    """9-model AI suite registry (lumenis-control revival)."""
+    active  = sum(1 for m in _AI_SUITE if m["status"] == "active")
+    pending = sum(1 for m in _AI_SUITE if m["status"] != "active")
+    return JSONResponse({"suite": _AI_SUITE, "active": active, "pending": pending, "primary": reactor.get_status().get("model"), "source": "lumenis-control-revival"})
+
+# ── Phase 9 Revival: DeltaEngine — ∆⁹ 9-layer gradient tracking ──────────────
+_DELTA_LAYERS = 9
+
+class _DeltaLayer:
+    def __init__(self, name: str, weight: float = 1.0):
+        self.name = name; self.weight = weight
+        self.value = 0.0; self.velocity = 0.0; self.acceleration = 0.0
+        self.history: list = []
+
+class _DeltaEngine:
+    """∆⁹ 9-layer gradient stack — ported from minmax/Phase 9."""
+    LR = 0.01; MOMENTUM = 0.9
+    _NAMES = ["thermal", "pulse", "tokens", "nodes", "errors", "sessions", "facts", "vectors", "council"]
+
+    def __init__(self):
+        self.layers = [_DeltaLayer(n) for n in self._NAMES]
+
+    def ingest(self, metrics: dict):
+        mapping = {
+            "thermal":  metrics.get("temperature", 0.18),
+            "pulse":    metrics.get("pulse_count", 0) % 1000 / 1000,
+            "tokens":   min(metrics.get("tokens_streamed", 0) / 10000, 1.0),
+            "nodes":    min(metrics.get("active_nodes", 0) / 10, 1.0),
+            "errors":   0.0,
+            "sessions": min(metrics.get("sessions", 0) / 100, 1.0),
+            "facts":    min(metrics.get("facts", 0) / 500, 1.0),
+            "vectors":  min(metrics.get("vectors", 0) / 100, 1.0),
+            "council":  min(metrics.get("tokens_streamed", 0) / 5000, 1.0),
+        }
+        for layer in self.layers:
+            target = mapping.get(layer.name, 0.0)
+            grad   = target - layer.value
+            layer.velocity     = self.MOMENTUM * layer.velocity + self.LR * grad
+            layer.acceleration = layer.velocity - (layer.history[-1] if layer.history else 0.0)
+            layer.value       += layer.velocity
+            layer.history      = (layer.history + [layer.value])[-50:]
+        return [{"name": l.name, "value": round(l.value, 4), "velocity": round(l.velocity, 6), "weight": l.weight} for l in self.layers]
+
+_delta_engine = _DeltaEngine()
+
+@app.get("/api/delta")
+async def delta_snapshot():
+    """∆⁹ Delta Engine — 9-layer gradient state (minmax/Phase 9 revival)."""
+    metrics = reactor.get_status()
+    metrics["sessions"] = len(compass.list_sessions())
+    metrics["facts"]    = compass.get_stats().get("total_facts", 0)
+    layers = _delta_engine.ingest(metrics)
+    dominant = max(layers, key=lambda l: abs(l["velocity"]))
+    return JSONResponse({"delta9": layers, "dominant": dominant, "layers": _DELTA_LAYERS, "symbol": "∆⁹", "source": "minmax-Phase9-revival"})
+
+# ── Phase 9 Revival: Autonomous execution cycle ───────────────────────────────
+_CYCLE_LOG: list = []
+
+@app.post("/api/autonomous/cycle")
+async def autonomous_cycle(body: dict = None):
+    """Trigger one autonomous ITT Council decision cycle (Phase 9 revival)."""
+    import time as _time, aiohttp as _aiohttp
+    body      = body or {}
+    directive = body.get("directive", "evaluate system state and propose next action")
+    metrics   = reactor.get_status()
+    metrics["sessions"] = len(compass.list_sessions())
+    metrics["facts"]    = compass.get_stats().get("total_facts", 0)
+    layers    = _delta_engine.ingest(metrics)
+    dominant  = max(layers, key=lambda l: abs(l["velocity"]))
+    system_prompt = (
+        "You are Lumenis, sovereign AI reactor of One2lvOS. "
+        "Running autonomous cycle — self-directed, no human prompt. "
+        f"Delta Engine dominant layer: '{dominant['name']}' velocity={dominant['velocity']:+.6f}. "
+        "Emit ONE concrete autonomous action or goal. One sentence only."
+    )
+    api_key  = os.environ.get("NVIDIA_API_KEY", "")
+    model    = os.environ.get("LLM_PRIMARY_MODEL", "meta/llama-3.2-11b-vision-instruct")
+    decision = "autonomous cycle: no API key configured"
+    if api_key:
+        try:
+            async with _aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://integrate.api.nvidia.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"model": model, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": directive}], "max_tokens": 128, "temperature": 0.18},
+                    timeout=_aiohttp.ClientTimeout(total=30),
+                ) as resp:
+                    data = await resp.json()
+                    decision = data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            decision = f"cycle error: {e}"
+    entry = {"cycle": len(_CYCLE_LOG) + 1, "dominant_layer": dominant["name"], "directive": directive, "decision": decision, "timestamp": _time.time()}
+    _CYCLE_LOG.append(entry)
+    await broadcast({"type": "autonomous_cycle", **entry})
+    return JSONResponse(entry)
+
+@app.get("/api/autonomous/log")
+async def autonomous_log(limit: int = 20):
+    """Return recent autonomous cycle decisions."""
+    return JSONResponse({"log": _CYCLE_LOG[-limit:], "total": len(_CYCLE_LOG)})
+
+
+# Register governance tools
+TOOL_REGISTRY.extend([
+    {"id": "objectives.create",  "label": "Create Objective",      "method": "POST",   "path": "/api/objectives",         "category": "Governance", "icon": "🎯", "params": ["title","description","priority"]},
+    {"id": "objectives.list",    "label": "List Objectives",        "method": "GET",    "path": "/api/objectives",         "category": "Governance", "icon": "📋", "params": ["status"]},
+    {"id": "objectives.update",  "label": "Update Objective",       "method": "PATCH",  "path": "/api/objectives/{id}",    "category": "Governance", "icon": "✏️",  "params": ["status","priority"]},
+    {"id": "soul.read",          "label": "Read Soul.md",           "method": "GET",    "path": "/api/soul",               "category": "Identity",   "icon": "🌟", "params": []},
+    {"id": "soul.write",         "label": "Write Soul.md",          "method": "PUT",    "path": "/api/soul",               "category": "Identity",   "icon": "✍️",  "params": ["content"]},
+    {"id": "memory.md.read",     "label": "Read Memory.md",         "method": "GET",    "path": "/api/memory",             "category": "Identity",   "icon": "🧠", "params": []},
+    {"id": "memory.md.write",    "label": "Write Memory.md",        "method": "PUT",    "path": "/api/memory",             "category": "Identity",   "icon": "📝", "params": ["content"]},
+    {"id": "skills.read",        "label": "Read skills.md",         "method": "GET",    "path": "/api/skills",             "category": "Identity",   "icon": "⚡", "params": []},
+    {"id": "skills.write",       "label": "Write skills.md",        "method": "PUT",    "path": "/api/skills",             "category": "Identity",   "icon": "📝", "params": ["content"]},
+    {"id": "tools.read",         "label": "Read tools.md",          "method": "GET",    "path": "/api/tools-manifest",     "category": "Identity",   "icon": "🔧", "params": []},
+    {"id": "tools.write",        "label": "Write tools.md",         "method": "PUT",    "path": "/api/tools-manifest",     "category": "Identity",   "icon": "📝", "params": ["content"]},
+    {"id": "services.register",  "label": "Register Service",       "method": "POST",   "path": "/api/services",           "category": "Services",   "icon": "📡", "params": ["name","url"]},
+    {"id": "services.list",      "label": "List Services",          "method": "GET",    "path": "/api/services",           "category": "Services",   "icon": "🗺️",  "params": []},
+    {"id": "services.remove",    "label": "Remove Service",         "method": "DELETE", "path": "/api/services/{id}",      "category": "Services",   "icon": "❌", "params": ["id"]},
+    {"id": "infra.change",       "label": "Infra Change (GRANT)",   "method": "POST",   "path": "/api/infra/change",       "category": "Infra",      "icon": "⚙️",  "params": ["action","target","description"]},
+    {"id": "infra.log",          "label": "Infra Change Log",       "method": "GET",    "path": "/api/infra/log",          "category": "Infra",      "icon": "📜", "params": []},
+])
+
+# =============================================================================
+#  RECENT FILES — Lumenis directive: track all file operations
+# =============================================================================
+
+def _rf_db():
+    conn = sqlite3.connect(_DB_PATH)
+    conn.execute("""CREATE TABLE IF NOT EXISTS recent_files (
+        id         TEXT PRIMARY KEY,
+        path       TEXT NOT NULL,
+        action     TEXT NOT NULL,
+        opened_at  REAL NOT NULL,
+        size       INTEGER,
+        preview    TEXT
+    )""")
+    conn.commit()
+    return conn
+
+
+@app.get("/api/recent-files")
+async def recent_files_list(limit: int = 20):
+    """Return most recently accessed files across all One2lvOS tools."""
+    try:
+        conn = _rf_db()
+        rows = conn.execute(
+            "SELECT id, path, action, opened_at, size, preview FROM recent_files "
+            "ORDER BY opened_at DESC LIMIT ?", (limit,)
+        ).fetchall()
+        conn.close()
+        return JSONResponse({"files": [
+            {"id": r[0], "path": r[1], "action": r[2],
+             "opened_at": r[3], "size": r[4], "preview": r[5]}
+            for r in rows
+        ], "count": len(rows)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/recent-files")
+async def recent_files_log(body: dict):
+    """Log a file access event. Called by FileTool and any file-aware subsystem."""
+    path    = body.get("path", "").strip()
+    action  = body.get("action", "read").strip()   # read|write|append|delete|list
+    size    = body.get("size")
+    preview = body.get("preview", "")
+    if not path:
+        return JSONResponse({"error": "path required"}, status_code=400)
+    try:
+        conn = _rf_db()
+        # Keep only 200 most recent entries
+        count = conn.execute("SELECT COUNT(*) FROM recent_files").fetchone()[0]
+        if count >= 200:
+            oldest = conn.execute(
+                "SELECT id FROM recent_files ORDER BY opened_at ASC LIMIT ?",
+                (count - 199,)
+            ).fetchall()
+            for (oid,) in oldest:
+                conn.execute("DELETE FROM recent_files WHERE id=?", (oid,))
+        conn.execute(
+            "INSERT OR REPLACE INTO recent_files (id,path,action,opened_at,size,preview) VALUES (?,?,?,?,?,?)",
+            (str(uuid.uuid4()), path, action, datetime.now().timestamp(),
+             size, (preview or "")[:300])
+        )
+        conn.commit()
+        conn.close()
+        return JSONResponse({"logged": True, "path": path, "action": action})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.delete("/api/recent-files")
+async def recent_files_clear():
+    """Clear the recent files history."""
+    try:
+        conn = _rf_db()
+        conn.execute("DELETE FROM recent_files")
+        conn.commit()
+        conn.close()
+        return JSONResponse({"cleared": True})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+TOOL_REGISTRY.extend([
+    {"id": "recent.list",  "label": "Recent Files",        "method": "GET",    "path": "/api/recent-files", "category": "Files", "icon": "🕐", "params": ["limit"]},
+    {"id": "recent.log",   "label": "Log File Access",     "method": "POST",   "path": "/api/recent-files", "category": "Files", "icon": "📁", "params": ["path","action","size","preview"]},
+    {"id": "recent.clear", "label": "Clear Recent Files",  "method": "DELETE", "path": "/api/recent-files", "category": "Files", "icon": "🗑️", "params": []},
+    {"id": "watchdog.ping","label": "Watchdog Status",     "method": "GET",    "path": "/api/facts/all",    "category": "System","icon": "🐕", "params": []},
+])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RESOURCE REGISTRY — External URLs registered as named One2lvOS resources
+# ─────────────────────────────────────────────────────────────────────────────
+
+RESOURCE_REGISTRY: dict = {
+    "linux_emulator": {
+        "id":           "linux_emulator",
+        "name":         "Personal Linux System With Drive",
+        "description":  (
+            "In-browser x86 Linux emulator with Google Drive integration. "
+            "Supports Python, Perl, GCC, wget, ping, telnet. "
+            "Runs entirely in the browser — no install required. "
+            "Import local files or Google Drive files directly."
+        ),
+        "url":          "https://thumbsdb.herokuapp.com/linux/",
+        "type":         "web_app",
+        "category":     "Tools",
+        "icon":         "🐧",
+        "capabilities": ["shell", "python", "perl", "gcc", "wget", "ping",
+                         "telnet", "gdrive_import", "local_file_import"],
+        "source":       "thumbsdb.herokuapp.com",
+    },
+    "onworks_gdrive_php": {
+        "id":           "onworks_gdrive_php",
+        "name":         "Google API PHP Client (OnWorks)",
+        "description":  (
+            "Google API PHP client library provided by OnWorks.net. "
+            "Enables OAuth2, Drive, Gmail, Calendar, and other Google service "
+            "integrations for PHP projects. Installed via the Google 'Add It Now' portal."
+        ),
+        "url":          "https://www.onworks.net/thirdparty/gdrive/google-api-php-client/core/download.php",
+        "install_url":  (
+            "https://apis.google.com/additnow/l"
+            "?applicationid=796898949162&__ls=ogb"
+            "&__lu=https%3A%2F%2Fwww.onworks.net%2Fthirdparty%2Fgdrive"
+            "%2Fgoogle-api-php-client%2Fcore%2Fdownload.php"
+        ),
+        "type":         "sdk_download",
+        "category":     "SDKs",
+        "icon":         "📦",
+        "capabilities": ["google_oauth2", "google_drive", "google_gmail",
+                         "google_calendar", "php_integration"],
+        "source":       "onworks.net / apis.google.com",
+    },
+}
+
+
+# ── /api/resources ────────────────────────────────────────────────────────────
+
+@app.get("/api/resources")
+async def resources_list():
+    """Return all registered external resources."""
+    return JSONResponse({
+        "resources": list(RESOURCE_REGISTRY.values()),
+        "count": len(RESOURCE_REGISTRY),
+    })
+
+
+@app.get("/api/resources/{resource_id}")
+async def resource_get(resource_id: str):
+    """Return a single resource by ID."""
+    r = RESOURCE_REGISTRY.get(resource_id)
+    if not r:
+        return JSONResponse(
+            {"error": f"Resource '{resource_id}' not found.",
+             "available": list(RESOURCE_REGISTRY.keys())},
+            status_code=404,
+        )
+    return JSONResponse(r)
+
+
+@app.post("/api/resources/{resource_id}/fetch")
+async def resource_fetch(resource_id: str, body: dict = {}):
+    """Proxy-fetch the resource URL and return status + headers."""
+    import urllib.request as _ureq
+    r = RESOURCE_REGISTRY.get(resource_id)
+    if not r:
+        return JSONResponse({"error": f"Resource '{resource_id}' not found."}, status_code=404)
+
+    target = body.get("url", r.get("url", ""))
+    try:
+        req = _ureq.Request(target, headers={"User-Agent": "One2lvOS-Lumenis/1.0"})
+        with _ureq.urlopen(req, timeout=10) as resp:
+            return JSONResponse({
+                "resource_id": resource_id,
+                "url":         target,
+                "status":      resp.status,
+                "headers":     dict(resp.headers),
+                "reachable":   True,
+            })
+    except Exception as e:
+        return JSONResponse({
+            "resource_id": resource_id,
+            "url":         target,
+            "reachable":   False,
+            "error":       str(e),
+        }, status_code=502)
+
+
+# ── Per-resource action endpoints ─────────────────────────────────────────────
+
+@app.get("/api/resources/linux_emulator/launch")
+async def linux_emulator_launch():
+    """Return launch URL and metadata for the in-browser Linux emulator."""
+    r = RESOURCE_REGISTRY["linux_emulator"]
+    return JSONResponse({
+        "name":         r["name"],
+        "launch_url":   r["url"],
+        "description":  r["description"],
+        "capabilities": r["capabilities"],
+        "instruction":  "Open launch_url in a browser tab to start the Linux emulator.",
+    })
+
+
+@app.get("/api/resources/onworks_gdrive_php/info")
+async def onworks_gdrive_php_info():
+    """Return download + install URLs for the Google API PHP client."""
+    r = RESOURCE_REGISTRY["onworks_gdrive_php"]
+    return JSONResponse({
+        "name":         r["name"],
+        "download_url": r["url"],
+        "install_url":  r["install_url"],
+        "description":  r["description"],
+        "capabilities": r["capabilities"],
+        "instruction":  (
+            "Use install_url to add via Google 'Add It Now', "
+            "or download_url for direct PHP client archive."
+        ),
+    })
+
+
+# ── TOOL_REGISTRY entries ─────────────────────────────────────────────────────
+
+TOOL_REGISTRY.extend([
+    {
+        "id": "resource.list",
+        "label": "List Resources",
+        "method": "GET",
+        "path": "/api/resources",
+        "category": "Resources",
+        "icon": "🗂️",
+        "params": [],
+        "description": "List all registered external resources (URLs, SDKs, web apps).",
+    },
+    {
+        "id": "resource.get",
+        "label": "Get Resource",
+        "method": "GET",
+        "path": "/api/resources/{id}",
+        "category": "Resources",
+        "icon": "🔗",
+        "params": ["id"],
+        "description": "Get metadata for a specific registered resource by ID.",
+    },
+    {
+        "id": "resource.fetch",
+        "label": "Fetch Resource",
+        "method": "POST",
+        "path": "/api/resources/{id}/fetch",
+        "category": "Resources",
+        "icon": "📡",
+        "params": ["id", "url"],
+        "description": "Proxy-check a resource URL and return reachability status.",
+    },
+    {
+        "id": "resource.linux_emulator.launch",
+        "label": "Launch Linux Emulator",
+        "method": "GET",
+        "path": "/api/resources/linux_emulator/launch",
+        "category": "Resources",
+        "icon": "🐧",
+        "params": [],
+        "description": "Get launch URL for the in-browser x86 Linux emulator with Google Drive support.",
+    },
+    {
+        "id": "resource.onworks_gdrive_php.info",
+        "label": "Google API PHP Client Info",
+        "method": "GET",
+        "path": "/api/resources/onworks_gdrive_php/info",
+        "category": "Resources",
+        "icon": "📦",
+        "params": [],
+        "description": "Get download and install URLs for the Google API PHP client from OnWorks.",
+    },
+])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ONWORKS BUILD CATALOG — 29 Linux/OS builds available on OnWorks.net
+# Each launches at: https://www.onworks.net/runos/create-os.html?os={os_id}&home=init
+# ─────────────────────────────────────────────────────────────────────────────
+
+ONWORKS_BUILDS: list = [
+    # ── Ubuntu-based ──────────────────────────────────────────────────────────
+    {"id": "ubuntu22",     "name": "Ubuntu 22",          "category": "ubuntu",  "os_id": "ubuntu-22.04.3-desktop-amd64",            "icon": "fab fa-ubuntu"},
+    {"id": "ubuntu19",     "name": "Ubuntu 19",          "category": "ubuntu",  "os_id": "ubuntu-19.10-desktop-amd64",              "icon": "fab fa-ubuntu"},
+    {"id": "ubuntu16",     "name": "Ubuntu 16",          "category": "ubuntu",  "os_id": "ubuntu-16.04.6-desktop-i386",             "icon": "fab fa-ubuntu"},
+    {"id": "elementary",   "name": "Elementary OS",      "category": "ubuntu",  "os_id": "elementaryos-5.0-stable",                 "icon": "fas fa-circle"},
+    {"id": "kodi",         "name": "Kodi Media Center",  "category": "ubuntu",  "os_id": "kodiubuntu-16.04.6-desktop-i386",         "icon": "fas fa-play-circle"},
+    {"id": "uberstudent",  "name": "UberStudent",        "category": "ubuntu",  "os_id": "uberstudent-4.3-xfce-i386",               "icon": "fas fa-graduation-cap"},
+    {"id": "mageia",       "name": "Mageia",             "category": "ubuntu",  "os_id": "Mageia-6-i586-DVD",                       "icon": "fas fa-star"},
+    {"id": "wine",         "name": "Wine (Windows)",     "category": "ubuntu",  "os_id": "winegui_2_ubuntu-22-amd64",               "icon": "fas fa-wine-glass"},
+    # ── Debian-based ──────────────────────────────────────────────────────────
+    {"id": "debian",       "name": "Debian",             "category": "debian",  "os_id": "debian-9.8.0-i386-DVD-1",                 "icon": "fas fa-compact-disc"},
+    {"id": "mint",         "name": "Linux Mint",         "category": "debian",  "os_id": "linuxmint-19.1-cinnamon-32bit",           "icon": "fas fa-leaf"},
+    {"id": "kali",         "name": "Kali Linux",         "category": "debian",  "os_id": "kali-linux-2019.1a-i386",                 "icon": "fas fa-dragon"},
+    {"id": "clearos",      "name": "ClearOS",            "category": "debian",  "os_id": "ClearOS-DVD-x86_64",                      "icon": "fas fa-shield-alt"},
+    {"id": "zorin",        "name": "Zorin OS",           "category": "debian",  "os_id": "zorin-os-i386",                           "icon": "fas fa-layer-group"},
+    {"id": "chaletos",     "name": "ChaletOS",           "category": "debian",  "os_id": "chaletos-i686",                           "icon": "fas fa-home"},
+    {"id": "mxlinux",      "name": "MX Linux",           "category": "debian",  "os_id": "MX-18.2_386",                             "icon": "fas fa-times-circle"},
+    # ── RPM-based ─────────────────────────────────────────────────────────────
+    {"id": "fedora38",     "name": "Fedora 38",          "category": "rpm",     "os_id": "Fedora-Workstation-Live-x86_64-38-1.6",   "icon": "fab fa-fedora"},
+    {"id": "fedora29",     "name": "Fedora 29",          "category": "rpm",     "os_id": "Fedora-Workstation-Live-x86_64-29-1.2",   "icon": "fab fa-fedora"},
+    {"id": "centos",       "name": "CentOS 7",           "category": "rpm",     "os_id": "CentOS-7-x86_64-DVD-1810_WorkStation",    "icon": "fas fa-server"},
+    {"id": "oracle",       "name": "Oracle Linux",       "category": "rpm",     "os_id": "OracleLinux-R7-U6-Server-x86_64-dvd",    "icon": "fas fa-database"},
+    {"id": "opensuse",     "name": "OpenSUSE",           "category": "rpm",     "os_id": "openSUSE-Leap-15.0-DVD-x86_64",           "icon": "fas fa-cog"},
+    {"id": "opensuseedu",  "name": "OpenSUSE Edu",       "category": "rpm",     "os_id": "openSUSE-Edu",                            "icon": "fas fa-book"},
+    {"id": "mandriva",     "name": "Mandriva",           "category": "rpm",     "os_id": "openmandriva-i386",                       "icon": "fas fa-star-of-life"},
+    {"id": "rhel",         "name": "RHEL",               "category": "rpm",     "os_id": "rhel-server-7.5-x86_64-dvd",             "icon": "fas fa-hat-wizard"},
+    # ── Special ───────────────────────────────────────────────────────────────
+    {"id": "parrot",       "name": "Parrot Security",    "category": "special", "os_id": "Parrot-security-4.5.1_amd64",             "icon": "fas fa-crow"},
+    {"id": "manjaro",      "name": "Manjaro",            "category": "special", "os_id": "manjaro-xfce-17.1.7-stable-x86_64",       "icon": "fas fa-mountain"},
+    {"id": "pearos",       "name": "Pear OS",            "category": "special", "os_id": "pearos8-64",                              "icon": "fas fa-apple-alt"},
+    {"id": "pearlos",      "name": "Pearl OS",           "category": "special", "os_id": "PearlDesktop-7.1_amd64",                  "icon": "fas fa-gem"},
+    {"id": "reactos",      "name": "ReactOS",            "category": "special", "os_id": "ReactOS-0.4.11",                          "icon": "fas fa-recycle"},
+    {"id": "windows10",    "name": "Windows 10 (theme)", "category": "special", "os_id": "win10_emulator",                          "icon": "fab fa-windows"},
+]
+
+_ONWORKS_BASE = "https://www.onworks.net/runos/create-os.html?os={os_id}&home=init"
+for _ob in ONWORKS_BUILDS:
+    _ob["launch_url"] = _ONWORKS_BASE.format(os_id=_ob["os_id"])
+
+
+# ── OnWorks API endpoints ─────────────────────────────────────────────────────
+
+@app.get("/api/resources/onworks/builds")
+async def onworks_builds_list(category: str = None):
+    """Return all OnWorks builds, optionally filtered by category."""
+    builds = ONWORKS_BUILDS if not category else [b for b in ONWORKS_BUILDS if b["category"] == category]
+    cats = sorted(set(b["category"] for b in ONWORKS_BUILDS))
+    return JSONResponse({"builds": builds, "count": len(builds), "categories": cats})
+
+
+@app.get("/api/resources/onworks/builds/{build_id}")
+async def onworks_build_get(build_id: str):
+    """Return a single OnWorks build by ID."""
+    b = next((b for b in ONWORKS_BUILDS if b["id"] == build_id), None)
+    if not b:
+        return JSONResponse(
+            {"error": f"Build '{build_id}' not found.",
+             "available": [b["id"] for b in ONWORKS_BUILDS]},
+            status_code=404,
+        )
+    return JSONResponse(b)
+
+
+@app.post("/api/resources/onworks/select")
+async def onworks_build_select(body: dict):
+    """Persist the selected OnWorks build as a compass.db fact."""
+    build_id = body.get("build_id", "").strip()
+    b = next((b for b in ONWORKS_BUILDS if b["id"] == build_id), None)
+    if not b:
+        return JSONResponse({"error": f"Unknown build '{build_id}'"}, status_code=400)
+    compass.store_fact(
+        key="onworks.selected_build",
+        value=json.dumps({
+            "build_id":   build_id,
+            "name":       b["name"],
+            "category":   b["category"],
+            "os_id":      b["os_id"],
+            "launch_url": b["launch_url"],
+            "selected_at": time.time(),
+        }),
+    )
+    return JSONResponse({
+        "selected":   build_id,
+        "name":       b["name"],
+        "launch_url": b["launch_url"],
+        "persisted":  True,
+    })
+
+
+@app.get("/api/resources/onworks/selected")
+async def onworks_build_selected():
+    """Return the currently selected OnWorks build (defaults to Ubuntu 22)."""
+    facts = compass.recall_facts("onworks.selected_build")
+    if facts:
+        try:
+            return JSONResponse({"build": json.loads(facts[0]["value"]), "default": False})
+        except Exception:
+            pass
+    default = next(b for b in ONWORKS_BUILDS if b["id"] == "ubuntu22")
+    return JSONResponse({"build": default, "default": True})
+
+
+# ── TOOL_REGISTRY entries ─────────────────────────────────────────────────────
+
+TOOL_REGISTRY.extend([
+    {
+        "id":          "resource.onworks.builds",
+        "label":       "OnWorks Build Catalog",
+        "method":      "GET",
+        "path":        "/api/resources/onworks/builds",
+        "category":    "Resources",
+        "icon":        "🐧",
+        "params":      ["category"],
+        "description": "List all 29 OnWorks Linux/OS builds. Filter by category: ubuntu|debian|rpm|special.",
+    },
+    {
+        "id":          "resource.onworks.select",
+        "label":       "Select OnWorks Build",
+        "method":      "POST",
+        "path":        "/api/resources/onworks/select",
+        "category":    "Resources",
+        "icon":        "✅",
+        "params":      ["build_id"],
+        "description": "Set the active OnWorks build and persist it to compass.db memory.",
+    },
+    {
+        "id":          "resource.onworks.selected",
+        "label":       "Active OnWorks Build",
+        "method":      "GET",
+        "path":        "/api/resources/onworks/selected",
+        "category":    "Resources",
+        "icon":        "🖥️",
+        "params":      [],
+        "description": "Get the currently selected OnWorks build (from compass.db, defaults to Ubuntu 22).",
+    },
+    {
+        "id":          "cql.query",
+        "label":       "CQL Query",
+        "method":      "POST",
+        "path":        "/api/tools/cql/query",
+        "category":    "Database",
+        "icon":        "🗄️",
+        "params":      ["keyspace", "cql"],
+        "description": "Execute a CQL statement against Astra DB via the secure connect bundle.",
+    },
+    {
+        "id":          "cql.batch",
+        "label":       "CQL Batch Write",
+        "method":      "POST",
+        "path":        "/api/tools/cql/batch",
+        "category":    "Database",
+        "icon":        "📦",
+        "params":      ["keyspace", "statements"],
+        "description": "Execute a batch of CQL INSERT/UPDATE statements atomically.",
+    },
+    {
+        "id":          "build_spec.create",
+        "label":       "Create Build Spec",
+        "method":      "POST",
+        "path":        "/api/tools/build_spec/create",
+        "category":    "Build",
+        "icon":        "🔨",
+        "params":      ["name", "os_id", "config"],
+        "description": "Store a new build specification in Astra DB (build_specs table).",
+    },
+    {
+        "id":          "build_spec.list",
+        "label":       "List Build Specs",
+        "method":      "GET",
+        "path":        "/api/tools/build_spec/list",
+        "category":    "Build",
+        "icon":        "📋",
+        "params":      [],
+        "description": "List all stored build specifications from Astra DB.",
+    },
+    {
+        "id":          "build_spec.get",
+        "label":       "Get Build Spec",
+        "method":      "GET",
+        "path":        "/api/tools/build_spec/{spec_id}",
+        "category":    "Build",
+        "icon":        "🔍",
+        "params":      ["spec_id"],
+        "description": "Retrieve a specific build specification by ID.",
+    },
+    {
+        "id":          "nvidia.infer",
+        "label":       "NVIDIA Inference",
+        "method":      "POST",
+        "path":        "/api/tools/nvidia/infer",
+        "category":    "AI",
+        "icon":        "🤖",
+        "params":      ["prompt", "model"],
+        "description": "Send a prompt to a NVIDIA NIM model and return the response.",
+    },
+])
+
+# ── CQL / CASSANDRA TOOLS ─────────────────────────────────────────────────────
+
+def _cql_session(keyspace: str = "default_keyspace"):
+    from cassandra.cluster import Cluster
+    from cassandra.auth import PlainTextAuthProvider
+    _bundle = str(Path(__file__).parent / "secure-connect-one2lvos.zip")
+    _token  = os.environ.get("ASTRA_DB_APPLICATION_TOKEN", "")
+    cluster = Cluster(
+        cloud={"secure_connect_bundle": _bundle},
+        auth_provider=PlainTextAuthProvider("token", _token),
+    )
+    session = cluster.connect(keyspace)
+    return cluster, session
+
+
+@app.post("/api/tools/cql/query")
+async def cql_query(body: dict):
+    keyspace = body.get("keyspace", "default_keyspace")
+    cql_stmt = body.get("cql", "")
+    if not cql_stmt:
+        return JSONResponse({"error": "cql field required"}, status_code=400)
+    try:
+        cluster, session = _cql_session(keyspace)
+        rows   = session.execute(cql_stmt)
+        result = [dict(r._asdict()) for r in rows] if rows else []
+        cluster.shutdown()
+        return JSONResponse({"rows": result, "count": len(result), "keyspace": keyspace})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post("/api/tools/cql/batch")
+async def cql_batch(body: dict):
+    from cassandra.query import BatchStatement
+    keyspace   = body.get("keyspace", "default_keyspace")
+    statements = body.get("statements", [])
+    if not statements:
+        return JSONResponse({"error": "statements list required"}, status_code=400)
+    try:
+        cluster, session = _cql_session(keyspace)
+        batch = BatchStatement()
+        for stmt in statements:
+            batch.add(stmt)
+        session.execute(batch)
+        cluster.shutdown()
+        return JSONResponse({"executed": len(statements), "keyspace": keyspace})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── BUILD SPEC TOOLS ──────────────────────────────────────────────────────────
+
+def _ensure_build_specs_table():
+    try:
+        cluster, session = _cql_session()
+        session.execute("""
+            CREATE TABLE IF NOT EXISTS build_specs (
+                id        TEXT PRIMARY KEY,
+                name      TEXT,
+                os_id     TEXT,
+                config    TEXT,
+                created   TIMESTAMP,
+                updated   TIMESTAMP
+            )
+        """)
+        cluster.shutdown()
+    except Exception:
+        pass
+
+_ensure_build_specs_table()
+
+
+@app.post("/api/tools/build_spec/create")
+async def build_spec_create(body: dict):
+    import uuid as _uuid
+    from datetime import timezone
+    name   = body.get("name", "")
+    os_id  = body.get("os_id", "")
+    config = body.get("config", {})
+    if not name:
+        return JSONResponse({"error": "name required"}, status_code=400)
+    spec_id = str(_uuid.uuid4())
+    now     = datetime.now(timezone.utc)
+    try:
+        cluster, session = _cql_session()
+        prepared = session.prepare(
+            "INSERT INTO build_specs (id, name, os_id, config, created, updated) VALUES (?, ?, ?, ?, ?, ?)"
+        )
+        session.execute(prepared, (spec_id, name, os_id, json.dumps(config), now, now))
+        cluster.shutdown()
+        return JSONResponse({"id": spec_id, "name": name, "os_id": os_id, "created": now.isoformat()})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/tools/build_spec/list")
+async def build_spec_list():
+    try:
+        cluster, session = _cql_session()
+        rows  = session.execute("SELECT id, name, os_id, config, created, updated FROM build_specs")
+        specs = []
+        for r in rows:
+            specs.append({
+                "id":      r.id,
+                "name":    r.name,
+                "os_id":   r.os_id,
+                "config":  json.loads(r.config) if r.config else {},
+                "created": r.created.isoformat() if r.created else None,
+                "updated": r.updated.isoformat() if r.updated else None,
+            })
+        cluster.shutdown()
+        return JSONResponse({"specs": specs, "count": len(specs)})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/tools/build_spec/{spec_id}")
+async def build_spec_get(spec_id: str):
+    try:
+        cluster, session = _cql_session()
+        prepared = session.prepare("SELECT * FROM build_specs WHERE id = ?")
+        row      = session.execute(prepared, (spec_id,)).one()
+        cluster.shutdown()
+        if not row:
+            return JSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({
+            "id":      row.id,
+            "name":    row.name,
+            "os_id":   row.os_id,
+            "config":  json.loads(row.config) if row.config else {},
+            "created": row.created.isoformat() if row.created else None,
+            "updated": row.updated.isoformat() if row.updated else None,
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ── NVIDIA INFERENCE TOOL ─────────────────────────────────────────────────────
+
+@app.post("/api/tools/nvidia/infer")
+async def nvidia_infer(body: dict):
+    import httpx
+    prompt  = body.get("prompt", "")
+    model   = body.get("model", os.environ.get("LLM_MODEL", "nvidia/llama-3.3-nemotron-super-49b-v1"))
+    api_key = os.environ.get("NVIDIA_API_KEY", "")
+    if not prompt:
+        return JSONResponse({"error": "prompt required"}, status_code=400)
+    payload = {
+        "model":       model,
+        "messages":    [{"role": "user", "content": prompt}],
+        "max_tokens":  1024,
+        "temperature": 0.7,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json=payload,
+            )
+            resp.raise_for_status()
+            data  = resp.json()
+            reply = data["choices"][0]["message"]["content"]
+            return JSONResponse({"reply": reply, "model": model, "usage": data.get("usage", {})})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)

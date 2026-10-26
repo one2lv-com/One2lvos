@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>One2lvOS - Access Portal</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            background: linear-gradient(135deg, #0a0015 0%, #1a0030 100%);
+            color: #00f0ff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(10, 0, 30, 0.9);
+            border: 2px solid #00f0ff;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 0 50px rgba(0, 240, 255, 0.3);
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px #00f0ff;
+        }
+        .subtitle {
+            text-align: center;
+            color: #ff00d4;
+            margin-bottom: 40px;
+            font-size: 1.1em;
+        }
+        .option {
+            background: rgba(0, 240, 255, 0.05);
+            border-left: 4px solid #00f0ff;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+        .option h2 {
+            color: #ff00d4;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .option-desc {
+            color: #94a3b8;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #00f0ff, #ff00d4);
+            color: #0a0015;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 14px;
+            transition: transform 0.2s;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+        }
+        .btn-secondary {
+            background: rgba(0, 240, 255, 0.2);
+            color: #00f0ff;
+            border: 1px solid #00f0ff;
+        }
+        .features {
+            margin-top: 15px;
+            padding-left: 20px;
+        }
+        .features li {
+            color: #94a3b8;
+            margin: 5px 0;
+            list-style-type: none;
+        }
+        .features li::before {
+            content: "✓ ";
+            color: #00f0ff;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .warning {
+            background: rgba(252, 238, 10, 0.1);
+            border-left-color: #fcee0a;
+            color: #fcee0a;
+            padding: 15px;
+            margin: 20px 0;
+            border-left: 4px solid #fcee0a;
+            border-radius: 4px;
+        }
+        .code {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        .badge {
+            display: inline-block;
+            background: rgba(0, 240, 255, 0.2);
+            color: #00f0ff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .recommended {
+            background: rgba(252, 238, 10, 0.2);
+            color: #fcee0a;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌷 ONE2LVOS</h1>
+        <div class="subtitle">Sovereign Agentic Core - Access Portal</div>
+
+        <div class="warning">
+            <strong>⚠️ Environment Constraint Detected:</strong><br>
+            Your environment cannot install packages from the internet (pip/npm disabled).<br>
+            ✅ Solutions provided below work WITHOUT installation!
+        </div>
+
+        <div class="option">
+            <h2>Option 1: Interactive Demo <span class="badge recommended">RECOMMENDED</span></h2>
+            <div class="option-desc">
+                Self-contained HTML demo that runs directly in your browser. No server needed!
+            </div>
+            <ul class="features">
+                <li>Zero dependencies</li>
+                <li>Works 100% offline</li>
+                <li>Interactive UI with simulated responses</li>
+                <li>Full Lumenis interface preview</li>
+            </ul>
+            <div class="btn-group">
+                <a href="demo-standalone.html" class="btn">🚀 Launch Demo</a>
+            </div>
+            <div class="code">
+# Or start a server:<br>
+python3 -m http.server 8080<br>
+# Then visit: http://localhost:8080/demo-standalone.html
+            </div>
+        </div>
+
+        <div class="option">
+            <h2>Option 2: Standalone Server <span class="badge">NODE.JS ONLY</span></h2>
+            <div class="option-desc">
+                Node.js server using ONLY built-in modules. No npm packages required!
+            </div>
+            <ul class="features">
+                <li>Uses Node.js http/fs/path (built-ins)</li>
+                <li>Proxies to Python backend</li>
+                <li>Embedded fallback demo</li>
+                <li>Production-ready</li>
+            </ul>
+            <div class="code">
+cd /home/vercel-sandbox/One2lvos<br>
+node standalone-server.js<br>
+# Access: http://localhost:9000
+            </div>
+        </div>
+
+        <div class="option">
+            <h2>Option 3: Full AI System <span class="badge">REQUIRES INTERNET</span></h2>
+            <div class="option-desc">
+                Complete One2lvOS with real AI responses, memory persistence, and ITT Council.
+            </div>
+            <ul class="features">
+                <li>NVIDIA Nemotron-Super-49B AI</li>
+                <li>SQLite-based Flux Compass memory</li>
+                <li>Council of Seven specialized agents</li>
+                <li>WebSocket real-time streaming</li>
+            </ul>
+            <div class="code">
+# Terminal 1: Python backend<br>
+cd /home/vercel-sandbox/One2lvos<br>
+python3 lumenis-main.py<br>
+<br>
+# Terminal 2: Node.js gateway<br>
+node standalone-server.js<br>
+# Access: http://localhost:9000
+            </div>
+            <div class="warning" style="margin-top: 15px; font-size: 13px;">
+                <strong>Note:</strong> Requires modifying lumenis-main.py to use reactor_aiohttp.py instead of reactor.py
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; padding: 20px; background: rgba(0, 240, 255, 0.05); border-radius: 6px;">
+            <h3 style="color: #ff00d4; margin-bottom: 15px;">📖 Documentation</h3>
+            <div class="btn-group">
+                <a href="#" onclick="alert('Run: cat OFFLINE_SETUP_GUIDE.md')" class="btn btn-secondary">📖 Setup Guide</a>
+                <a href="#" onclick="alert('Run: cat QUICK_START.txt')" class="btn btn-secondary">⚡ Quick Start</a>
+                <a href="#" onclick="alert('Run: ./system-status.sh')" class="btn btn-secondary">📊 System Status</a>
+            </div>
+        </div>
+
+        <div style="margin-top: 30px; text-align: center; color: #666; font-size: 13px;">
+            <p>Files created: demo-standalone.html | standalone-server.js | reactor_aiohttp.py</p>
+            <p>All solutions work without installing packages from the internet</p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-detect if servers are running
+        async function checkServers() {
+            const checks = [
+                { port: 8080, name: 'Demo Server', url: 'http://localhost:8080' },
+                { port: 9000, name: 'Standalone Server', url: 'http://localhost:9000' },
+                { port: 3002, name: 'Python Backend', url: 'http://localhost:3002' }
+            ];
+
+            for (const check of checks) {
+                try {
+                    const response = await fetch(check.url, { method: 'HEAD' });
+                    console.log(`✓ ${check.name} is running on port ${check.port}`);
+                } catch (e) {
+                    console.log(`○ ${check.name} not running (port ${check.port})`);
+                }
+            }
+        }
+
+        checkServers();
+    </script>
+</body>
+</html>
