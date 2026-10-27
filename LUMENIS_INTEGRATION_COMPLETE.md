@@ -111,7 +111,7 @@ Edit `.env` or `.env.master`:
 ANTHROPIC_API_KEY=sk-ant-api03-your-actual-key-here
 
 # Already configured:
-NVIDIA_API_KEY=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
+NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
 ASTRA_DB_API_ENDPOINT=https://9b5b1939-fd21-477d-95b8-a1aecc5f90b9-us-east-2.apps.astra.datastax.com
 ASTRA_DB_APPLICATION_TOKEN=AstraCS:wdhjJlzIvxbEWgIWnNApOWDA:...
 ```

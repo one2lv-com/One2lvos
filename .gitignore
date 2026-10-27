@@ -36,6 +36,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
+# Runtime databases
+compass.db
+
 # Temporary files
 *.log
 *.tmp
@@ -62,3 +65,16 @@ node_modules/
 ∆Gemini_Root∆/
 ∆Gemini_Memory∆/
 *.pid
+logs/
+
+# Additional Security - Credentials
+*.ssh*
+*_key
+*_key.*
+*.pem
+*credentials.json
+*credentials*
+config.json
+data/config.json
+*.key
+*.secret

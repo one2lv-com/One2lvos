@@ -50,7 +50,7 @@ Add these to `/home/admin/One2lvos/.env`:
 
 ```bash
 ASTRA_DB_API_ENDPOINT=https://9b5b1939-fd21-477d-95b8-a1aecc5f90b9-us-east-2.apps.astra.datastax.com
-ASTRA_DB_APPLICATION_TOKEN=AstraCS:wdhjJlzIvxbEWgIWnNApOWDA:e4393a627e01f234e99d366c0936793e0b61462dbc0b58542b3e0e6dd06c634a
+ASTRA_DB_APPLICATION_TOKEN=AstraCS:YOUR_TOKEN_HERE
 ASTRA_DB_KEYSPACE=one2lvOS
 ```
 

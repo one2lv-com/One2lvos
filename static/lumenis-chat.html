@@ -206,6 +206,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
   <button class="tb-btn" onclick="clearChat()">&#9003; Clear</button>
   <button class="tb-btn" onclick="newSession()">&#10011; Session</button>
   <div class="tb-sep"></div>
+  <button class="tb-btn" onclick="revertToWorking()" title="Revert to last working state">&#9100; Revert</button>
+  <div class="tb-sep"></div>
   <button class="tb-btn" onclick="switchTab('chat')" id="btn-tab-chat">&#9825; Chat</button>
   <button class="tb-btn" onclick="switchTab('term')" id="btn-tab-term">&#9654; Terminal</button>
   <button class="tb-btn" onclick="switchTab('net')" id="btn-tab-net">&#127760; Network</button>
@@ -918,11 +920,40 @@ async function toolLobbyBroadcast(){
   }catch(e){updateToolMsg(el,'Error: '+e.message,true);}
 }
 
+// ── REVERT TO WORKING ──
+async function revertToWorking(){
+  if(!confirm('Revert to last working state? This will restore the last auto-saved working configuration.')){return;}
+  setTB('Reverting…','var(--accent)');
+  try{
+    const r=await fetch(`${API}/api/revert/working`,{method:'POST'});
+    const d=await r.json();
+    if(d.ok){
+      sysMsg(`✅ Reverted to working state: ${d.snapshot_id}`);
+      sysMsg(`Reactor restored. Timestamp: ${new Date(d.timestamp*1000).toLocaleString()}`);
+      location.reload();
+    }else{
+      sysMsg(`❌ Revert failed: ${d.error||'Unknown error'}`);
+    }
+  }catch(e){
+    sysMsg(`❌ Revert error: ${e.message}`);
+  }
+  setTB('Ready','var(--success)');
+}
+
+// ── AUTO WORKING STATE SAVE ──
+// Auto-save working state every 10 minutes
+setInterval(async()=>{
+  try{
+    await fetch(`${API}/api/snapshot/working`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto:true})});
+  }catch(e){}
+},600000); // 10 min
+
 // ── BOOT ──
 connect();
 connectTerm();
 sysMsg('Lumenis Reactor Core — Sovereign Interface v3.0 online');
 sysMsg('21 tools across 8 subsystems: Memory · Discord · GitHub · Supabase · System · Network · Terminal · Lobby');
+sysMsg('🔄 Auto-save enabled: working state saved every 10 minutes');
 </script>
 </body>
 </html>

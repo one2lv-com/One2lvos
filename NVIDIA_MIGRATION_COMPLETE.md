@@ -37,7 +37,7 @@ ANTHROPIC_API_KEY=your_anthropic_api_key_here
 
 **Kept:**
 ```bash
-NVIDIA_API_KEY=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
+NVIDIA_API_KEY=nvapi-YOUR_KEY_HERE
 ```
 
 ### **4. Dependencies** (`requirements.txt`)

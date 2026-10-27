@@ -29,6 +29,96 @@ NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 NVIDIA_PRIMARY_MODEL = os.environ.get("LLM_PRIMARY_MODEL", "meta/llama-3.2-90b-vision-instruct")
 NVIDIA_SECONDARY_MODEL = os.environ.get("LLM_SECONDARY_MODEL", "meta/llama-3.2-11b-vision-instruct")
 
+# ─── Universal LLM backend resolution ────────────────────────────────────────
+# Priority:
+#   1. AWS Bedrock  — if AWS_BEARER_TOKEN_BEDROCK is set (Maton sandbox)
+#   2. Generic OpenAI-compat — LLM_API_KEY + LLM_BASE_URL + LLM_MODEL  (local / Vercel)
+#   3. NVIDIA API   — legacy fallback (requires valid NVIDIA key)
+#
+# To configure locally, add to your .env:
+#   LLM_API_KEY=sk-...          # any OpenAI-compatible key (OpenAI, OpenRouter, Groq, Together, etc.)
+#   LLM_BASE_URL=https://api.openai.com/v1   # or your provider's base URL
+#   LLM_MODEL=gpt-4o-mini       # or any model your provider supports
+
+BEDROCK_BASE_URL = "https://bedrock-runtime.us-east-1.amazonaws.com"
+BEDROCK_MODEL    = os.environ.get("BEDROCK_MODEL", "us.anthropic.claude-sonnet-4-6")
+
+
+def _resolve_backend() -> dict:
+    """Return the active LLM backend config based on available env vars."""
+    # 1. Bedrock
+    bedrock_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK", "")
+    # Skip placeholder tokens that aren't actual credentials
+    if bedrock_token and bedrock_token not in ("INJECTED_BY_NETWORK_POLICY", ""):
+        return {"provider": "bedrock", "key": bedrock_token, "model": BEDROCK_MODEL, "base_url": BEDROCK_BASE_URL}
+    # 2. Generic OpenAI-compat
+    llm_key = os.environ.get("LLM_API_KEY", "")
+    llm_url = os.environ.get("LLM_BASE_URL", "")
+    llm_model = os.environ.get("LLM_MODEL", "")
+    if llm_key and llm_url and llm_model:
+        return {"provider": "openai_compat", "key": llm_key, "model": llm_model, "base_url": llm_url.rstrip("/") + "/chat/completions"}
+    # 3. NVIDIA fallback
+    nvidia_key = os.environ.get("NVIDIA_API_KEY", "")
+    nvidia_model = os.environ.get("LLM_PRIMARY_MODEL", "meta/llama-3.2-90b-vision-instruct")
+    return {"provider": "nvidia", "key": nvidia_key, "model": nvidia_model, "base_url": NVIDIA_API_URL}
+
+
+async def _llm_stream(system: str, messages: list[dict], max_tokens: int, temperature: float) -> AsyncIterator[str]:
+    """Universal LLM streaming call — routes to Bedrock, OpenAI-compat, or NVIDIA."""
+    backend = _resolve_backend()
+
+    if backend["provider"] == "bedrock":
+        payload: dict = {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "messages": messages,
+        }
+        if system:
+            payload["system"] = system
+        headers = {"Authorization": f"Bearer {backend['key']}", "Content-Type": "application/json"}
+        url = f"{BEDROCK_BASE_URL}/model/{backend['model']}/invoke"
+        async with httpx.AsyncClient(timeout=120) as client:
+            resp = await client.post(url, headers=headers, json=payload)
+            resp.raise_for_status()
+            yield resp.json()["content"][0]["text"]
+
+    else:
+        # OpenAI-compat (covers NVIDIA, OpenAI, OpenRouter, Groq, Together, etc.)
+        full_messages = []
+        if system:
+            full_messages.append({"role": "system", "content": system})
+        full_messages.extend(messages)
+        payload = {
+            "model": backend["model"],
+            "messages": full_messages,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "top_p": 0.95,
+            "stream": True,
+        }
+        headers = {
+            "Authorization": f"Bearer {backend['key']}",
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+        }
+        async with httpx.AsyncClient(timeout=120) as client:
+            async with client.stream("POST", backend["base_url"], headers=headers, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:].strip()
+                    if data == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data)
+                        text = chunk["choices"][0]["delta"].get("content", "")
+                        if text:
+                            yield text
+                    except Exception:
+                        continue
+
 @dataclass
 class ReactorStatus:
     temperature: float = THERMAL_BASELINE
@@ -47,8 +137,6 @@ class LumenisReactor:
     """
 
     def __init__(self):
-        self.api_key = os.environ.get("NVIDIA_API_KEY", "")
-        self.model = NVIDIA_PRIMARY_MODEL
         self.status = ReactorStatus()
         self._start_time = time.time()
         self._running = False
@@ -84,50 +172,10 @@ class LumenisReactor:
         system: str,
         max_tokens: int = 4096,
     ) -> AsyncIterator[str]:
-        """
-        Core LLM streaming call at the Thermal Baseline temperature.
-        Uses NVIDIA Nemotron-Super-49B for primary reasoning.
-        """
-        full_messages = []
-        if system:
-            full_messages.append({"role": "system", "content": system})
-        full_messages.extend(messages)
-
-        payload = {
-            "model": self.model,
-            "messages": full_messages,
-            "max_tokens": max_tokens,
-            "temperature": THERMAL_BASELINE,
-            "top_p": 0.95,
-            "stream": True,
-        }
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-        }
-
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream(
-                "POST", NVIDIA_API_URL, headers=headers, json=payload
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        delta = chunk["choices"][0]["delta"]
-                        text = delta.get("content", "")
-                        if text:
-                            self._call_count += 1
-                            yield text
-                    except Exception:
-                        continue
+        """Core LLM call at the Thermal Baseline temperature."""
+        async for chunk in _llm_stream(system, messages, max_tokens, THERMAL_BASELINE):
+            self._call_count += 1
+            yield chunk
 
     async def call(
         self,
@@ -145,6 +193,7 @@ class LumenisReactor:
         return "".join(parts)
 
     def get_status(self) -> dict:
+        b = _resolve_backend()
         return {
             "temperature": self.status.temperature,
             "pulse_count": self.status.pulse_count,
@@ -152,22 +201,19 @@ class LumenisReactor:
             "active_nodes": self.status.active_nodes,
             "frequency_hz": round(self.status.frequency_hz, 2),
             "node_lattice_size": NODE_COUNT,
-            "model": self.model,
+            "model": b["model"],
+            "provider": b["provider"],
             "tokens_streamed": self._call_count,
-            "powered_by": "NVIDIA",
         }
 
 
 class NvidiaReactor:
     """
-    Secondary reactor powered by NVIDIA's Gemma-4-31B-IT with thinking enabled.
-    Uses the NVIDIA inference API with text/event-stream SSE streaming.
+    Secondary reactor — now powered by Claude Sonnet 4.6 via AWS Bedrock.
     Activated by Forge (code) and Oracle (reasoning) seats.
     """
 
     def __init__(self):
-        self.api_key = os.environ.get("NVIDIA_API_KEY", "")
-        self.model = NVIDIA_SECONDARY_MODEL
         self._call_count = 0
         self._error_count = 0
 
@@ -177,57 +223,10 @@ class NvidiaReactor:
         system: str = "",
         max_tokens: int = 4096,
     ) -> AsyncIterator[str]:
-        """Stream tokens from NVIDIA Gemma with thinking enabled."""
-        full_messages = []
-        if system:
-            full_messages.append({"role": "system", "content": system})
-        full_messages.extend(messages)
-
-        payload = {
-            "model": self.model,
-            "messages": full_messages,
-            "max_tokens": max_tokens,
-            "temperature": 1.00,
-            "top_p": 0.95,
-            "stream": True,
-            "chat_template_kwargs": {"enable_thinking": True},
-        }
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-        }
-
-        in_thinking = False
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream(
-                "POST", NVIDIA_API_URL, headers=headers, json=payload
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        delta = chunk["choices"][0]["delta"]
-
-                        # Track thinking vs answer sections
-                        if delta.get("reasoning_content"):
-                            in_thinking = True
-                            continue  # skip raw thinking tokens from output
-                        if in_thinking and delta.get("content"):
-                            in_thinking = False  # thinking ended, answer begins
-
-                        text = delta.get("content", "")
-                        if text:
-                            self._call_count += 1
-                            yield text
-                    except Exception:
-                        continue
+        """Stream response from active LLM backend."""
+        async for chunk in _llm_stream(system, messages, max_tokens, 1.00):
+            self._call_count += 1
+            yield chunk
 
     async def call(
         self,
@@ -246,11 +245,13 @@ class NvidiaReactor:
         return "".join(parts)
 
     def get_status(self) -> dict:
+        b = _resolve_backend()
         return {
-            "model": self.model,
+            "model": b["model"],
+            "provider": b["provider"],
             "tokens_streamed": self._call_count,
             "errors": self._error_count,
-            "online": bool(self.api_key),
+            "online": bool(b["key"]),
         }
 
 
@@ -261,12 +262,12 @@ class ReasoningReactor:
     Skips reasoning tokens from output — only yields the final answer content.
     """
 
-    def __init__(self, model: str, api_key_env: str = "NVIDIA_API_KEY"):
+    def __init__(self, model: str = "", api_key_env: str = ""):
         self.model = model
-        self.api_key = os.environ.get(api_key_env, os.environ.get("NVIDIA_API_KEY", ""))
+        self.api_key = os.environ.get(api_key_env, "") if api_key_env else ""
         self._call_count = 0
         self._error_count = 0
-        self._reasoning_tokens = 0  # track internal CoT depth
+        self._reasoning_tokens = 0
 
     async def stream_response(
         self,
@@ -274,57 +275,10 @@ class ReasoningReactor:
         system: str = "",
         max_tokens: int = 2048,
     ) -> AsyncIterator[str]:
-        """Stream only final answer tokens, skipping reasoning_content."""
-        full_messages = []
-        if system:
-            full_messages.append({"role": "system", "content": system})
-        full_messages.extend(messages)
-
-        payload = {
-            "model": self.model,
-            "messages": full_messages,
-            "max_tokens": max_tokens,
-            "temperature": 0.6,   # slightly higher for reasoning models
-            "top_p": 0.95,
-            "stream": True,
-        }
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            "Accept": "text/event-stream",
-        }
-
-        reasoning_buf = []
-        async with httpx.AsyncClient(timeout=180) as client:
-            async with client.stream(
-                "POST", NVIDIA_API_URL, headers=headers, json=payload
-            ) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        delta = chunk["choices"][0]["delta"]
-
-                        # Reasoning content — accumulate silently for depth tracking
-                        reasoning = delta.get("reasoning_content")
-                        if reasoning:
-                            reasoning_buf.append(reasoning)
-                            self._reasoning_tokens += len(reasoning)
-                            continue
-
-                        # Final answer content — yield to caller
-                        text = delta.get("content") or ""
-                        if text:
-                            self._call_count += 1
-                            yield text
-                    except Exception:
-                        continue
+        """Stream response from active LLM backend."""
+        async for chunk in _llm_stream(system, messages, max_tokens, 0.6):
+            self._call_count += 1
+            yield chunk
 
     async def call(
         self,

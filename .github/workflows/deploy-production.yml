@@ -30,8 +30,12 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          cd One2lvOS/Agentic_Control/ai-lobby/sovereign-council-bridge
-          pip install -r requirements.txt
+          if [ -f One2lvOS/Agentic_Control/ai-lobby/sovereign-council-bridge/requirements.txt ]; then
+            cd One2lvOS/Agentic_Control/ai-lobby/sovereign-council-bridge
+            pip install -r requirements.txt
+          else
+            echo "Sovereign council bridge requirements.txt not found, skipping..."
+          fi
 
       - name: Install Node dependencies
         run: |

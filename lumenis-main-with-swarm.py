@@ -14,10 +14,19 @@ import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+# Load sovereign environment configuration
+sovereign_env_path = Path(__file__).parent / "sovereign_integration" / "config" / "sovereign.env"
+if sovereign_env_path.exists():
+    load_dotenv(sovereign_env_path)
+    print(f"✓ Loaded sovereign configuration from {sovereign_env_path}")
+else:
+    print(f"⚠ Warning: {sovereign_env_path} not found")
 
 from lumenis_reactor_core import (
     LumenisReactor,

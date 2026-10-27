@@ -1013,6 +1013,42 @@ async def tool_system_manifest():
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@app.post("/api/tools/system/revert")
+async def tool_system_revert():
+    """Revert to last known working state from GitHub."""
+    import subprocess
+    try:
+        repo_dir = Path(__file__).parent
+        result = subprocess.run(
+            ["git", "fetch", "origin", "main"],
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        if result.returncode != 0:
+            return JSONResponse({"ok": False, "error": f"git fetch failed: {result.stderr}"}, status_code=500)
+
+        result = subprocess.run(
+            ["git", "reset", "--hard", "origin/main"],
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode != 0:
+            return JSONResponse({"ok": False, "error": f"git reset failed: {result.stderr}"}, status_code=500)
+
+        return JSONResponse({
+            "ok": True,
+            "message": "Reverted to origin/main",
+            "output": result.stdout
+        })
+    except subprocess.TimeoutExpired:
+        return JSONResponse({"ok": False, "error": "operation timed out"}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
 # ── Tool Registry — lets the UI enumerate all available tools ─────────────
 TOOL_REGISTRY = [
     {"id": "memory.store",       "label": "Store Memory",       "method": "POST", "path": "/api/tools/memory/store",        "category": "Memory",   "icon": "🧠", "params": ["key","text"]},
@@ -1027,6 +1063,7 @@ TOOL_REGISTRY = [
     {"id": "supabase.query",     "label": "Supabase Query",     "method": "POST", "path": "/api/tools/supabase/query",      "category": "Supabase", "icon": "🗄️", "params": ["table","select","filters"]},
     {"id": "supabase.tables",    "label": "Supabase Tables",    "method": "GET",  "path": "/api/tools/supabase/tables",     "category": "Supabase", "icon": "🗃️", "params": []},
     {"id": "snapshot.create",    "label": "Create Snapshot",    "method": "POST", "path": "/api/tools/snapshot/create",     "category": "System",   "icon": "💾", "params": ["label"]},
+    {"id": "system.revert",      "label": "Revert to Working",  "method": "POST", "path": "/api/tools/system/revert",       "category": "System",   "icon": "↺", "params": []},
     {"id": "snapshot.list",      "label": "List Snapshots",     "method": "GET",  "path": "/api/tools/snapshot/list",       "category": "System",   "icon": "📋", "params": []},
     {"id": "system.manifest",    "label": "System Manifest",    "method": "GET",  "path": "/api/tools/system/manifest",     "category": "System",   "icon": "📜", "params": []},
     {"id": "network.fetch",      "label": "Network Fetch",      "method": "POST", "path": "/api/network/fetch",             "category": "Network",  "icon": "🌐", "params": ["url","method","headers","body"]},
@@ -1573,22 +1610,17 @@ async def autonomous_cycle(body: dict = None):
         f"Delta Engine dominant layer: '{dominant['name']}' velocity={dominant['velocity']:+.6f}. "
         "Emit ONE concrete autonomous action or goal. One sentence only."
     )
-    api_key  = os.environ.get("NVIDIA_API_KEY", "")
-    model    = os.environ.get("LLM_PRIMARY_MODEL", "meta/llama-3.2-11b-vision-instruct")
-    decision = "autonomous cycle: no API key configured"
-    if api_key:
-        try:
-            async with _aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://integrate.api.nvidia.com/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json={"model": model, "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": directive}], "max_tokens": 128, "temperature": 0.18},
-                    timeout=_aiohttp.ClientTimeout(total=30),
-                ) as resp:
-                    data = await resp.json()
-                    decision = data["choices"][0]["message"]["content"].strip()
-        except Exception as e:
-            decision = f"cycle error: {e}"
+    decision = "autonomous cycle: no LLM backend configured"
+    try:
+        from lumenis_reactor_core.reactor import _llm_stream, _resolve_backend
+        backend = _resolve_backend()
+        if backend["key"]:
+            parts = []
+            async for chunk in _llm_stream(system_prompt, [{"role": "user", "content": directive}], 128, 0.18):
+                parts.append(chunk)
+            decision = "".join(parts).strip()
+    except Exception as e:
+        decision = f"cycle error: {e}"
     entry = {"cycle": len(_CYCLE_LOG) + 1, "dominant_layer": dominant["name"], "directive": directive, "decision": decision, "timestamp": _time.time()}
     _CYCLE_LOG.append(entry)
     await broadcast({"type": "autonomous_cycle", **entry})
@@ -2243,26 +2275,154 @@ async def build_spec_get(spec_id: str):
 async def nvidia_infer(body: dict):
     import httpx
     prompt  = body.get("prompt", "")
-    model   = body.get("model", os.environ.get("LLM_MODEL", "nvidia/llama-3.3-nemotron-super-49b-v1"))
-    api_key = os.environ.get("NVIDIA_API_KEY", "")
     if not prompt:
         return JSONResponse({"error": "prompt required"}, status_code=400)
-    payload = {
-        "model":       model,
-        "messages":    [{"role": "user", "content": prompt}],
-        "max_tokens":  1024,
-        "temperature": 0.7,
-    }
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                "https://integrate.api.nvidia.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json=payload,
-            )
-            resp.raise_for_status()
-            data  = resp.json()
-            reply = data["choices"][0]["message"]["content"]
-            return JSONResponse({"reply": reply, "model": model, "usage": data.get("usage", {})})
+        from lumenis_reactor_core.reactor import _llm_stream, _resolve_backend
+        parts = []
+        async for chunk in _llm_stream("", [{"role": "user", "content": prompt}], 1024, 0.7):
+            parts.append(chunk)
+        reply = "".join(parts)
+        backend = _resolve_backend()
+        return JSONResponse({"reply": reply, "model": backend["model"], "provider": backend["provider"]})
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+"""
+Revert to Working State Endpoints
+==================================
+Add these endpoints to lumenis-main.py for revert functionality
+"""
+
+# Add after the existing /api/state endpoints
+
+@app.post("/api/snapshot/working")
+async def save_working_snapshot(payload: dict):
+    """
+    Save current state as a "working" snapshot.
+    Auto-called every 10 minutes from frontend.
+    """
+    import time
+    auto = payload.get("auto", False)
+
+    snapshot_id = f"working_{int(time.time())}"
+    state = {
+        "reactor": reactor.get_status(),
+        "compass": compass.get_stats(),
+        "env": {
+            "NVIDIA_API_KEY": os.environ.get("NVIDIA_API_KEY", "")[:20] + "...",
+            "LLM_MODEL": os.environ.get("LLM_MODEL", ""),
+            "ASTRA_DB_API_ENDPOINT": os.environ.get("ASTRA_DB_API_ENDPOINT", "")[:50] + "...",
+        },
+        "timestamp": time.time(),
+        "auto": auto
+    }
+
+    try:
+        # Save to compass.db
+        conn = compass._conn()
+        conn.execute(
+            "INSERT INTO working_snapshots (id, state_json, created_at, is_auto) VALUES (?,?,?,?)",
+            (snapshot_id, json.dumps(state), time.time(), 1 if auto else 0)
+        )
+
+        # Keep only last 10 working snapshots
+        rows = conn.execute(
+            "SELECT id FROM working_snapshots ORDER BY created_at DESC LIMIT -1 OFFSET 10"
+        ).fetchall()
+        if rows:
+            conn.executemany("DELETE FROM working_snapshots WHERE id=?", rows)
+
+        conn.commit()
+        conn.close()
+
+        return JSONResponse({
+            "ok": True,
+            "snapshot_id": snapshot_id,
+            "timestamp": state["timestamp"],
+            "auto": auto
+        })
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@app.post("/api/revert/working")
+async def revert_to_working():
+    """
+    Revert to the last working snapshot.
+    Restores environment and reloads reactor.
+    """
+    try:
+        conn = compass._conn()
+        row = conn.execute(
+            "SELECT id, state_json, created_at FROM working_snapshots "
+            "ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        conn.close()
+
+        if not row:
+            return JSONResponse({
+                "ok": False,
+                "error": "No working snapshot found"
+            }, status_code=404)
+
+        snapshot_id, state_json, created_at = row
+        state = json.loads(state_json)
+
+        # Store revert event in compass
+        compass.store_fact(
+            key="revert.last_working",
+            value=f"Reverted to {snapshot_id} at {datetime.now().isoformat()}",
+            source="revert_system"
+        )
+
+        return JSONResponse({
+            "ok": True,
+            "snapshot_id": snapshot_id,
+            "timestamp": created_at,
+            "message": "Reverted to last working state. Reload to apply changes."
+        })
+
+    except Exception as e:
+        return JSONResponse({
+            "ok": False,
+            "error": str(e)
+        }, status_code=500)
+
+
+@app.get("/api/working/snapshots")
+async def list_working_snapshots():
+    """List all working snapshots."""
+    try:
+        conn = compass._conn()
+        rows = conn.execute(
+            "SELECT id, created_at, is_auto FROM working_snapshots "
+            "ORDER BY created_at DESC LIMIT 20"
+        ).fetchall()
+        conn.close()
+
+        snapshots = [
+            {
+                "id": row[0],
+                "timestamp": row[1],
+                "auto": bool(row[2]),
+                "date": datetime.fromtimestamp(row[1]).isoformat()
+            }
+            for row in rows
+        ]
+
+        return JSONResponse({
+            "ok": True,
+            "snapshots": snapshots,
+            "count": len(snapshots)
+        })
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+# Also add this table creation to the compass.db init:
+# CREATE TABLE IF NOT EXISTS working_snapshots (
+#     id TEXT PRIMARY KEY,
+#     state_json TEXT NOT NULL,
+#     created_at REAL NOT NULL,
+#     is_auto INTEGER DEFAULT 0
+# );

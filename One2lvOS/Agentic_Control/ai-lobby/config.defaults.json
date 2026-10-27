@@ -1,14 +1,14 @@
 {
   "admin": {
     "username": "One2lv",
-    "password": "drifter0419"
+    "password": "CHANGE_THIS_PASSWORD"
   },
   "models": [
     {
       "id": "gemma-4",
       "label": "Gemma 4 31B",
       "model": "google/gemma-4-31b-it",
-      "apiKey": "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",
+      "apiKey": "NVIDIA_API_KEY_1",
       "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
       "temperature": 1.0,
       "top_p": 0.95,
@@ -21,7 +21,7 @@
       "id": "llama-3.3",
       "label": "Llama 3.3 70B",
       "model": "meta/llama-3.3-70b-instruct",
-      "apiKey": "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",
+      "apiKey": "NVIDIA_API_KEY_2",
       "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
       "temperature": 0.6,
       "top_p": 0.9,
@@ -33,7 +33,7 @@
       "id": "deepseek-pro",
       "label": "DeepSeek v4 Pro",
       "model": "deepseek-ai/deepseek-v4-pro",
-      "apiKey": "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",
+      "apiKey": "NVIDIA_API_KEY_3",
       "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
       "temperature": 0.6,
       "top_p": 0.95,
@@ -46,7 +46,7 @@
       "id": "nemotron-3",
       "label": "Nemotron 3 Ultra 550B",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
-      "apiKey": "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",
+      "apiKey": "NVIDIA_API_KEY_4",
       "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
       "temperature": 1,
       "top_p": 0.95,
@@ -59,13 +59,13 @@
       "id": "gemini-astra",
       "label": "∆Astra_Gemini∆",
       "model": "gemini-pro",
-      "apiKey": "gXw-5Yc0ykn5kTNTNj79M2mcwCNWVNH6PFhBUAQ3flWjQEu3AUJ_1GAP5z60XdkEljv9zwiPER31jgbTuv-Iig",
+      "apiKey": "GOOGLE_GEMINI_API_KEY",
       "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
       "temperature": 0.7,
       "top_p": 0.95,
       "max_tokens": 8192,
       "stream": false,
-      "clientId": "gen-lang-client-0273258333",
+      "clientId": "gen-lang-client-PLACEHOLDER",
       "color": "#10b981"
     }
   ],

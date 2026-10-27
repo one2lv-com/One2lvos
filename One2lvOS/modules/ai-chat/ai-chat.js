@@ -3,7 +3,7 @@
 
     const AIChat = {
         API_URL: 'https://integrate.api.nvidia.com/v1/chat/completions',
-        API_KEY: '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',
+        API_KEY: window.NVIDIA_API_KEY || 'YOUR_NVIDIA_API_KEY_HERE',
         MODEL: 'nvidia/nemotron-3-ultra-550b-a55b',
 
         conversationHistory: [],

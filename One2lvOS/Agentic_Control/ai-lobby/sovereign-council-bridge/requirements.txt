@@ -1,0 +1,15 @@
+# Sovereign Council Bridge - Python Dependencies
+# Required for One2lvOS Agentic Control Bridge
+
+# Astra DB Vector Memory
+cassandra-driver>=3.29.0
+
+# HTTP Client
+httpx>=0.27.0
+requests>=2.32.0
+
+# Async Support
+aiohttp>=3.9.0
+
+# Environment Management
+python-dotenv>=1.0.0
