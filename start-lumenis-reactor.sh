@@ -105,10 +105,13 @@ echo -e "${CYAN}   Port: 8000${NC}"
 echo ""
 
 # Start with auto-reload for development
+# SECURITY: Bind to localhost only (127.0.0.1) to prevent external access
+# Use reverse proxy (nginx/caddy) for external connections
 if [ "$NODE_ENV" = "production" ]; then
     echo -e "${GREEN}Starting in PRODUCTION mode...${NC}"
     python3 lumenis-main.py 2>&1 | tee logs/lumenis-reactor.log
 else
     echo -e "${YELLOW}Starting in DEVELOPMENT mode (with auto-reload)...${NC}"
-    uvicorn lumenis-main:app --host 0.0.0.0 --port 8000 --reload 2>&1 | tee logs/lumenis-reactor.log
+    echo -e "${CYAN}   Security: Bound to 127.0.0.1 (localhost only)${NC}"
+    uvicorn lumenis-main:app --host 127.0.0.1 --port 8000 --reload 2>&1 | tee logs/lumenis-reactor.log
 fi

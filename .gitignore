@@ -93,3 +93,20 @@ id_ed25519*
 *.db.backup
 *.sqlite
 *.sqlite3
+
+# ============================================================================
+# SECURITY - NEVER COMMIT THESE FILES (Phase 1 Security Additions)
+# ============================================================================
+compass.db
+compass.db.backup
+compass.db-*
+.env
+.env.local
+.env.*.local
+.env.security
+.lumenis-token
+credentials.json
+secure-connect-*.zip
+**/discord-webhook*.txt
+**/*-key.pem
+**/*-cert.pem
