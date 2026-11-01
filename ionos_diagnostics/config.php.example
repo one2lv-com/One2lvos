@@ -1,0 +1,6 @@
+<?php
+// Copy to <webspace>/.diag_private/config.php (outside the web folder).
+// The token must match IONOS_DIAG_TOKEN in the reactor's .env. Never commit the real file.
+return [
+    'token' => '',
+];

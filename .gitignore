@@ -110,3 +110,19 @@ secure-connect-*.zip
 **/discord-webhook*.txt
 **/*-key.pem
 **/*-cert.pem
+
+# ============================================================================
+# Private runtime state: conversations, dreams, sessions, backups, tunnel creds
+# ============================================================================
+data/conversations/
+data/dreams/
+data/lumenis_state.json
+data/session_*.json
+snapshots/
+backups/
+*.bak
+.cloudflared/
+cert.pem
+# IONOS diagnostics token file (lives outside the web root on the server)
+.diag_private/
+ionos_diagnostics/config.php

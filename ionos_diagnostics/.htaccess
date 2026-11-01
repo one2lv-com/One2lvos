@@ -1,0 +1,9 @@
+# One2lvOS diagnostics — no directory listing, block hidden/backup files
+Options -Indexes
+DirectoryIndex index.html
+<FilesMatch "(^\.|\.(bak|json|ini|log|md)$)">
+    Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+    Header set X-Robots-Tag "noindex, nofollow"
+</IfModule>

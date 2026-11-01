@@ -123,3 +123,12 @@ External Clients
 ## Registered External Tools
 
 <!-- entries appended by Lumenis autonomously -->
+
+### IONOS Server Diagnostics (`ionos.diagnostics`) — seat: Hermes
+- **What:** live, read-only health checks of the IONOS webspace that hosts the static One2lvOS (`http://s1086212999.onlinehome.us/`, SFTP host `access-5019872554.webspace-host.com`).
+- **Reactor routes (localhost:8000):**
+  - `GET /api/ionos/diagnostics?check=<check>[&summary=true]` — `check` = `all` (default; includes a real SFTP login), `env`, `http`, `ssl`, `dns`, `index`, `htaccess`, `sftp`, `recent`, `ping`.
+  - `GET /api/ionos/sftp-check` — real SFTP key login (`~/bin/ionos_sftp.sh list /one2lvos`); records the result to `/.diag_private/last_sftp_check.json` for the dashboard.
+- **Backend:** PHP API at `/one2lvos/diagnostics/api.php` (PHP 8.4). Auth header `X-Diag-Token` = `IONOS_DIAG_TOKEN` in `.env` (git-ignored); the server copy is in `/.diag_private/config.php`, outside the site folder and blocked by `.htaccess`. No shell, no writes, no phpinfo.
+- **Dashboard:** `http://s1086212999.onlinehome.us/diagnostics/` (asks for the token once, keeps it in the browser's localStorage).
+- **Chat:** Hermes plan item `{"app": "ionos", "path": "<check>"}`; also auto-triggers on messages mentioning IONOS / webspace / server diagnostic. Code: `lumenis_reactor_core/ionos.py`, wired in `lumenis_reactor_core/itt.py`.

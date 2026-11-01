@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Server Diagnostics • access-5019872554.webspace-host.com</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .log-info { color: #93c5fd; } .log-success { color: #6ee7b7; } .log-warn { color: #fcd34d; } .log-error { color: #fca5a5; }
+  .scroll-thin::-webkit-scrollbar { width: 6px; } .scroll-thin::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  .btn-action:disabled { opacity: .5; cursor: wait; }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+<!-- Header -->
+<header class="sticky top-0 z-30 bg-slate-950/90 backdrop-blur border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <span class="relative flex h-3 w-3">
+        <span id="dotPing" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+        <span id="dot" class="relative inline-flex rounded-full h-3 w-3 bg-slate-400"></span>
+      </span>
+      <div>
+        <h1 class="text-sm md:text-base font-semibold text-white mono">access-5019872554.webspace-host.com</h1>
+        <p class="text-xs text-slate-400">IONOS Cloud Web Hosting Container • Status: <span id="statusText">checking…</span></p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button id="btnPing" class="btn-action px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium"><i class="fa-solid fa-satellite-dish mr-1.5"></i>Ping Server</button>
+      <button id="btnClear" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium"><i class="fa-solid fa-eraser mr-1.5"></i>Clear Logs</button>
+      <button id="btnLock" title="Forget the saved token on this browser" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm"><i class="fa-solid fa-lock"></i></button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Left column -->
+  <section class="space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 class="text-sm font-semibold text-white mb-4"><i class="fa-solid fa-server mr-2 text-blue-400"></i>Environment Overview</h2>
+      <dl class="space-y-3 text-sm">
+        <div class="flex justify-between gap-3"><dt class="text-slate-400">PHP Version</dt><dd id="ovPhp" class="mono text-right">—</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-slate-400">Server</dt><dd id="ovServer" class="mono text-right">—</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-slate-400">Web Root</dt><dd id="ovRoot" class="mono text-right">—</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-slate-400">SSL Status</dt><dd id="ovSsl" class="text-right">—</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-slate-400">Storage Used</dt><dd id="ovStorage" class="mono text-right">—</dd></div>
+        <div class="flex justify-between gap-3"><dt class="text-slate-400">Plan Storage</dt><dd class="mono text-right">Unlimited (Web Hosting Plus)</dd></div>
+      </dl>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+      <h2 class="text-sm font-semibold text-white mb-4"><i class="fa-solid fa-sliders mr-2 text-blue-400"></i>Server Actions</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <button data-check="htaccess" class="btn-action p-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-left"><i class="fa-solid fa-file-shield text-amber-400"></i><div class="text-sm font-medium mt-1">Check .htaccess</div></button>
+        <button data-check="dns" class="btn-action p-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-left"><i class="fa-solid fa-globe text-sky-400"></i><div class="text-sm font-medium mt-1">DNS Lookup</div></button>
+        <button data-check="index" class="btn-action p-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-left"><i class="fa-solid fa-file-code text-emerald-400"></i><div class="text-sm font-medium mt-1">Verify Index File</div></button>
+        <button data-check="sftp" class="btn-action p-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-left"><i class="fa-solid fa-terminal text-violet-400"></i><div class="text-sm font-medium mt-1">SFTP Connect Test</div></button>
+        <button data-check="ssl" class="btn-action p-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-left"><i class="fa-solid fa-lock text-rose-400"></i><div class="text-sm font-medium mt-1">SSL Certificate</div></button>
+        <button data-check="recent" class="btn-action p-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-left"><i class="fa-solid fa-clock-rotate-left text-cyan-400"></i><div class="text-sm font-medium mt-1">Recent Changes</div></button>
+      </div>
+      <button data-check="all" class="btn-action mt-3 w-full p-2.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-200 text-sm font-medium"><i class="fa-solid fa-stethoscope mr-1.5"></i>Run Full Diagnostic</button>
+    </div>
+  </section>
+
+  <!-- Right column -->
+  <section class="lg:col-span-2 space-y-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div class="flex items-center gap-2 px-4 py-2.5 bg-slate-800/70 border-b border-slate-800">
+        <span class="h-3 w-3 rounded-full bg-red-500/80"></span><span class="h-3 w-3 rounded-full bg-amber-500/80"></span><span class="h-3 w-3 rounded-full bg-emerald-500/80"></span>
+        <div class="ml-3 flex-1 flex items-center gap-2 bg-slate-950 rounded-md px-3 py-1 text-xs mono text-slate-400">
+          <i id="pvLock" class="fa-solid fa-unlock text-amber-400"></i><span id="pvUrl">http://s1086212999.onlinehome.us/</span>
+        </div>
+        <span id="pvBadge" class="text-xs mono px-2 py-0.5 rounded bg-slate-700 text-slate-300">—</span>
+        <button id="pvToggle" class="text-xs text-slate-400 hover:text-white px-2" title="Show live preview"><i class="fa-solid fa-eye"></i></button>
+      </div>
+      <div id="pvBody" class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm"></div>
+      <iframe id="pvFrame" class="hidden w-full h-80 bg-black border-t border-slate-800" title="Live site preview" loading="lazy"></iframe>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl">
+      <div class="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
+        <h2 class="text-sm font-semibold text-white"><i class="fa-solid fa-terminal mr-2 text-blue-400"></i>Diagnostic Console Output</h2>
+        <span id="logCount" class="text-xs text-slate-500 mono">0 lines</span>
+      </div>
+      <div id="log" class="mono text-xs leading-relaxed p-4 h-96 overflow-y-auto scroll-thin bg-slate-950/60"></div>
+    </div>
+  </section>
+</main>
+
+<!-- Token prompt -->
+<div id="tokenModal" class="hidden fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+  <form id="tokenForm" class="w-full max-w-md bg-slate-900 border border-slate-700 rounded-xl p-6 space-y-4">
+    <h3 class="text-white font-semibold"><i class="fa-solid fa-key mr-2 text-amber-400"></i>Diagnostics token</h3>
+    <p class="text-sm text-slate-400">The diagnostics API is locked. Paste the token (IONOS_DIAG_TOKEN). It's saved only in this browser.</p>
+    <input id="tokenInput" type="password" autocomplete="off" class="w-full mono text-sm bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:border-blue-500" placeholder="64-character token">
+    <p id="tokenErr" class="text-xs text-red-400 hidden">That token was rejected.</p>
+    <button class="w-full py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium">Unlock</button>
+  </form>
+</div>
+
+<script>
+(() => {
+  const API = 'api.php';
+  const KEY = 'one2lv_diag_token';
+  const $ = (id) => document.getElementById(id);
+  const logEl = $('log');
+  let lines = 0;
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function log(level, msg) {
+    const t = new Date().toLocaleTimeString([], {hour12:false});
+    const tag = {info:'INFO', success:' OK ', warn:'WARN', error:'FAIL'}[level] || 'INFO';
+    const div = document.createElement('div');
+    div.className = 'log-' + level;
+    div.innerHTML = `<span class="text-slate-500">[${t}]</span> <span class="font-semibold">${tag}</span> ${esc(msg)}`;
+    logEl.appendChild(div); logEl.scrollTop = logEl.scrollHeight;
+    $('logCount').textContent = (++lines) + ' lines';
+  }
+  function setStatus(state, text) {
+    const c = {ok:'bg-emerald-500', warn:'bg-amber-500', err:'bg-red-500', idle:'bg-slate-400'}[state];
+    $('dot').className = 'relative inline-flex rounded-full h-3 w-3 ' + c;
+    $('dotPing').className = 'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ' + c;
+    $('statusText').textContent = text;
+  }
+
+  const getToken = () => localStorage.getItem(KEY) || '';
+  function askToken(rejected) {
+    $('tokenErr').classList.toggle('hidden', !rejected);
+    $('tokenModal').classList.remove('hidden');
+    $('tokenInput').value = ''; $('tokenInput').focus();
+  }
+  $('tokenForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = $('tokenInput').value.trim();
+    if (!v) return;
+    localStorage.setItem(KEY, v);
+    $('tokenModal').classList.add('hidden');
+    boot();
+  });
+  $('btnLock').onclick = () => { localStorage.removeItem(KEY); log('warn', 'Token removed from this browser.'); setStatus('idle', 'locked'); askToken(false); };
+
+  async function api(action) {
+    const tok = getToken();
+    if (!tok) { if ($('tokenModal').classList.contains('hidden')) askToken(false); throw new Error('locked'); }
+    const t = performance.now();
+    const r = await fetch(`${API}?action=${encodeURIComponent(action)}`, { headers: { 'X-Diag-Token': tok }, cache: 'no-store' });
+    const rtt = Math.round(performance.now() - t);
+    let j = null; try { j = await r.json(); } catch (_) {}
+    if (r.status === 401) { localStorage.removeItem(KEY); setStatus('idle', 'locked'); askToken(true); throw new Error('unauthorized'); }
+    if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || `HTTP ${r.status}`);
+    j.rtt = rtt; return j;
+  }
+
+  /* ── Renderers ── */
+  const R = {
+    ping(j) { log('success', `Pong from server in ${j.rtt} ms (server time ${j.data.server_time})`); },
+    env(j) {
+      const d = j.data;
+      $('ovPhp').textContent = `${d.php_version} (${d.sapi})`;
+      $('ovServer').textContent = d.server_software;
+      $('ovRoot').textContent = d.web_root;
+      $('ovStorage').textContent = `${d.web_size} • ${d.web_files} files`;
+      log('info', `PHP ${d.php_version} via ${d.sapi} on ${d.server_software} (${d.os_family})`);
+      log('info', `Web folder ${d.web_root}: ${d.web_files} files, ${d.web_size}. Shared volume free: ${d.volume_free ?? 'n/a'} of ${d.volume_total ?? 'n/a'}`);
+      const ext = Object.entries(d.extensions).map(([k,v]) => `${k}:${v?'yes':'no'}`).join(' ');
+      log('info', `Extensions ${ext} • memory_limit ${d.memory_limit} • upload_max ${d.max_upload}`);
+    },
+    htaccess(j) {
+      for (const f of j.data.files) {
+        if (!f.exists) { log('warn', `${f.file}: not present`); continue; }
+        log('success', `${f.file}: ${f.bytes} bytes, modified ${f.modified}`);
+        f.lines.forEach(l => log('info', '   ' + l));
+      }
+    },
+    dns(j) {
+      const d = j.data;
+      for (const [h, r] of Object.entries(d.hosts)) {
+        const ips = [...r.a, ...r.aaaa];
+        if (!ips.length && !r.cname.length) log('error', `${h}: no A/AAAA/CNAME records`);
+        else log('success', `${h}: ${r.cname.length ? 'CNAME ' + r.cname.join(', ') + ' → ' : ''}${ips.join(', ') || '(no address)'}`);
+      }
+      log(d.ns.length ? 'info' : 'warn', `NS one2lv.com: ${d.ns.join(', ') || 'none'}`);
+      log(d.mx.length ? 'info' : 'warn', `MX one2lv.com: ${d.mx.map(m => `${m.host} (${m.pri})`).join(', ') || 'none'}`);
+    },
+    index(j) {
+      for (const f of j.data.files) {
+        if (f.exists) log('success', `${f.file}: ${f.bytes} bytes, modified ${f.modified}`);
+        else log('info', `${f.file}: not present`);
+      }
+    },
+    http(j) { renderPreview(j.data.probes); for (const p of j.data.probes) {
+      const lvl = p.error ? 'error' : (p.status >= 200 && p.status < 400 ? 'success' : 'warn');
+      log(lvl, `${p.url} → ${p.error ? p.error : 'HTTP ' + p.status} in ${p.latency_ms} ms${p.ip ? ' from ' + p.ip : ''}${p.cloudflare ? ' (Cloudflare)' : ''}${p.location ? ' → ' + p.location : ''}`);
+    } },
+    ssl(j) {
+      const site = j.data.targets[0];
+      for (const t of j.data.targets) {
+        if (!t.connects) { log('error', `TLS ${t.host}:443 → ${t.error}`); continue; }
+        const c = t.certificate;
+        if (!c) { log('warn', `TLS ${t.host}:443 connects but no certificate was read`); continue; }
+        log(t.valid_for_host ? 'success' : 'warn', `TLS ${t.host}: cert CN=${c.subject_cn}, issuer ${c.issuer}, valid ${c.valid_from.slice(0,10)} → ${c.valid_to.slice(0,10)}, ${t.valid_for_host ? 'valid for this host' : 'NOT valid for this host'}`);
+      }
+      const el = $('ovSsl');
+      if (!site.connects) { el.innerHTML = '<span class="text-red-400"><i class="fa-solid fa-circle-xmark mr-1"></i>None (http only)</span>'; }
+      else if (site.valid_for_host) { el.innerHTML = `<span class="text-emerald-400"><i class="fa-solid fa-circle-check mr-1"></i>${esc(site.certificate.issuer)}</span>`; $('pvLock').className = 'fa-solid fa-lock text-emerald-400'; }
+      else { el.innerHTML = '<span class="text-amber-400"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Cert not valid for host</span>'; }
+    },
+    sftp(j) {
+      const p = j.data.port_22, l = j.data.last_reactor_login;
+      log(p.reachable ? 'success' : 'error', `Port 22 on ${p.host}: ${p.reachable ? 'reachable in ' + p.latency_ms + ' ms, banner ' + p.banner : 'unreachable (' + p.error + ')'}`);
+      if (l) log(l.ok ? 'success' : 'error', `Last SFTP key login by the Lumenis reactor: ${l.ok ? 'OK' : 'FAILED'} at ${l.checked_at} (${l.detail})`);
+      else log('warn', 'No SFTP login has been recorded by the Lumenis reactor yet.');
+    },
+    recent(j) { log('info', 'Most recently changed files (UTC):'); j.data.files.forEach(f => log('info', `   ${f.modified.replace('T',' ').slice(0,19)}  ${String(f.bytes).padStart(8)}  ${f.file}`)); },
+    all(j) { for (const k of ['env','http','ssl','dns','index','htaccess','sftp']) R[k]({data: j.data[k], rtt: j.rtt}); },
+  };
+
+  function renderPreview(probes) {
+    const main = probes[0];
+    const b = $('pvBadge');
+    if (main.error || !main.status) { b.textContent = 'DOWN'; b.className = 'text-xs mono px-2 py-0.5 rounded bg-red-500/20 text-red-300'; }
+    else { b.textContent = `${main.status} • ${main.latency_ms} ms`; b.className = 'text-xs mono px-2 py-0.5 rounded ' + (main.status < 400 ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'); }
+    $('pvBody').innerHTML = probes.map(p => {
+      const good = !p.error && p.status >= 200 && p.status < 400;
+      const col = p.error ? 'text-red-400' : good ? 'text-emerald-400' : 'text-amber-400';
+      return `<div class="bg-slate-950/60 border border-slate-800 rounded-lg p-3">
+        <div class="mono text-xs text-slate-400 truncate">${esc(p.url)}</div>
+        <div class="mt-1 ${col} font-semibold">${p.error ? 'Error' : 'HTTP ' + p.status}<span class="text-slate-500 font-normal"> • ${p.latency_ms} ms</span></div>
+        <div class="text-xs text-slate-500 mt-0.5 truncate">${esc(p.error || [p.server, p.cloudflare ? 'Cloudflare' : '', p.location ? '→ ' + p.location : ''].filter(Boolean).join(' • '))}</div></div>`;
+    }).join('');
+    const st = main.error ? ['err', 'site down'] : main.status < 400 ? ['ok', 'online'] : ['warn', 'HTTP ' + main.status];
+    setStatus(st[0], st[1]);
+  }
+
+  async function run(check, btn) {
+    if (btn) btn.disabled = true;
+    log('info', `Running ${check} check…`);
+    try { const j = await api(check); R[check](j); log('info', `${check} done (server ${j.took_ms} ms, round trip ${j.rtt} ms)`); return true; }
+    catch (e) {
+      if (e.message === 'unauthorized') log('error', 'Token rejected by the server (401).');
+      else if (e.message !== 'locked') log('error', `${check} failed: ${e.message}`);
+      return e.message !== 'unauthorized' && e.message !== 'locked';
+    }
+    finally { if (btn) btn.disabled = false; }
+  }
+
+  document.querySelectorAll('[data-check]').forEach(b => b.addEventListener('click', () => run(b.dataset.check, b)));
+  $('btnPing').onclick = () => run('ping', $('btnPing'));
+  $('btnClear').onclick = () => { logEl.innerHTML = ''; lines = 0; $('logCount').textContent = '0 lines'; };
+  $('pvToggle').onclick = () => { const f = $('pvFrame'); if (!f.src) f.src = '/'; f.classList.toggle('hidden'); };
+
+  async function boot() {
+    if (!getToken()) { setStatus('idle', 'locked'); askToken(false); return; }
+    log('info', 'Connecting to diagnostics API…');
+    if (!(await run('env'))) return;
+    await run('http'); await run('ssl');
+  }
+  boot();
+})();
+</script>
+</body>
+</html>

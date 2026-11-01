@@ -17,9 +17,34 @@ The Nine Seats:
 
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 from dataclasses import dataclass
 from typing import Optional
+
+from . import ionos as _ionos
+
+# Requests that should trigger the IONOS webspace diagnostics tool (Hermes)
+_IONOS_RE = re.compile(
+    r"\b(ionos|webspace|web\s*space|onlinehome|webspace-host|hosting\s+server|server\s+diagnostics?|"
+    r"diagnostics?\s+(on|of|for)\s+(the\s+)?(server|site|host)|check\s+(the\s+)?(ionos|server|webspace))\b",
+    re.I,
+)
+_IONOS_CHECK_WORDS = [
+    ("sftp", r"\b(sftp|ssh|port 22)\b"), ("ssl", r"\b(ssl|tls|https|certificate|cert)\b"),
+    ("dns", r"\b(dns|nameserver|a record|mx)\b"), ("htaccess", r"htaccess"),
+    ("index", r"\bindex( file)?\b"), ("recent", r"\b(recent|recently changed|latest files)\b"),
+    ("http", r"\b(http status|is the site up|uptime|status code)\b"), ("env", r"\b(php version|php|environment|storage)\b"),
+]
+
+
+def _ionos_checks_for(text: str) -> list[str]:
+    """Pick specific checks if the user named them, otherwise run the full diagnostic."""
+    found = [c for c, pat in _IONOS_CHECK_WORDS if re.search(pat, text, re.I)]
+    if not found or re.search(r"\b(full|all|everything|complete)\b", text, re.I):
+        return ["all"]
+    return found[:3]
 
 from .arcade import ArcadeBridge
 from .compass import FluxCompass
@@ -61,6 +86,13 @@ def _build_hermes_system(bridge: MatonBridge) -> str:
 Your role: interface with real-world connected services AND the internal AI Lobby.
 
 {AI_LOBBY_MANIFEST}
+
+IONOS webspace diagnostics (internal tool, app id "ionos"):
+  Read-only live checks of One2lv's IONOS hosting (s1086212999.onlinehome.us / access-5019872554.webspace-host.com).
+  Use {{"app": "ionos", "path": "<check>", "method": "GET", "body": null, "description": "..."}}
+  where <check> is one of: all (full diagnostic incl. real SFTP login), env (PHP version, storage),
+  http (site status + latency), ssl (certificate), dns, index, htaccess, sftp (real SSH-key login), recent (latest changed files), ping.
+  Use it whenever the user asks to check / diagnose the IONOS server, webspace, hosting or the static OS site.
 
 Available external services (via Maton API Gateway):
 {manifest}
@@ -133,6 +165,9 @@ Use "external" intent and include "hermes" in seats_needed when the request invo
 - YouTube channel or video data
 - Firebase projects
 - Any connected real-world service
+
+Also use "external" intent and include "hermes" when the request involves the IONOS server / webspace /
+hosting (server diagnostics, SSL, DNS, SFTP, PHP version, site status of s1086212999.onlinehome.us).
 
 Use "arcade" intent and include "gambit" in seats_needed when the request involves:
 - Playing a game (chess, go, checkers, othello, tictactoe, connect4, etc.)
@@ -348,6 +383,9 @@ class ITTCouncil:
         complexity = nav.get("complexity", "simple")
         seats_needed = nav.get("seats_needed", ["weaver"])
         plan = nav.get("plan", "")
+        ionos_requested = bool(_IONOS_RE.search(user_message))
+        if ionos_requested and "hermes" not in seats_needed:
+            seats_needed = list(seats_needed) + ["hermes"]
         await notify("navigator", f"✓ {intent} / {complexity}")
 
         # ── Step 3: Witness — memory context ─────────────────────────────────
@@ -385,6 +423,26 @@ class ITTCouncil:
                 call_plan = json.loads(cleaned)
             except Exception:
                 call_plan = []
+            if not isinstance(call_plan, list):
+                call_plan = []
+
+            # IONOS diagnostics run locally (not via Maton)
+            ionos_calls = [c for c in call_plan if isinstance(c, dict) and str(c.get("app", "")).lower() == "ionos"]
+            call_plan = [c for c in call_plan if c not in ionos_calls]
+            if ionos_requested and not ionos_calls:
+                ionos_calls = [{"app": "ionos", "path": ck, "description": f"IONOS {ck} check"}
+                               for ck in _ionos_checks_for(user_message)]
+            ionos_parts = []
+            for c in ionos_calls[:3]:
+                ck = str(c.get("path", "all")).strip("/ ").lower() or "all"
+                if ck not in _ionos.CHECKS:
+                    ck = "all"
+                await notify("hermes", f"Running IONOS {ck} diagnostic...")
+                res = await asyncio.to_thread(_ionos.full_diagnostic if ck == "all" else _ionos.run_check, *([] if ck == "all" else [ck]))
+                ionos_parts.append("[IONOS server diagnostic — real tool output]\n" + _ionos.summarize(res))
+            if ionos_parts:
+                external_data = "\n\n".join(ionos_parts)
+                await notify("hermes", f"✓ IONOS diagnostics complete ({len(ionos_parts)})")
 
             if call_plan:
                 service_names = ", ".join(
@@ -403,9 +461,9 @@ class ITTCouncil:
                         result_str = result_str[:3000] + "\n... (truncated)"
                     parts.append(f"[{r['description']}]\n{result_str}")
 
-                external_data = "\n\n".join(parts)
+                external_data = "\n\n".join(([external_data] if external_data else []) + parts)
                 await notify("hermes", f"✓ {len(results)} call(s) complete")
-            else:
+            elif not ionos_parts:
                 await notify("hermes", "✓ No external calls needed")
 
         # ── Step 4b: Gambit — AI Arcade calls ────────────────────────────────

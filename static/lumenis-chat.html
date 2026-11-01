@@ -257,6 +257,12 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
   <button class="sk-btn" onclick="quickCmd('ls -la')"><span class="sk-icon">📁</span>List Files</button>
   <button class="sk-btn" onclick="quickCmd('ps aux | grep python | grep -v grep')"><span class="sk-icon">⚙</span>Processes</button>
 
+  <div class="sk-head">Ubuntu 26.04 (resolute)</div>
+  <button class="sk-btn" onclick="quickCmd('grep -E \'^(URIs|Suites):\' /etc/apt/sources.list.d/ubuntu.sources')"><span class="sk-icon">📦</span>Show Mirror</button>
+  <button class="sk-btn" onclick="quickCmd('sudo DEBIAN_FRONTEND=noninteractive apt-get update')"><span class="sk-icon">📦</span>apt update</button>
+  <button class="sk-btn" onclick="quickCmd('apt list --upgradable 2>/dev/null')"><span class="sk-icon">📦</span>List Upgradable</button>
+  <button class="sk-btn" onclick="quickCmd('sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade')"><span class="sk-icon">📦</span>apt upgrade</button>
+
   <div class="sk-head">Network</div>
   <button class="sk-btn" onclick="netQuick('https://api.github.com')"><span class="sk-icon">🌐</span>GitHub API</button>
   <button class="sk-btn" onclick="netQuick('https://httpbin.org/get')"><span class="sk-icon">🌐</span>HTTPBin Test</button>
@@ -377,8 +383,9 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
 
 <script>
 const API = `${location.protocol}//${location.host}`;
-const WS_CHAT = `ws://${location.host}/ws`;
-const WS_TERM  = `ws://${location.host}/ws/terminal`;
+const WS_SCHEME = location.protocol === 'https:' ? 'wss' : 'ws';
+const WS_CHAT = `${WS_SCHEME}://${location.host}/ws`;
+const WS_TERM  = `${WS_SCHEME}://${location.host}/ws/terminal`;
 
 let ws=null, termWs=null;
 let sessionId=null, processing=false;

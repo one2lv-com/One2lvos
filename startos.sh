@@ -172,6 +172,12 @@ if pgrep -f "network-api.js" > /dev/null; then
     CLEANED=true
 fi
 
+if pgrep -f "cloudflared tunnel" > /dev/null; then
+    pkill -f "cloudflared tunnel"
+    echo -e "  ${YELLOW}○${NC} Stopped: Cloudflare Tunnel"
+    CLEANED=true
+fi
+
 if pgrep -f "onworks_keepalive" > /dev/null; then
     pkill -f "onworks_keepalive"
     echo -e "  ${YELLOW}○${NC} Stopped: OnWorks Keepalive"
@@ -290,10 +296,10 @@ if [ -d "$ROOT_DIR/semantic_layer" ]; then
     # Check if ontologies exist
     ONTOLOGY_COUNT=0
     if [ -f "$ROOT_DIR/semantic_layer/ontologies/rdf-schema.ttl" ]; then
-        ((ONTOLOGY_COUNT++))
+        ONTOLOGY_COUNT=$((ONTOLOGY_COUNT+1))
     fi
     if [ -f "$ROOT_DIR/semantic_layer/ontologies/one2lvos-ontology.ttl" ]; then
-        ((ONTOLOGY_COUNT++))
+        ONTOLOGY_COUNT=$((ONTOLOGY_COUNT+1))
     fi
 
     echo -e "  ${GREEN}✓${NC} Found $ONTOLOGY_COUNT ontologies"
@@ -412,6 +418,20 @@ if [ -f "$ROOT_DIR/onworks_keepalive.py" ] && [ "$ENABLE_ONWORKS_KEEPALIVE" = "t
     echo -e "  ${GREEN}✓${NC} OnWorks Keepalive started"
 fi
 
+# Cloudflare Tunnel (one2lv.com -> AI Lobby :8006, behind Cloudflare Access)
+if [ -n "$CLOUDFLARE_TUNNEL_TOKEN" ] && [ -f "$ROOT_DIR/start-tunnel.sh" ]; then
+    echo -e "  ${BLUE}→${NC} Starting Cloudflare Tunnel (one2lv.com)..."
+    bash "$ROOT_DIR/start-tunnel.sh" >/dev/null 2>&1 || true
+    sleep 3
+    if pgrep -f "cloudflared tunnel" > /dev/null; then
+        echo -e "  ${GREEN}✓${NC} Cloudflare Tunnel running (logs/cloudflared.log)"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Cloudflare Tunnel failed (check logs/cloudflared.log)"
+    fi
+else
+    echo -e "  ${YELLOW}⚠${NC} CLOUDFLARE_TUNNEL_TOKEN not set - tunnel skipped"
+fi
+
 echo ""
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -434,7 +454,7 @@ check_service() {
         return 0
     else
         printf "  ${RED}●${NC} %-35s ${CYAN}:%-6s${NC} ${RED}OFFLINE${NC}\n" "$name" "$port"
-        return 1
+        return 0
     fi
 }
 

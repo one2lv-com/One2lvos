@@ -557,10 +557,16 @@ async def terminal_exec(body: dict):
     for b in blocked:
         if b in cmd:
             return JSONResponse({"error": f"Command blocked: contains '{b}'"}, status_code=403)
+    # Package management (apt/dpkg) runs long: allow up to 15 min for those,
+    # keep the 15s limit for everything else. Non-interactive so apt never waits on a prompt.
+    import re as _re
+    is_pkg = bool(_re.search(r"\b(apt|apt-get|dpkg|unattended-upgrade)\b", cmd))
+    limit = 900 if is_pkg else 15
+    env = dict(os.environ, DEBIAN_FRONTEND="noninteractive", NEEDRESTART_MODE="a")
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=15,
-            cwd=os.path.dirname(os.path.abspath(__file__))
+            cmd, shell=True, capture_output=True, text=True, timeout=limit,
+            cwd=os.path.dirname(os.path.abspath(__file__)), env=env, stdin=subprocess.DEVNULL
         )
         return JSONResponse({
             "command": cmd,
@@ -569,7 +575,7 @@ async def terminal_exec(body: dict):
             "returncode": result.returncode,
         })
     except subprocess.TimeoutExpired:
-        return JSONResponse({"error": "Command timed out (15s limit)"}, status_code=408)
+        return JSONResponse({"error": f"Command timed out ({limit}s limit)"}, status_code=408)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -612,7 +618,9 @@ async def terminal_ws(ws: WebSocket):
                     cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
+                    stdin=asyncio.subprocess.DEVNULL,
                     cwd=os.path.dirname(os.path.abspath(__file__)),
+                    env=dict(os.environ, DEBIAN_FRONTEND="noninteractive", NEEDRESTART_MODE="a"),
                 )
                 async for chunk in process.stdout:
                     await ws.send_text(json.dumps({"type": "output", "data": chunk.decode("utf-8", errors="replace")}))
@@ -1070,12 +1078,41 @@ TOOL_REGISTRY = [
     {"id": "terminal.exec",      "label": "Terminal Exec",      "method": "POST", "path": "/api/terminal",                  "category": "Terminal", "icon": "⚡", "params": ["command"]},
     {"id": "facts.store",        "label": "Store Fact",         "method": "POST", "path": "/api/facts",                     "category": "Memory",   "icon": "📝", "params": ["key","value"]},
     {"id": "facts.all",          "label": "All Facts",          "method": "GET",  "path": "/api/facts/all",                 "category": "Memory",   "icon": "🗂️", "params": []},
+    {"id": "ionos.diagnostics",  "label": "IONOS Server Diagnostics", "method": "GET", "path": "/api/ionos/diagnostics", "category": "Hosting",  "icon": "🩺", "params": ["check"]},
+    {"id": "ionos.sftp_check",   "label": "IONOS SFTP Login Test", "method": "GET",  "path": "/api/ionos/sftp-check",          "category": "Hosting",  "icon": "🔑", "params": []},
 ]
 
 @app.get("/api/tools/registry")
 async def tool_registry():
     """Return the full tool registry available to Lumenis."""
     return JSONResponse({"tools": TOOL_REGISTRY, "count": len(TOOL_REGISTRY)})
+
+# ── IONOS webspace diagnostics (Hermes tool) ──
+# Read-only. Calls the PHP diagnostics API on the IONOS webspace with IONOS_DIAG_TOKEN
+# from .env, and runs a real SFTP key login via ~/bin/ionos_sftp.sh list.
+from lumenis_reactor_core import ionos as _ionos
+
+@app.get("/api/ionos/diagnostics")
+async def ionos_diagnostics(check: str = "all", summary: bool = False):
+    """check = all|ping|env|htaccess|dns|index|http|ssl|sftp|recent. 'all' includes a real SFTP login."""
+    check = (check or "all").lower()
+    if check not in _ionos.CHECKS:
+        return JSONResponse({"ok": False, "error": f"unknown check '{check}'", "checks": list(_ionos.CHECKS)}, status_code=400)
+    if check == "all":
+        res = await asyncio.to_thread(_ionos.full_diagnostic)
+    else:
+        res = await asyncio.to_thread(_ionos.run_check, check)
+    res["dashboard"] = _ionos.DASHBOARD_URL
+    if summary:
+        res["summary"] = _ionos.summarize(res)
+    return JSONResponse(res, status_code=200 if res.get("ok") else 502)
+
+@app.get("/api/ionos/sftp-check")
+async def ionos_sftp_check():
+    """Real SFTP login with the reactor's SSH key (lists /one2lvos). Records the result for the dashboard."""
+    res = await asyncio.to_thread(_ionos.sftp_check)
+    return JSONResponse(res, status_code=200 if res.get("ok") else 502)
+
 
 # ── AI Lobby Integration ──────────────────────────────────────────────────────
 LOBBY_BASE = "http://localhost:8006"
