@@ -437,4 +437,4 @@ if __name__ == "__main__":
     print(f"║  WS Room   : ws://localhost:8006/room                ║")
     print(f"║  Systems   : http://localhost:8006/systems           ║")
     print(f"╚══════════════════════════════════════════════════════╝\n")
-    uvicorn.run(app, host="127.0.0.1", port=8006)
+    uvicorn.run(app, host=os.environ.get("ONE2LV_BIND_HOST", "127.0.0.1"), port=8006)

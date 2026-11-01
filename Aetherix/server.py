@@ -75,6 +75,7 @@ class AetherixHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = HTTPServer(("0.0.0.0", 9003), AetherixHandler)
+    import os
+    server = HTTPServer((os.environ.get("ONE2LV_BIND_HOST", "127.0.0.1"), 9003), AetherixHandler)
     print("[Aetherix] One2lv Master Terminal — http://localhost:9003")
     server.serve_forever()

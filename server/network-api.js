@@ -9,6 +9,7 @@ const { getNetworkService } = require('../services/network-service');
 
 const app = express();
 const PORT = process.env.NETWORK_API_PORT || 3003;
+const HOST = process.env.ONE2LV_BIND_HOST || '127.0.0.1';
 
 // Middleware
 app.use(cors());
@@ -335,7 +336,7 @@ app.get('/api/network/connections/:id/ftp/pwd', async (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
     console.log(`[Network API] Server running on port ${PORT}`);
     console.log(`[Network API] Network Manager UI: http://localhost:${PORT}/network-manager.html`);
 });

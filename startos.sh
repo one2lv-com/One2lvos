@@ -28,6 +28,16 @@ BOLD='\033[1m'
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
+# Use the project's virtualenv when there is one (system python3 may lack uvicorn etc.)
+if [ -f "$ROOT_DIR/.venv/bin/activate" ]; then
+    # shellcheck disable=SC1091
+    source "$ROOT_DIR/.venv/bin/activate"
+fi
+
+# Services listen on loopback only; the Cloudflare tunnel runs on the same machine.
+# Set ONE2LV_BIND_HOST=0.0.0.0 before running this script to expose them on the LAN.
+export ONE2LV_BIND_HOST="${ONE2LV_BIND_HOST:-127.0.0.1}"
+
 # ── Setup Project Tree (makes logs/ and data/ under the auto-detected root) ──
 if [ -f "$ROOT_DIR/setup-project-tree.sh" ]; then
   "$ROOT_DIR/setup-project-tree.sh" || true
@@ -178,6 +188,34 @@ if pgrep -f "cloudflared tunnel" > /dev/null; then
     CLEANED=true
 fi
 
+if pgrep -f "uvicorn main:app" > /dev/null; then
+    pkill -f "uvicorn main:app"
+    echo -e "  ${YELLOW}○${NC} Stopped: Sovereign Agentic Core"
+    CLEANED=true
+fi
+
+if pgrep -f "ai-arcade/server.py" > /dev/null; then
+    pkill -f "ai-arcade/server.py"
+    echo -e "  ${YELLOW}○${NC} Stopped: AI Arcade"
+    CLEANED=true
+fi
+
+for pid in $(pgrep -f "node index.js" || true); do
+    if [ "$(readlink "/proc/$pid/cwd" 2>/dev/null)" = "$ROOT_DIR/minimax" ]; then
+        kill "$pid" 2>/dev/null || true
+        echo -e "  ${YELLOW}○${NC} Stopped: Minimax AI"
+        CLEANED=true
+    fi
+done
+
+for pid in $(pgrep -f "server.py" || true); do
+    if [ "$(readlink "/proc/$pid/cwd" 2>/dev/null)" = "$ROOT_DIR/Aetherix" ]; then
+        kill "$pid" 2>/dev/null || true
+        echo -e "  ${YELLOW}○${NC} Stopped: Aetherix"
+        CLEANED=true
+    fi
+done
+
 if pgrep -f "onworks_keepalive" > /dev/null; then
     pkill -f "onworks_keepalive"
     echo -e "  ${YELLOW}○${NC} Stopped: OnWorks Keepalive"
@@ -215,7 +253,7 @@ echo "────────────────────────�
 if [ -f "$ROOT_DIR/lumenis-main.py" ]; then
     echo -e "  ${BLUE}→${NC} Starting Lumenis Reactor (port 8000)..."
 
-    nohup python3 -m uvicorn lumenis-main:app --host 127.0.0.1 --port 8000 \
+    nohup python3 -m uvicorn lumenis-main:app --host "$ONE2LV_BIND_HOST" --port 8000 \
         > "$ROOT_DIR/logs/reactor.log" 2>&1 &
     REACTOR_PID=$!
 
@@ -337,14 +375,14 @@ fi
 
 # Aetherix Browser OS
 if [ -f "$ROOT_DIR/Aetherix/server.py" ]; then
-    echo -e "  ${BLUE}→${NC} Starting Aetherix Browser OS (port 8086)..."
+    echo -e "  ${BLUE}→${NC} Starting Aetherix Browser OS (port 9003)..."
     cd "$ROOT_DIR/Aetherix"
     nohup python3 server.py > "$ROOT_DIR/logs/aetherix.log" 2>&1 &
     echo -e "  ${CYAN}○${NC} Process ID: $!"
     sleep 2
     cd "$ROOT_DIR"
 
-    if curl -s --max-time 3 http://localhost:8086/ >/dev/null 2>&1; then
+    if curl -s --max-time 3 http://localhost:9003/health >/dev/null 2>&1; then
         echo -e "  ${GREEN}✓${NC} Aetherix ONLINE"
     else
         echo -e "  ${YELLOW}⚠${NC} Aetherix starting"
@@ -376,7 +414,7 @@ fi
 if [ -f "$ROOT_DIR/sovereign-agentic-core/main.py" ]; then
     echo -e "  ${BLUE}→${NC} Starting Sovereign Agentic Core (port 8081)..."
     cd "$ROOT_DIR/sovereign-agentic-core"
-    nohup python3 -m uvicorn main:app --host 127.0.0.1 --port 8081 \
+    nohup python3 -m uvicorn main:app --host "$ONE2LV_BIND_HOST" --port 8081 \
         > "$ROOT_DIR/logs/sovereign-core.log" 2>&1 &
     echo -e "  ${CYAN}○${NC} Process ID: $!"
     sleep 2
@@ -415,7 +453,7 @@ fi
 if [ -f "$ROOT_DIR/ai-arcade/server.py" ]; then
     echo -e "  ${BLUE}→${NC} Starting AI Arcade MCP (port 8003)..."
     PY_BIN="$ROOT_DIR/.venv/bin/python3"; [ -x "$PY_BIN" ] || PY_BIN=python3
-    PYTHONPATH="$ROOT_DIR/ai-arcade" nohup "$PY_BIN" "$ROOT_DIR/ai-arcade/server.py" --host 127.0.0.1 --port 8003 > "$ROOT_DIR/logs/ai-arcade.log" 2>&1 &
+    PYTHONPATH="$ROOT_DIR/ai-arcade" nohup "$PY_BIN" "$ROOT_DIR/ai-arcade/server.py" --host "$ONE2LV_BIND_HOST" --port 8003 > "$ROOT_DIR/logs/ai-arcade.log" 2>&1 &
     echo -e "  ${CYAN}○${NC} Process ID: $!"
 fi
 
@@ -470,7 +508,7 @@ echo ""
 check_service "Lumenis Reactor Core" 8000 "/api/status"
 check_service "AI Lobby" 8006 "/"
 check_service "Minimax AI" 8080 "/"
-check_service "Aetherix Browser OS" 8086 "/"
+check_service "Aetherix Browser OS" 9003 "/health"
 check_service "ARIA Agent" 8088 "/"
 check_service "Sovereign Agentic Core" 8081 "/"
 check_service "Network Service" 3003 "/"

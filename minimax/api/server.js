@@ -19,6 +19,7 @@ import { getAIPlayer } from '../ai/secondPlayer.js';
 import { TOOLS, routeTool } from '../tools/tools.js';
 
 const PORT = process.env.NODE_PORT || 8080;
+const HOST = process.env.ONE2LV_BIND_HOST || '127.0.0.1';
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'one2lv-secret-2024';
 
 const app = express();
@@ -506,7 +507,7 @@ async function init() {
   server.on('error', (err) => {
     if (err.code === 'EADDRINUSE') {
       console.log(`⚠️  Port ${PORT} is already in use. Trying port ${PORT + 1}...`);
-      server.listen(PORT + 1, () => {
+      server.listen(PORT + 1, HOST, () => {
         console.log('');
         console.log('╔══════════════════════════════════════╗');
         console.log('║        ONE2LVOS v5 ONLINE            ║');
@@ -526,7 +527,7 @@ async function init() {
     }
   });
 
-  server.listen(PORT, () => {
+  server.listen(PORT, HOST, () => {
     console.log('');
     console.log('╔══════════════════════════════════════╗');
     console.log('║        ONE2LVOS v5 ONLINE            ║');
