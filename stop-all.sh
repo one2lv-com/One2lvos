@@ -8,6 +8,7 @@ pm2 delete all 2>/dev/null || true
 
 # Kill Python processes
 pkill -9 -f "python3 main.py" 2>/dev/null || true
+pkill -f "ai-arcade/server.py" 2>/dev/null || true
 
 # Kill Node processes
 pkill -9 -f "node server.js" 2>/dev/null || true

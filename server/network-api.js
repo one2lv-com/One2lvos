@@ -13,7 +13,18 @@ const PORT = process.env.NETWORK_API_PORT || 3003;
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname + '/../'));
+// Static pages only. The repo root also holds .env, databases, backups and server code,
+// so serve page assets by extension and never anything from private folders.
+const STATIC_OK = /\.(html?|css|js|mjs|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|map)$/i;
+const PRIVATE_DIR = /(^|\/)(\.[^/]*|backups?|data|logs|server|node_modules|memory|conversations|dreams|snapshots|vault|sovereign_vault)(\/|$)/i;
+app.use((req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  if (req.path.startsWith('/api/')) return next();
+  const p = decodeURIComponent(req.path);
+  if (p === '/' || (STATIC_OK.test(p) && !PRIVATE_DIR.test(p) && !p.includes('..'))) return next();
+  return res.status(404).send('Not found');
+});
+app.use(express.static(__dirname + '/../', { dotfiles: 'deny' }));
 
 // Initialize network service
 let networkService;

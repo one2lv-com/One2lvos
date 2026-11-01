@@ -411,6 +411,14 @@ else
     echo -e "  ${YELLOW}⚠${NC} Network Service not found - skipped"
 fi
 
+# AI Arcade MCP (port 8003, VM only; reached through the reactor's /svc/arcade and arcade.one2lv.com behind Access)
+if [ -f "$ROOT_DIR/ai-arcade/server.py" ]; then
+    echo -e "  ${BLUE}→${NC} Starting AI Arcade MCP (port 8003)..."
+    PY_BIN="$ROOT_DIR/.venv/bin/python3"; [ -x "$PY_BIN" ] || PY_BIN=python3
+    PYTHONPATH="$ROOT_DIR/ai-arcade" nohup "$PY_BIN" "$ROOT_DIR/ai-arcade/server.py" --host 127.0.0.1 --port 8003 > "$ROOT_DIR/logs/ai-arcade.log" 2>&1 &
+    echo -e "  ${CYAN}○${NC} Process ID: $!"
+fi
+
 # OnWorks Keepalive (optional)
 if [ -f "$ROOT_DIR/onworks_keepalive.py" ] && [ "$ENABLE_ONWORKS_KEEPALIVE" = "true" ]; then
     echo -e "  ${BLUE}→${NC} Starting OnWorks Keepalive..."

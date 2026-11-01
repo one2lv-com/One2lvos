@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One2lvOS — Front Door</title>
+<meta name="description" content="One2lvOS WebOS front door and site directory.">
+<style>
+  :root { --bg:#07030f; --card:rgba(255,255,255,.05); --line:rgba(103,232,249,.18); --cyan:#67e8f9; --vio:#a78bfa; --txt:#e2e8f0; --mut:#94a3b8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:radial-gradient(ellipse at top,#1e1b4b 0%,var(--bg) 60%); color:var(--txt); font-family:'Segoe UI',system-ui,-apple-system,sans-serif; min-height:100vh; }
+  .o2 { max-width:1080px; margin:0 auto; padding:48px 20px 64px; }
+  .o2-hero { text-align:center; margin-bottom:36px; }
+  .o2-logo { font-size:52px; font-weight:800; letter-spacing:.04em; background:linear-gradient(90deg,var(--cyan),var(--vio)); -webkit-background-clip:text; background-clip:text; color:transparent; margin:0; }
+  .o2-tag { color:var(--mut); margin:10px 0 26px; font-size:16px; }
+  .o2-cta { display:inline-block; padding:14px 30px; border-radius:14px; background:linear-gradient(90deg,#0891b2,#7c3aed); color:#fff; font-weight:700; text-decoration:none; font-size:17px; box-shadow:0 0 30px rgba(103,232,249,.25); }
+  .o2-cta:hover { filter:brightness(1.15); }
+  .o2-sub { color:var(--mut); font-size:13px; margin-top:12px; }
+  .o2-sub a { color:var(--cyan); }
+  h2.o2-h { font-size:14px; text-transform:uppercase; letter-spacing:.14em; color:var(--cyan); margin:34px 0 14px; }
+  .o2-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .o2-card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:16px; display:flex; flex-direction:column; gap:8px; }
+  .o2-card b { font-size:15px; color:#fff; }
+  .o2-card span { color:var(--mut); font-size:12.5px; line-height:1.45; }
+  .o2-links { display:flex; gap:8px; flex-wrap:wrap; margin-top:auto; padding-top:6px; }
+  .o2-links a { font-size:12px; text-decoration:none; padding:6px 10px; border-radius:9px; background:rgba(8,145,178,.25); color:var(--cyan); border:1px solid rgba(103,232,249,.25); }
+  .o2-links a.alt { background:rgba(124,58,237,.18); color:#c4b5fd; border-color:rgba(167,139,250,.25); }
+  .o2-links a:hover { filter:brightness(1.3); }
+  .o2-note { margin-top:34px; color:var(--mut); font-size:12.5px; text-align:center; line-height:1.6; }
+</style>
+</head>
+<body>
+<!-- O2-FRONT-DOOR:START (same markup is used in the Website Builder HTML widget) -->
+<div class="o2">
+  <div class="o2-hero">
+    <h1 class="o2-logo">One2lvOS</h1>
+    <p class="o2-tag">Sovereign WebOS · Lumenis Reactor Core · ITT Council · Registry of Thought</p>
+    <a class="o2-cta" href="https://os.one2lv.com/">Enter the WebOS →</a>
+    <div class="o2-sub">Owner sign-in through Cloudflare Access. Also at <a href="https://lumenis.one2lv.com/desktop">lumenis.one2lv.com/desktop</a></div>
+  </div>
+
+  <h2 class="o2-h">Site directory</h2>
+  <div class="o2-grid">
+    <div class="o2-card"><b>Lumenis Reactor Core</b><span>ITT Council chat, terminal, memory, checkpoints, VectorFS and IONOS diagnostics.</span>
+      <div class="o2-links"><a href="https://os.one2lv.com/lumenis-chat">Open chat</a><a class="alt" href="https://lumenis.one2lv.com/">lumenis.one2lv.com</a></div></div>
+    <div class="o2-card"><b>AI Lobby</b><span>Agent registry, systems, messages and compilers.</span>
+      <div class="o2-links"><a href="https://os.one2lv.com/svc/lobby/agents">Open in WebOS</a><a class="alt" href="https://lobby.one2lv.com/agents">lobby.one2lv.com</a></div></div>
+    <div class="o2-card"><b>Minimax Core API</b><span>Coaching, live commentary and broadcaster API.</span>
+      <div class="o2-links"><a href="https://os.one2lv.com/svc/minimax/health">Open in WebOS</a><a class="alt" href="https://minimax.one2lv.com/health">minimax.one2lv.com</a></div></div>
+    <div class="o2-card"><b>Network Manager</b><span>Connections and network tests.</span>
+      <div class="o2-links"><a href="https://os.one2lv.com/svc/network/network-manager.html">Open in WebOS</a><a class="alt" href="https://network.one2lv.com/network-manager.html">network.one2lv.com</a></div></div>
+    <div class="o2-card"><b>Sovereign Agentic Core</b><span>Sovereign core reactor and council.</span>
+      <div class="o2-links"><a href="https://os.one2lv.com/svc/core/">Open in WebOS</a><a class="alt" href="https://core.one2lv.com/">core.one2lv.com</a></div></div>
+    <div class="o2-card"><b>AI Arcade MCP</b><span>MCP game server: chess and more.</span>
+      <div class="o2-links"><a href="https://os.one2lv.com/svc/arcade/">Open in WebOS</a><a class="alt" href="https://arcade.one2lv.com/">arcade.one2lv.com</a></div></div>
+    <div class="o2-card"><b>Aetherix Terminal</b><span>Aetherix master terminal and sanctuary.</span>
+      <div class="o2-links"><a href="https://os.one2lv.com/svc/aetherix/">Open in WebOS</a><a class="alt" href="https://aetherix.one2lv.com/">aetherix.one2lv.com</a></div></div>
+    <div class="o2-card"><b>Static OS &amp; diagnostics</b><span>The static One2lvOS copy and the server diagnostics dashboard on IONOS.</span>
+      <div class="o2-links"><a href="http://s1086212999.onlinehome.us/">Static OS</a><a class="alt" href="http://s1086212999.onlinehome.us/diagnostics/">Diagnostics</a></div></div>
+  </div>
+  <p class="o2-note">Every live service runs on the One2lvOS host and is reached through the Cloudflare tunnel behind an owner-only login.<br>One2lvOS · one2lv.com</p>
+</div>
+<!-- O2-FRONT-DOOR:END -->
+</body>
+</html>

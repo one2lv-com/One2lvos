@@ -179,6 +179,11 @@ app = FastAPI(title="Sovereign Agentic Core", lifespan=lifespan)
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
+# ── One2lvOS WebOS shell (desktop at /desktop, service directory, same-origin proxy) ──
+from lumenis_reactor_core.webos import router as webos_router, os_host_redirect as _webos_os_redirect
+app.include_router(webos_router)
+app.middleware("http")(_webos_os_redirect)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():

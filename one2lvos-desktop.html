@@ -122,20 +122,27 @@
         let highestZ = 10;
         let openApps = {};
 
-        // API Configuration — all One2lvOS service endpoints
-        const ARCADE      = 'http://localhost:8003';  // AI Arcade MCP
-        const GW          = 'http://localhost:8888';  // Unified Gateway
-        const LOBBY       = 'http://localhost:8006';  // AI Lobby
-        const LUMENIS_RC  = 'http://localhost:8000';  // Lumenis Reactor Core
-        const SOVEREIGN   = 'http://localhost:3003';  // Sovereign Agentic Core
-        const OS_CORE     = 'http://localhost:3002';  // One2lvOS Core
-        const WITNESS     = 'http://localhost:3001';  // Minimax Witness Proxy
-        const MINIMAX     = 'http://localhost:8080';  // Minimax Core API
-        const STEAMOS     = 'http://localhost:8005';  // SteamOS Lumenis v7 Node.js
-        const AETHERIX    = 'http://localhost:9003';  // Aetherix Terminal
-        const LUMENIS_OS  = 'http://localhost:9002';  // LumenisOS API
-        const LUMENIS_UI  = 'http://localhost:9001';  // Lumenis Space Agent UI
-        const LUMENIS_V7  = 'http://localhost:8005';  // Lumenis v7 Cosmic
+        // API Configuration — all One2lvOS service endpoints.
+        // Served by the Lumenis Reactor (/desktop): reactor routes are same-origin, every other
+        // service goes through the reactor's /svc/<id> proxy, full UIs open on their own
+        // https://<name>.one2lv.com endpoint (all behind Cloudflare Access). No localhost URLs.
+        const O2_DOMAIN   = 'one2lv.com';
+        const O2_WS       = (p) => (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + p;
+        const O2_PUB      = (sub) => 'https://' + sub + '.' + O2_DOMAIN;
+        const ARCADE      = '/svc/arcade';     // AI Arcade MCP (:8003)
+        const GW          = '/svc/gateway';    // Unified Gateway (:8888, not installed)
+        const LOBBY       = '/svc/lobby';      // AI Lobby (:8006)
+        const LUMENIS_RC  = '';                // Lumenis Reactor Core (:8000) — this origin
+        const SOVEREIGN   = '/svc/core';       // Sovereign Agentic Core (:8081)
+        const OS_CORE     = '/svc/oscore';     // One2lvOS Core (:3002, not installed)
+        const WITNESS     = '/svc/witness';    // Minimax Witness Proxy (:3001, not installed)
+        const MINIMAX     = '/svc/minimax';    // Minimax Core API (:8080)
+        const STEAMOS     = '/svc/steamos';    // SteamOS Lumenis v7 (:8005, not installed)
+        const AETHERIX    = O2_PUB('aetherix'); // Aetherix Terminal (:9003) — own endpoint for its UI
+        const AETHERIX_API = '/svc/aetherix';
+        const LUMENIS_OS  = '/svc/lumenisos';  // LumenisOS API (:9002, not installed)
+        const LUMENIS_UI  = '/svc/spaceui';    // Lumenis Space Agent UI (:9001, not installed)
+        const LUMENIS_V7  = '/svc/steamos';    // Lumenis v7 Cosmic (:8005, not installed)
 
         // Application Configurations
         const apps = {
@@ -429,10 +436,10 @@
                             </div>
                             <div class="flex gap-2">
                                 <button onclick="mmCheckStatus()" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"><i class="fas fa-heartbeat mr-1"></i>Status</button>
-                                <button onclick="window.open('minimax/agent-hub/dist/index.html','_blank')" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"><i class="fas fa-external-link-alt mr-1"></i>Open Full</button>
+                                <button onclick="window.open(O2_PUB('minimax') + '/health','_blank')" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"><i class="fas fa-external-link-alt mr-1"></i>Open Full</button>
                             </div>
                         </div>
-                        <iframe src="minimax/agent-hub/dist/index.html" class="flex-1 w-full border-none bg-[#0a0a14]" id="minimax-iframe" onerror="document.getElementById('minimax-fallback').style.display='flex'"></iframe>
+                        <iframe src="/svc/minimax/health" class="flex-1 w-full border-none bg-[#0a0a14]" id="minimax-iframe" onerror="document.getElementById('minimax-fallback').style.display='flex'"></iframe>
                         <div id="minimax-fallback" class="flex-1 hidden flex-col items-center justify-center text-gray-400 p-8 text-center" style="display:none">
                             <i class="fas fa-robot text-4xl mb-3 text-emerald-500"></i>
                             <div class="font-medium mb-1">MiniMax Agent Hub</div>
@@ -575,7 +582,7 @@
                         </div>
                         <div class="flex-1 overflow-auto p-4 flex flex-col gap-3">
                             <div class="bg-black/40 border border-cyan-900/50 rounded-lg p-3 font-mono text-xs text-cyan-300 overflow-auto h-48" id="reactor-output">
-                                [Lumenis Reactor] Connecting to ws://localhost:8000/ws...
+                                [Lumenis Reactor] Ready — same-origin WebSocket /ws (wss over https).
                             </div>
                             <div class="flex gap-2">
                                 <input id="reactor-msg" type="text" class="flex-1 bg-black/30 border border-cyan-800/50 text-cyan-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan-500/40 placeholder-cyan-700" placeholder="Message Lumenis..." onkeypress="if(event.key==='Enter')reactorSend()">
@@ -1003,7 +1010,7 @@
                 {name: 'Unified Gateway', port: 8888, url: `${GW}/status`},
                 {name: 'Lumenis UI',      port: 9001, url: `${LUMENIS_UI}`},
                 {name: 'LumenisOS API',   port: 9002, url: `${LUMENIS_OS}/api/healthz`},
-                {name: 'Aetherix',        port: 9003, url: `${AETHERIX}/health`}
+                {name: 'Aetherix',        port: 9003, url: `${AETHERIX_API}/health`}
             ];
 
             let html = '<div class="text-gray-300 mt-2">';
@@ -1036,7 +1043,7 @@
                 {name: 'Unified Gateway', icon: 'fas fa-server',         port: 8888, url: `${GW}/status`},
                 {name: 'Lumenis UI',      icon: 'fas fa-window-maximize',port: 9001, url: `${LUMENIS_UI}`},
                 {name: 'LumenisOS API',   icon: 'fas fa-cube',           port: 9002, url: `${LUMENIS_OS}/api/healthz`},
-                {name: 'Aetherix',        icon: 'fas fa-satellite',      port: 9003, url: `${AETHERIX}/health`}
+                {name: 'Aetherix',        icon: 'fas fa-satellite',      port: 9003, url: `${AETHERIX_API}/health`}
             ];
 
             let html = '';
@@ -1340,7 +1347,6 @@
             const output = document.getElementById('lobby-output');
             if (!output) return;
             output.textContent = 'Loading...';
-            const LOBBY = 'http://localhost:8006';
             const endpoints = {
                 manifest: { url: LOBBY + '/', method: 'GET' },
                 agents:   { url: LOBBY + '/agents', method: 'GET' },
@@ -1363,7 +1369,7 @@
             if (!output) return;
             output.textContent = 'Registering Lumenis with AI Lobby...';
             try {
-                const r = await fetch('http://localhost:8006/agents/register', {
+                const r = await fetch(LOBBY + '/agents/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1371,8 +1377,8 @@
                         name: 'Lumenis Reactor Core',
                         role: 'sovereign_ai',
                         description: 'ITT Council of Nine — memory, reasoning, tool access, terminal, network',
-                        ws_url: 'ws://localhost:8000/ws',
-                        api_url: 'http://localhost:8000',
+                        ws_url: O2_PUB('lumenis').replace('https:', 'wss:') + '/ws',
+                        api_url: O2_PUB('lumenis'),
                         capabilities: ['chat','memory','tools','terminal','network','discord','github','supabase'],
                         status: 'ACTIVE'
                     }),
@@ -1520,7 +1526,7 @@
         }
 
         // ── Network Manager (embedded, talks to :3003) ──────────────────
-        const NET_API = 'http://localhost:3003/api/network';
+        const NET_API = '/svc/network/api/network';
         let _netConns = [];
 
         async function netRefresh() {
@@ -1896,7 +1902,7 @@
             } catch(_) {}
             // Also send a chat message
             try {
-                const ws = new WebSocket('ws://localhost:8000/ws');
+                const ws = new WebSocket(O2_WS('/ws'));
                 ws.onopen = () => {
                     ws.send(JSON.stringify({action:'chat', message: summary}));
                     setTimeout(() => ws.close(), 5000);
@@ -1968,7 +1974,7 @@
             _lcWs = null; _lcSession = null; _lcAiEl = null;
             lcAddMsg('sys', 'Connecting to Lumenis Reactor...');
             try {
-                _lcWs = new WebSocket('ws://localhost:8000/ws');
+                _lcWs = new WebSocket(O2_WS('/ws'));
                 _lcWs.onopen = () => lcSetDot('on');
                 _lcWs.onclose = () => { lcSetDot('off'); setTimeout(() => { if (document.getElementById('lc-dot')) lcAddMsg('sys', 'Disconnected. Click ↺ to reconnect.'); }, 100); };
                 _lcWs.onerror = () => lcAddMsg('sys', 'Connection error — is the reactor running? (python3 lumenis-main.py)');
@@ -2214,5 +2220,7 @@
 
         window.onload = initOS;
     </script>
+    <!-- One2lvOS WebOS layer: site directory, reactor console, rewired endpoints -->
+    <script src="/static/webos/o2-webos.js"></script>
 </body>
 </html>
