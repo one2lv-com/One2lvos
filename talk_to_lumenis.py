@@ -84,7 +84,7 @@ async def main():
         urllib.request.urlopen("http://localhost:8000/api/status", timeout=3)
     except Exception:
         print("[ERROR] Lumenis server is not running.")
-        print("Start it with: python3 -m uvicorn lumenis-main:app --host 0.0.0.0 --port 8000")
+        print("Start it with: python3 -m uvicorn lumenis-main:app --host 127.0.0.1 --port 8000")
         sys.exit(1)
 
     await chat()

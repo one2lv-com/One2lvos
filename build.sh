@@ -210,7 +210,7 @@ cmd_start() {
   kill_port 3002
   PYTHONPATH="$ROOT/One2lvos" \
     nohup python3 -m flask run \
-      --host 0.0.0.0 --port 3002 \
+      --host 127.0.0.1 --port 3002 \
       --app "$ROOT/One2lvos/core_service.py" \
     > "$LOG_DIR/os-core.log" 2>&1 &
   echo $! > "$LOG_DIR/os-core.pid"
@@ -221,7 +221,7 @@ cmd_start() {
   kill_port 3003
   PYTHONPATH="$ROOT/sovereign-agentic-core:$ROOT/control-plane-compilers/src" \
     nohup python3 -m uvicorn main:app \
-      --host 0.0.0.0 --port 3003 --log-level warning \
+      --host 127.0.0.1 --port 3003 --log-level warning \
       --app-dir "$ROOT/sovereign-agentic-core" \
     > "$LOG_DIR/sac.log" 2>&1 &
   echo $! > "$LOG_DIR/sac.pid"
@@ -249,7 +249,7 @@ cmd_start() {
   kill_port 8006
   PYTHONPATH="$ROOT:$ROOT/control-plane-compilers/src" \
     nohup python3 -m uvicorn ai_lobby:app \
-      --host 0.0.0.0 --port 8006 --log-level warning \
+      --host 127.0.0.1 --port 8006 --log-level warning \
       --app-dir "$ROOT" \
     > "$LOG_DIR/ai-lobby.log" 2>&1 &
   echo $! > "$LOG_DIR/ai-lobby.pid"
@@ -285,7 +285,7 @@ cmd_start() {
   kill_port 8888
   PYTHONPATH="$ROOT/One2lvos:$ROOT/control-plane-compilers/src" \
     nohup python3 -m uvicorn unified_gateway:app \
-      --host 0.0.0.0 --port 8888 --log-level warning \
+      --host 127.0.0.1 --port 8888 --log-level warning \
       --app-dir "$ROOT" \
     > "$LOG_DIR/gateway.log" 2>&1 &
   echo $! > "$LOG_DIR/gateway.pid"

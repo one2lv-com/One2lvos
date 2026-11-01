@@ -31,7 +31,7 @@ if not welcome.exists():
     )
 
 config = {
-    "host": "0.0.0.0",
+    "host": "127.0.0.1",
     "port": PORT,
     "provider_mapping": {
         "/": WEBDAV_ROOT,
@@ -57,7 +57,7 @@ config = {
 }
 
 app = WsgiDAVApp(config)
-server = wsgi.Server(("0.0.0.0", PORT), app)
+server = wsgi.Server(("127.0.0.1", PORT), app)
 server.start_timeout = 10
 
 print(f"ONE2LVOS WEBDAV SERVER")

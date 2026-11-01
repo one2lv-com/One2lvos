@@ -31,7 +31,7 @@ LOG_FILE   = ROOT_DIR / "logs" / "watchdog.log"
 REACTOR_PORT   = int(os.environ.get("PORT", 8000))
 REACTOR_CMD    = [
     sys.executable, "-m", "uvicorn", "lumenis-main:app",
-    "--host", "0.0.0.0", "--port", str(REACTOR_PORT)
+    "--host", "127.0.0.1", "--port", str(REACTOR_PORT)
 ]
 CHECK_INTERVAL = 60   # seconds between health checks
 STARTUP_GRACE  = 8    # seconds to wait after restart before re-checking

@@ -28,7 +28,7 @@ else
     echo "✗ AI Arcade MCP: OFFLINE"
     echo "  Starting AI Arcade..."
     cd "$SCRIPT_DIR/ai-arcade"
-    python server.py --host 0.0.0.0 --port 8003 > /tmp/arcade.log 2>&1 &
+    python server.py --host 127.0.0.1 --port 8003 > /tmp/arcade.log 2>&1 &
     sleep 2
     echo "✓ AI Arcade started"
     cd "$SCRIPT_DIR"

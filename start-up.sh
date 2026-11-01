@@ -16,7 +16,7 @@ fi
 
 # Start Lumenis sovereign core server with uvicorn
 echo "Starting Lumenis sovereign core server..."
-python3 -m uvicorn "lumenis-main:app" --host 0.0.0.0 --port 8000 &
+python3 -m uvicorn "lumenis-main:app" --host 127.0.0.1 --port 8000 &
 
 # Wait for server to come up
 echo "Waiting for server to start..."

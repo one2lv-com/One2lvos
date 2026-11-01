@@ -43,7 +43,7 @@ mkdir -p "$ROOT_DIR/logs"
 
 # ── [3] Lumenis Reactor Core ─────────────────────────────────────────────────
 echo -e "${CYAN}[3/5] Starting Lumenis Reactor Core (port 8000)...${NC}"
-nohup python3 -m uvicorn lumenis-main:app --host 0.0.0.0 --port 8000 \
+nohup python3 -m uvicorn lumenis-main:app --host 127.0.0.1 --port 8000 \
     > "$ROOT_DIR/logs/reactor.log" 2>&1 &
 REACTOR_PID=$!
 echo -e "  PID: $REACTOR_PID"
@@ -156,7 +156,7 @@ echo -e "${CYAN}[9/9] Starting Sovereign Agentic Core (port 8081)...${NC}"
 SAC_DIR="$ROOT_DIR/sovereign-agentic-core"
 if [ -f "$SAC_DIR/main.py" ]; then
     cd "$SAC_DIR"
-    nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8081 \
+    nohup python3 -m uvicorn main:app --host 127.0.0.1 --port 8081 \
         > "$ROOT_DIR/logs/sovereign-core.log" 2>&1 &
     echo -e "  PID: $!"
     sleep 4

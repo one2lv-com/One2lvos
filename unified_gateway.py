@@ -534,4 +534,4 @@ if __name__ == "__main__":
     print("║  Aetherix  : http://localhost:8888/aetherix          ║")
     print("║  Chat WS   : ws://localhost:8888/chat                ║")
     print("╚══════════════════════════════════════════════════════╝\n")
-    uvicorn.run(app, host="0.0.0.0", port=8888)
+    uvicorn.run(app, host="127.0.0.1", port=8888)

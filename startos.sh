@@ -209,7 +209,7 @@ echo "────────────────────────�
 if [ -f "$ROOT_DIR/lumenis-main.py" ]; then
     echo -e "  ${BLUE}→${NC} Starting Lumenis Reactor (port 8000)..."
 
-    nohup python3 -m uvicorn lumenis-main:app --host 0.0.0.0 --port 8000 \
+    nohup python3 -m uvicorn lumenis-main:app --host 127.0.0.1 --port 8000 \
         > "$ROOT_DIR/logs/reactor.log" 2>&1 &
     REACTOR_PID=$!
 
@@ -370,7 +370,7 @@ fi
 if [ -f "$ROOT_DIR/sovereign-agentic-core/main.py" ]; then
     echo -e "  ${BLUE}→${NC} Starting Sovereign Agentic Core (port 8081)..."
     cd "$ROOT_DIR/sovereign-agentic-core"
-    nohup python3 -m uvicorn main:app --host 0.0.0.0 --port 8081 \
+    nohup python3 -m uvicorn main:app --host 127.0.0.1 --port 8081 \
         > "$ROOT_DIR/logs/sovereign-core.log" 2>&1 &
     echo -e "  ${CYAN}○${NC} Process ID: $!"
     sleep 2

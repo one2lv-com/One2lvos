@@ -36,7 +36,7 @@ Start Lumenis and give deployment instructions:
 
 1. Start Lumenis server:
    cd {PROJECT_ROOT}
-   python3 -m uvicorn lumenis-main:app --host 0.0.0.0 --port 8000
+   python3 -m uvicorn lumenis-main:app --host 127.0.0.1 --port 8000
 
 2. In another terminal, talk to Lumenis:
    python3 talk_to_lumenis.py "Boot OnWorks from saved image, open terminal, and deploy semantic layer by running: bash <(curl -s https://raw.githubusercontent.com/one2lv-com/One2lvos/main/semantic_layer/deploy_to_onworks.sh)"
@@ -152,7 +152,7 @@ Usage guide: semantic_layer/README.md
             print("\n⚠️  Lumenis server status unclear")
     except:
         print("\n⚠️  Lumenis server not detected")
-        print("Start it with: python3 -m uvicorn lumenis-main:app --host 0.0.0.0 --port 8000")
+        print("Start it with: python3 -m uvicorn lumenis-main:app --host 127.0.0.1 --port 8000")
 
 
 def create_deployment_package():

@@ -25,10 +25,10 @@ else:
 # Configuration
 SERVICES = [
     ("AI Arcade MCP", ["ai-arcade/server.py"], 8003),
-    ("One2lvOS Core", ["-m", "flask", "run", "--host", "0.0.0.0", "--port", "3002", "--app", "One2lvos/core_service.py"], 3002),
-    ("Sovereign Agentic Core", ["-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3003", "--app-dir", "sovereign-agentic-core"], 3003),
-    ("AI Lobby", ["-m", "uvicorn", "ai_lobby:app", "--host", "0.0.0.0", "--port", "8006"], 8006),
-    ("Unified Gateway", ["-m", "uvicorn", "unified_gateway:app", "--host", "0.0.0.0", "--port", "8888"], 8888),
+    ("One2lvOS Core", ["-m", "flask", "run", "--host", "127.0.0.1", "--port", "3002", "--app", "One2lvos/core_service.py"], 3002),
+    ("Sovereign Agentic Core", ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "3003", "--app-dir", "sovereign-agentic-core"], 3003),
+    ("AI Lobby", ["-m", "uvicorn", "ai_lobby:app", "--host", "127.0.0.1", "--port", "8006"], 8006),
+    ("Unified Gateway", ["-m", "uvicorn", "unified_gateway:app", "--host", "127.0.0.1", "--port", "8888"], 8888),
 ]
 
 OPTIONAL_SERVICES = [

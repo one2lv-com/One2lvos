@@ -48,7 +48,7 @@ echo ""
 echo "🧠 Starting Sovereign Core (Python) on port 3002..."
 cd python-backend
 source venv/bin/activate
-uvicorn main:app --host 0.0.0.0 --port 3002 &
+uvicorn main:app --host 127.0.0.1 --port 3002 &
 PYTHON_PID=$!
 cd ..
 

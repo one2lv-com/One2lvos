@@ -42,7 +42,7 @@ def parse_rrq(packet: bytes):
 
 
 class TFTPServer:
-    def __init__(self, root_dir: str, host: str = "0.0.0.0", port: int = 6969):
+    def __init__(self, root_dir: str, host: str = "127.0.0.1", port: int = 6969):
         self.root  = os.path.abspath(root_dir)
         self.host  = host
         self.port  = port

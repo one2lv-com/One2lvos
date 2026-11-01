@@ -143,7 +143,7 @@ start_services_direct() {
   cd "$ROOT_DIR/python-backend"
   # shellcheck disable=SC1091
   source venv/bin/activate
-  uvicorn main:app --host 0.0.0.0 --port "$PYTHON_PORT" > "$ROOT_DIR/python-backend.log" 2>&1 &
+  uvicorn main:app --host 127.0.0.1 --port "$PYTHON_PORT" > "$ROOT_DIR/python-backend.log" 2>&1 &
   PY_PID=$!
 
   cd "$ROOT_DIR"
