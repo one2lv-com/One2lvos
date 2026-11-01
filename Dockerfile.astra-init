@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir requests
+
+# Copy setup script
+COPY astra-db-setup.py /app/astra-db-setup.py
+
+# Make executable
+RUN chmod +x /app/astra-db-setup.py
+
+# Run setup
+CMD ["python", "/app/astra-db-setup.py"]

@@ -1,0 +1,18 @@
+{
+  "active_nodes": {
+    "worker-01": {
+      "last_seen": 1792993744.1115088,
+      "status": "online",
+      "processed": 1
+    },
+    "worker-02": {
+      "last_seen": 1792993742.1325061,
+      "status": "online",
+      "processed": 0
+    }
+  },
+  "processed_tasks": 1,
+  "heartbeat": {},
+  "queue_depth": 1,
+  "last_update": 1792993744.1116207
+}

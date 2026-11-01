@@ -1,0 +1,335 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix web: <http://one2lv.com/ontology/web#> .
+@prefix ui: <http://one2lv.com/ontology/ui#> .
+
+<http://one2lv.com/ontology/web> a owl:Ontology ;
+    dc:title "Web Technology Ontology" ;
+    dc:description "Ontology for web technologies, CSS, HTML, and UI components" ;
+    dc:creator "One2lv" ;
+    dc:date "2026-10-25" ;
+    owl:imports <http://one2lv.com/ontology> .
+
+# ============================================================================
+# WEB TECHNOLOGY CLASSES
+# ============================================================================
+
+web:Stylesheet a owl:Class ;
+    rdfs:label "Stylesheet" ;
+    rdfs:comment "A CSS stylesheet file" ;
+    rdfs:subClassOf owl:Thing .
+
+web:CSSRule a owl:Class ;
+    rdfs:label "CSS Rule" ;
+    rdfs:comment "A CSS rule or selector" ;
+    rdfs:subClassOf owl:Thing .
+
+web:CSSProperty a owl:Class ;
+    rdfs:label "CSS Property" ;
+    rdfs:comment "A CSS property" ;
+    rdfs:subClassOf owl:Thing .
+
+web:Color a owl:Class ;
+    rdfs:label "Color" ;
+    rdfs:comment "A color value in CSS" ;
+    rdfs:subClassOf owl:Thing .
+
+web:Font a owl:Class ;
+    rdfs:label "Font" ;
+    rdfs:comment "A font family or typeface" ;
+    rdfs:subClassOf owl:Thing .
+
+web:FontFace a owl:Class ;
+    rdfs:label "Font Face" ;
+    rdfs:comment "A @font-face declaration" ;
+    rdfs:subClassOf web:Font .
+
+ui:Component a owl:Class ;
+    rdfs:label "UI Component" ;
+    rdfs:comment "A user interface component" ;
+    rdfs:subClassOf owl:Thing .
+
+ui:Layout a owl:Class ;
+    rdfs:label "Layout" ;
+    rdfs:comment "A layout pattern or structure" ;
+    rdfs:subClassOf owl:Thing .
+
+ui:DesignSystem a owl:Class ;
+    rdfs:label "Design System" ;
+    rdfs:comment "A collection of design patterns and styles" ;
+    rdfs:subClassOf owl:Thing .
+
+# ============================================================================
+# PROPERTIES
+# ============================================================================
+
+# Stylesheet Properties
+web:hasRule a owl:ObjectProperty ;
+    rdfs:label "hasRule" ;
+    rdfs:comment "Stylesheet has CSS rule" ;
+    rdfs:domain web:Stylesheet ;
+    rdfs:range web:CSSRule .
+
+web:hasColor a owl:ObjectProperty ;
+    rdfs:label "hasColor" ;
+    rdfs:comment "Has color value" ;
+    rdfs:range web:Color .
+
+web:hasFont a owl:ObjectProperty ;
+    rdfs:label "hasFont" ;
+    rdfs:comment "Uses font family" ;
+    rdfs:range web:Font .
+
+# CSS Properties
+web:selector a owl:DatatypeProperty ;
+    rdfs:label "selector" ;
+    rdfs:comment "CSS selector string" ;
+    rdfs:domain web:CSSRule ;
+    rdfs:range rdfs:Literal .
+
+web:property a owl:DatatypeProperty ;
+    rdfs:label "property" ;
+    rdfs:comment "CSS property name" ;
+    rdfs:domain web:CSSProperty ;
+    rdfs:range rdfs:Literal .
+
+web:value a owl:DatatypeProperty ;
+    rdfs:label "value" ;
+    rdfs:comment "CSS property value" ;
+    rdfs:domain web:CSSProperty ;
+    rdfs:range rdfs:Literal .
+
+# Color Properties
+web:hexValue a owl:DatatypeProperty ;
+    rdfs:label "hexValue" ;
+    rdfs:comment "Hex color value (e.g., #fff5d0)" ;
+    rdfs:domain web:Color ;
+    rdfs:range rdfs:Literal .
+
+web:colorName a owl:DatatypeProperty ;
+    rdfs:label "colorName" ;
+    rdfs:comment "Semantic name for color" ;
+    rdfs:domain web:Color ;
+    rdfs:range rdfs:Literal .
+
+# Font Properties
+web:fontFamily a owl:DatatypeProperty ;
+    rdfs:label "fontFamily" ;
+    rdfs:comment "Font family name" ;
+    rdfs:domain web:Font ;
+    rdfs:range rdfs:Literal .
+
+web:fontSource a owl:DatatypeProperty ;
+    rdfs:label "fontSource" ;
+    rdfs:comment "Font source URL" ;
+    rdfs:domain web:FontFace ;
+    rdfs:range rdfs:Literal .
+
+web:fontFormat a owl:DatatypeProperty ;
+    rdfs:label "fontFormat" ;
+    rdfs:comment "Font file format (woff, ttf, eot)" ;
+    rdfs:domain web:FontFace ;
+    rdfs:range rdfs:Literal .
+
+# UI Component Properties
+ui:cssClass a owl:DatatypeProperty ;
+    rdfs:label "cssClass" ;
+    rdfs:comment "CSS class name for component" ;
+    rdfs:domain ui:Component ;
+    rdfs:range rdfs:Literal .
+
+ui:componentType a owl:DatatypeProperty ;
+    rdfs:label "componentType" ;
+    rdfs:comment "Type of UI component (button, nav, form, etc.)" ;
+    rdfs:domain ui:Component ;
+    rdfs:range rdfs:Literal .
+
+ui:backgroundColor a owl:DatatypeProperty ;
+    rdfs:label "backgroundColor" ;
+    rdfs:comment "Background color of component" ;
+    rdfs:domain ui:Component ;
+    rdfs:range rdfs:Literal .
+
+ui:textColor a owl:DatatypeProperty ;
+    rdfs:label "textColor" ;
+    rdfs:comment "Text color of component" ;
+    rdfs:domain ui:Component ;
+    rdfs:range rdfs:Literal .
+
+# Design System Properties
+ui:hasComponent a owl:ObjectProperty ;
+    rdfs:label "hasComponent" ;
+    rdfs:comment "Design system includes component" ;
+    rdfs:domain ui:DesignSystem ;
+    rdfs:range ui:Component .
+
+ui:primaryColor a owl:ObjectProperty ;
+    rdfs:label "primaryColor" ;
+    rdfs:comment "Primary brand color" ;
+    rdfs:domain ui:DesignSystem ;
+    rdfs:range web:Color .
+
+ui:accentColor a owl:ObjectProperty ;
+    rdfs:label "accentColor" ;
+    rdfs:comment "Accent color" ;
+    rdfs:domain ui:DesignSystem ;
+    rdfs:range web:Color .
+
+# ============================================================================
+# DYNDNS STYLESHEET INSTANCE
+# ============================================================================
+
+web:DynDNSStylesheet a web:Stylesheet ;
+    rdfs:label "DynDNS Stylesheet" ;
+    rdfs:comment "Historical DynDNS CSS from 2011" ;
+    dc:date "2011-08-02" ;
+    dc:source "Email from Brianne, Oct 1, 2017" .
+
+# ============================================================================
+# FONTS FROM DYNDNS
+# ============================================================================
+
+web:P22UndergroundLight a web:FontFace ;
+    rdfs:label "P22 Underground Light" ;
+    web:fontFamily "P22UndergroundLight" ;
+    web:fontSource "https://a.dyndns.com/css/fonts/p22underground-light-webfont.woff" ;
+    web:fontFormat "woff" .
+
+web:P22UndergroundBook a web:FontFace ;
+    rdfs:label "P22 Underground Book" ;
+    web:fontFamily "P22UndergroundBook" ;
+    web:fontSource "https://a.dyndns.com/css/fonts/p22underground-book-webfont.woff" ;
+    web:fontFormat "woff" .
+
+web:JRHand a web:FontFace ;
+    rdfs:label "JR Hand" ;
+    web:fontFamily "jrhand" ;
+    web:fontSource "https://a.dyndns.com/css/fonts/jrhand-webfont.woff" ;
+    web:fontFormat "woff" .
+
+# ============================================================================
+# COLORS FROM DYNDNS
+# ============================================================================
+
+web:YellowPrimary a web:Color ;
+    rdfs:label "Yellow Primary" ;
+    web:hexValue "#fff925" ;
+    web:colorName "Primary Yellow" ;
+    rdfs:comment "Main brand yellow from DynDNS" .
+
+web:YellowLight a web:Color ;
+    rdfs:label "Yellow Light" ;
+    web:hexValue "#fff5d0" ;
+    web:colorName "Light Yellow Background" ;
+    rdfs:comment "Light yellow for backgrounds and highlights" .
+
+web:YellowAccent a web:Color ;
+    rdfs:label "Yellow Accent" ;
+    web:hexValue "#ffe36f" ;
+    web:colorName "Accent Yellow" ;
+    rdfs:comment "Accent yellow for borders and hovers" .
+
+web:GradientYellowTop a web:Color ;
+    rdfs:label "Gradient Yellow Top" ;
+    web:hexValue "#FFE268" ;
+    web:colorName "Gradient Top" .
+
+web:GradientYellowBottom a web:Color ;
+    rdfs:label "Gradient Yellow Bottom" ;
+    web:hexValue "#FFF1B2" ;
+    web:colorName "Gradient Bottom" .
+
+web:DarkGray a web:Color ;
+    rdfs:label "Dark Gray" ;
+    web:hexValue "#333" ;
+    web:colorName "Dark Gray Text" .
+
+web:Blue a web:Color ;
+    rdfs:label "Blue" ;
+    web:hexValue "#06c" ;
+    web:colorName "Link Blue" .
+
+web:Red a web:Color ;
+    rdfs:label "Red" ;
+    web:hexValue "#c00" ;
+    web:colorName "Error Red" .
+
+# ============================================================================
+# UI COMPONENTS FROM DYNDNS
+# ============================================================================
+
+ui:NavigationBar a ui:Component ;
+    rdfs:label "Navigation Bar" ;
+    ui:cssClass ".navcontainer" ;
+    ui:componentType "navigation" ;
+    ui:backgroundColor "#ffea91" ;
+    rdfs:comment "Top navigation bar with gradient" .
+
+ui:CallToAction a ui:Component ;
+    rdfs:label "Call to Action Button" ;
+    ui:cssClass ".cta" ;
+    ui:componentType "button" ;
+    ui:backgroundColor "#fff925" ;
+    ui:textColor "#000" ;
+    rdfs:comment "Primary CTA button" .
+
+ui:SearchBox a ui:Component ;
+    rdfs:label "Search Box" ;
+    ui:cssClass "#topsearch" ;
+    ui:componentType "search" ;
+    ui:backgroundColor "#f5f5f5" ;
+    rdfs:comment "Top search widget" .
+
+ui:Sidebar a ui:Component ;
+    rdfs:label "Sidebar Navigation" ;
+    ui:cssClass ".secondaryNav" ;
+    ui:componentType "navigation" ;
+    rdfs:comment "Secondary navigation sidebar" .
+
+ui:WarningBanner a ui:Component ;
+    rdfs:label "Warning Banner" ;
+    ui:cssClass ".warning-banner" ;
+    ui:componentType "alert" ;
+    ui:backgroundColor "#fffdbd" ;
+    rdfs:comment "Warning message banner" .
+
+ui:Tooltip a ui:Component ;
+    rdfs:label "Tooltip" ;
+    ui:cssClass ".tooltip" ;
+    ui:componentType "overlay" ;
+    ui:backgroundColor "#f5f5f5" ;
+    rdfs:comment "Information tooltip" .
+
+ui:RightBox a ui:Component ;
+    rdfs:label "Right Box" ;
+    ui:cssClass ".right-box" ;
+    ui:componentType "container" ;
+    ui:backgroundColor "#fff5d0" ;
+    rdfs:comment "Right-aligned info box" .
+
+ui:ServiceList a ui:Component ;
+    rdfs:label "Service List" ;
+    ui:cssClass ".service_list" ;
+    ui:componentType "list" ;
+    ui:backgroundColor "#f5f5f5" ;
+    rdfs:comment "List of services" .
+
+# ============================================================================
+# DYNDNS DESIGN SYSTEM
+# ============================================================================
+
+ui:DynDNSDesignSystem a ui:DesignSystem ;
+    rdfs:label "DynDNS Design System" ;
+    rdfs:comment "Design system extracted from DynDNS 2011 stylesheet" ;
+    ui:primaryColor web:YellowPrimary ;
+    ui:accentColor web:YellowAccent ;
+    ui:hasComponent ui:NavigationBar ;
+    ui:hasComponent ui:CallToAction ;
+    ui:hasComponent ui:SearchBox ;
+    ui:hasComponent ui:Sidebar ;
+    ui:hasComponent ui:WarningBanner ;
+    ui:hasComponent ui:Tooltip ;
+    ui:hasComponent ui:RightBox ;
+    ui:hasComponent ui:ServiceList .

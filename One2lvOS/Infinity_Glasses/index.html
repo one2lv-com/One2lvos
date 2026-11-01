@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Infinity Glass v3 - Lumenis Spatial Operating System">
+    <title>Infinity Glass v3 | Lumenis Spatial OS</title>
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#00ffcc">
+
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --neon-cyan: #00ffcc;
+            --neon-pink: #ff00ff;
+            --neon-blue: #0088ff;
+            --neon-amber: #ffaa00;
+            --void: #050508;
+            --panel: rgba(10, 12, 20, 0.95);
+            --glass: rgba(20, 25, 40, 0.5);
+        }
+
+        body {
+            background: var(--void);
+            color: var(--neon-cyan);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Galaxy Canvas */
+        #galaxy-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        /* Boot Sequence */
+        #boot-sequence {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 1s ease-out;
+        }
+
+        #boot-sequence.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .boot-text {
+            font-size: 12px;
+            line-height: 1.8;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            max-width: 600px;
+            white-space: pre-wrap;
+            text-align: left;
+        }
+
+        .boot-progress {
+            width: 400px;
+            height: 3px;
+            background: #222;
+            margin-top: 30px;
+            position: relative;
+            overflow: hidden;
+            border-radius: 2px;
+        }
+
+        .boot-progress-bar {
+            height: 100%;
+            background: var(--neon-cyan);
+            width: 0%;
+            transition: width 0.1s linear;
+            box-shadow: 0 0 20px var(--neon-cyan);
+        }
+
+        /* HUD */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .hud-element {
+            pointer-events: auto;
+        }
+
+        /* Top Bar */
+        #top-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(5, 5, 8, 0.9);
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .system-logo {
+            font-size: 14px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .system-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 11px;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Taskbar */
+        #taskbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(5, 5, 8, 0.9);
+            border-top: 1px solid rgba(0, 255, 204, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 0 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .taskbar-btn {
+            padding: 8px 15px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            color: var(--neon-cyan);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .taskbar-btn:hover {
+            background: rgba(0, 255, 204, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+        }
+
+        .taskbar-btn.active {
+            background: rgba(0, 255, 204, 0.3);
+            border-color: var(--neon-cyan);
+        }
+
+        /* Panels - Base styles (detailed styles in PanelManager) */
+        .infinity-panel {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .panel-content {
+            scrollbar-width: thin;
+            scrollbar-color: var(--neon-cyan) #111;
+        }
+
+        .panel-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .panel-content::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: var(--neon-cyan);
+            border-radius: 4px;
+        }
+
+        /* Terminal styles */
+        .terminal-line {
+            margin: 2px 0;
+            line-height: 1.5;
+        }
+
+        .terminal-prompt {
+            color: var(--neon-pink);
+        }
+
+        .terminal-command {
+            color: var(--neon-blue);
+        }
+
+        .terminal-output {
+            color: var(--neon-cyan);
+            white-space: pre-wrap;
+        }
+
+        .terminal-error {
+            color: var(--neon-pink);
+        }
+
+        .terminal-success {
+            color: var(--neon-cyan);
+        }
+
+        #terminal-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--neon-cyan);
+            font-family: inherit;
+            font-size: inherit;
+            outline: none;
+        }
+
+        /* System Monitor */
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .monitor-card {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            padding: 12px;
+            border-radius: 4px;
+        }
+
+        .monitor-label {
+            color: var(--neon-amber);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .monitor-value {
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .process-list {
+            margin-top: 15px;
+        }
+
+        .process-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            background: rgba(0, 255, 204, 0.03);
+            margin: 3px 0;
+            border-left: 2px solid var(--neon-cyan);
+        }
+
+        /* JWST Images */
+        .jwst-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .jwst-card {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 4px;
+            overflow: hidden;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .jwst-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.3);
+        }
+
+        .jwst-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+
+        .jwst-info {
+            padding: 10px;
+        }
+
+        .jwst-title {
+            font-size: 10px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .jwst-date {
+            font-size: 9px;
+            color: var(--neon-amber);
+        }
+
+        /* Reactor Status */
+        .module-list {
+            margin-top: 15px;
+        }
+
+        .module-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: rgba(0, 255, 204, 0.03);
+            margin: 5px 0;
+            border-left: 3px solid var(--neon-cyan);
+        }
+
+        .module-health-bar {
+            width: 100px;
+            height: 4px;
+            background: #222;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .module-health-fill {
+            height: 100%;
+            background: var(--neon-cyan);
+            transition: width 0.5s;
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        /* Buttons */
+        .action-btn {
+            padding: 8px 15px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            color: var(--neon-cyan);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 4px;
+            margin: 5px;
+            font-family: inherit;
+        }
+
+        .action-btn:hover {
+            background: rgba(0, 255, 204, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+        }
+
+        /* Notifications */
+        .notification {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: var(--panel);
+            border: 1px solid var(--neon-cyan);
+            padding: 15px 20px;
+            border-radius: 4px;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+            z-index: 10001;
+            animation: slideIn 0.3s ease-out;
+            max-width: 300px;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(0, 255, 204, 0.3);
+            border-top-color: var(--neon-cyan);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Boot Sequence -->
+    <div id="boot-sequence">
+        <div class="boot-text" id="boot-text">Initializing Infinity Glass v3.0...\n\nLoading Reactor Core...</div>
+        <div class="boot-progress">
+            <div class="boot-progress-bar" id="boot-progress-bar"></div>
+        </div>
+    </div>
+
+    <!-- Galaxy Background -->
+    <div id="galaxy-container"></div>
+
+    <!-- HUD Overlay -->
+    <div id="hud">
+        <!-- Top Bar -->
+        <div id="top-bar" class="hud-element">
+            <div class="system-logo">∞ INFINITY GLASS v3.0</div>
+            <div class="system-stats">
+                <div class="stat-item">
+                    <div class="status-dot"></div>
+                    <span id="stat-time">00:00:00</span>
+                </div>
+                <div class="stat-item">
+                    <span>UPTIME: <span id="stat-uptime">0s</span></span>
+                </div>
+                <div class="stat-item">
+                    <span>EVENTS: <span id="stat-events">0</span></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Taskbar -->
+        <div id="taskbar" class="hud-element">
+            <button class="taskbar-btn" onclick="app.openTerminal()">📟 Terminal</button>
+            <button class="taskbar-btn" onclick="app.openSystemMonitor()">📊 System</button>
+            <button class="taskbar-btn" onclick="app.openReactor()">⚛️ Reactor</button>
+            <button class="taskbar-btn" onclick="app.openJWST()">🔭 JWST</button>
+            <button class="taskbar-btn" onclick="app.openAICouncil()">🧠 AI Council</button>
+            <button class="taskbar-btn" onclick="app.openSymbolic()">∫ Symbolic</button>
+        </div>
+    </div>
+
+    <!-- Load JavaScript Modules -->
+    <script src="./js/terminal.js"></script>
+    <script src="./js/galaxy-renderer.js"></script>
+    <script src="./js/panel-manager.js"></script>
+    <script src="./js/system-monitor.js"></script>
+    <script src="./js/nasa-api.js"></script>
+    <script src="./reactor_core/reactor.js"></script>
+    <script src="./reactor_core/modules/ai_council.js"></script>
+    <script src="./symbolic/symbolic_engine.js"></script>
+
+    <!-- Main Application -->
+    <script>
+        class InfinityGlassApp {
+            constructor() {
+                this.panelManager = new PanelManager();
+                this.terminal = new LumenisTerminal();
+                this.systemMonitor = new SystemMonitor();
+                this.nasaAPI = new NASAImageAPI();
+                this.reactor = new ReactorCore();
+                this.aiCouncil = new AICouncil();
+                this.symbolicEngine = new SymbolicEngine();
+                this.galaxy = null;
+                this.autoUpdater = null;
+
+                this.init();
+            }
+
+            async init() {
+                console.log('🚀 Initializing Infinity Glass v3...');
+
+                // Boot sequence
+                await this.runBootSequence();
+
+                // Initialize galaxy
+                const container = document.getElementById('galaxy-container');
+                this.galaxy = new GalaxyRenderer(container);
+
+                // Register modules in reactor
+                this.reactor.register('ai_council', this.aiCouncil);
+                this.reactor.register('system_monitor', this.systemMonitor);
+                this.reactor.register('symbolic_engine', this.symbolicEngine);
+
+                // Start reactor
+                this.reactor.start();
+
+                // Start system monitor
+                this.systemMonitor.startAutoUpdate(2000);
+
+                // Start auto-updates
+                this.startAutoUpdates();
+
+                // Update HUD
+                this.updateHUD();
+                setInterval(() => this.updateHUD(), 1000);
+
+                // Register service worker
+                this.registerServiceWorker();
+
+                console.log('✓ Infinity Glass v3 initialized');
+
+                // Show welcome notification
+                this.notify('Welcome to Infinity Glass v3', 'All systems operational');
+            }
+
+            async runBootSequence() {
+                const bootText = document.getElementById('boot-text');
+                const progressBar = document.getElementById('boot-progress-bar');
+                const bootSequence = document.getElementById('boot-sequence');
+
+                const steps = [
+                    'Initializing Infinity Glass v3.0...',
+                    'Loading Reactor Core...',
+                    'Starting AI Council (5 agents)...',
+                    'Mounting symbolic engine...',
+                    'Connecting to NASA Image API...',
+                    'Rendering galaxy (10,247 stars)...',
+                    'Initializing Lumenis terminal...',
+                    'Loading system monitor...',
+                    'Activating panel manager...',
+                    'Self-repair watchdog active...',
+                    '',
+                    '~ | π √ ∆ v = ✓',
+                    '',
+                    'All systems operational.',
+                    'Infinity Glass v3 ready.'
+                ];
+
+                for (let i = 0; i < steps.length; i++) {
+                    bootText.textContent = steps.slice(0, i + 1).join('\n');
+                    progressBar.style.width = `${((i + 1) / steps.length) * 100}%`;
+                    await this.sleep(200);
+                }
+
+                await this.sleep(500);
+                bootSequence.classList.add('hidden');
+
+                setTimeout(() => {
+                    bootSequence.remove();
+                }, 1000);
+            }
+
+            sleep(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            startAutoUpdates() {
+                // Auto-fetch JWST images every 30 seconds
+                this.autoUpdater = setInterval(async () => {
+                    try {
+                        await this.nasaAPI.searchImages('james webb');
+                        this.reactor.emitEvent('jwst_updated', { count: this.nasaAPI.currentImages.length });
+                    } catch (error) {
+                        console.error('Auto-update error:', error);
+                    }
+                }, 30000);
+
+                // Initial fetch
+                this.nasaAPI.searchImages('james webb');
+            }
+
+            updateHUD() {
+                // Update time
+                const now = new Date();
+                document.getElementById('stat-time').textContent = now.toLocaleTimeString();
+
+                // Update uptime
+                const uptime = this.reactor.getUptime();
+                document.getElementById('stat-uptime').textContent = uptime.formatted;
+
+                // Update events
+                document.getElementById('stat-events').textContent = this.reactor.events.length;
+            }
+
+            // Panel openers
+            openTerminal() {
+                if (this.panelManager.getPanel('terminal')) {
+                    this.panelManager.bringToFront('terminal');
+                    return;
+                }
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <div id="terminal-output" style="height: 300px; overflow-y: auto; margin-bottom: 10px;"></div>
+                    <div style="display: flex; gap: 5px;">
+                        <span class="terminal-prompt">lumenis@infinity$</span>
+                        <input type="text" id="terminal-input" placeholder="Type 'help' for commands">
+                    </div>
+                `;
+
+                const panel = this.panelManager.createPanel('terminal', {
+                    title: '🖥️ LUMENIS TERMINAL',
+                    x: 100,
+                    y: 100,
+                    width: 700,
+                    height: 450,
+                    content: content
+                });
+
+                const input = content.querySelector('#terminal-input');
+                const output = content.querySelector('#terminal-output');
+
+                // Welcome message
+                this.appendTerminalOutput(output, 'Lumenis Terminal v3.0', 'success');
+                this.appendTerminalOutput(output, 'Type "help" for available commands', 'success');
+                this.appendTerminalOutput(output, '', 'output');
+
+                input.addEventListener('keydown', async (e) => {
+                    if (e.key === 'Enter') {
+                        const cmd = input.value.trim();
+                        if (cmd) {
+                            this.appendTerminalOutput(output, `lumenis@infinity$ ${cmd}`, 'command');
+
+                            const result = await this.terminal.executeCommand(cmd);
+
+                            if (result.clear) {
+                                output.innerHTML = '';
+                            } else if (result.exit) {
+                                this.panelManager.closePanel('terminal');
+                            } else {
+                                const type = result.success ? 'output' : 'error';
+                                this.appendTerminalOutput(output, result.output, type);
+                            }
+
+                            input.value = '';
+                            output.scrollTop = output.scrollHeight;
+                        }
+                    }
+                });
+
+                input.focus();
+            }
+
+            appendTerminalOutput(container, text, type) {
+                const line = document.createElement('div');
+                line.className = `terminal-line terminal-${type}`;
+                line.textContent = text;
+                container.appendChild(line);
+            }
+
+            openSystemMonitor() {
+                if (this.panelManager.getPanel('system-monitor')) {
+                    this.panelManager.bringToFront('system-monitor');
+                    return;
+                }
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <div class="monitor-grid">
+                        <div class="monitor-card">
+                            <div class="monitor-label">CPU Usage</div>
+                            <div class="monitor-value" id="cpu-value">0%</div>
+                        </div>
+                        <div class="monitor-card">
+                            <div class="monitor-label">Memory</div>
+                            <div class="monitor-value" id="mem-value">0%</div>
+                        </div>
+                        <div class="monitor-card">
+                            <div class="monitor-label">Processes</div>
+                            <div class="monitor-value" id="proc-value">0</div>
+                        </div>
+                        <div class="monitor-card">
+                            <div class="monitor-label">Uptime</div>
+                            <div class="monitor-value" id="uptime-value">0s</div>
+                        </div>
+                    </div>
+                    <div class="process-list" id="process-list"></div>
+                `;
+
+                this.panelManager.createPanel('system-monitor', {
+                    title: '📊 SYSTEM MONITOR',
+                    x: 150,
+                    y: 150,
+                    width: 600,
+                    height: 500,
+                    content: content
+                });
+
+                // Update loop
+                const updateMonitor = () => {
+                    if (!this.panelManager.getPanel('system-monitor')) return;
+
+                    this.systemMonitor.update();
+
+                    document.getElementById('cpu-value').textContent = `${this.systemMonitor.cpu.usage.toFixed(1)}%`;
+                    document.getElementById('mem-value').textContent = `${this.systemMonitor.memory.percentage.toFixed(1)}%`;
+                    document.getElementById('proc-value').textContent = this.systemMonitor.processes.length;
+                    document.getElementById('uptime-value').textContent = this.systemMonitor.getUptime().formatted;
+
+                    const processList = document.getElementById('process-list');
+                    if (processList) {
+                        processList.innerHTML = '<h4 style="margin-bottom: 10px;">Top Processes:</h4>';
+                        this.systemMonitor.getTopProcesses(5).forEach(proc => {
+                            processList.innerHTML += `
+                                <div class="process-item">
+                                    <span>${proc.name}</span>
+                                    <span>${proc.cpu.toFixed(1)}% CPU | ${proc.mem.toFixed(1)}% MEM</span>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    setTimeout(updateMonitor, 2000);
+                };
+
+                updateMonitor();
+            }
+
+            openReactor() {
+                if (this.panelManager.getPanel('reactor')) {
+                    this.panelManager.bringToFront('reactor');
+                    return;
+                }
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <div style="text-align: center; padding: 20px; background: rgba(0,255,204,0.05); border-radius: 4px; margin-bottom: 15px;">
+                        <h3>⚡ REACTOR CORE STATUS</h3>
+                        <p style="margin-top: 10px;">Health: <span id="reactor-health">100</span>%</p>
+                        <p>Temperature: <span id="reactor-temp">0</span> K</p>
+                        <p>Throughput: <span id="reactor-throughput">0</span> events/sec</p>
+                    </div>
+                    <div>
+                        <button class="action-btn" onclick="app.reactor.emitEvent('test_event')">Fire Event</button>
+                        <button class="action-btn" onclick="app.reactor.processRepairQueue()">Repair All</button>
+                    </div>
+                    <div class="module-list" id="module-list"></div>
+                `;
+
+                this.panelManager.createPanel('reactor', {
+                    title: '⚛️ REACTOR CORE',
+                    x: 200,
+                    y: 200,
+                    width: 550,
+                    height: 450,
+                    content: content
+                });
+
+                const updateReactor = () => {
+                    if (!this.panelManager.getPanel('reactor')) return;
+
+                    const status = this.reactor.getStatus();
+                    document.getElementById('reactor-health').textContent = status.health.toFixed(0);
+                    document.getElementById('reactor-temp').textContent = (status.temperature * 1000000).toFixed(1) + 'M';
+                    document.getElementById('reactor-throughput').textContent = status.throughput;
+
+                    const moduleList = document.getElementById('module-list');
+                    if (moduleList) {
+                        moduleList.innerHTML = '<h4 style="margin-bottom: 10px;">Modules:</h4>';
+                        this.reactor.getAllModules().forEach(mod => {
+                            moduleList.innerHTML += `
+                                <div class="module-item">
+                                    <div>
+                                        <strong>${mod.name}</strong>
+                                        <span style="margin-left: 10px; color: var(--neon-amber);">${mod.status.toUpperCase()}</span>
+                                    </div>
+                                    <div class="module-health-bar">
+                                        <div class="module-health-fill" style="width: ${mod.health}%"></div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+
+                    setTimeout(updateReactor, 2000);
+                };
+
+                updateReactor();
+            }
+
+            async openJWST() {
+                if (this.panelManager.getPanel('jwst')) {
+                    this.panelManager.bringToFront('jwst');
+                    return;
+                }
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" id="jwst-search" placeholder="Search JWST images..." style="width: 100%; padding: 10px; background: rgba(0,255,204,0.05); border: 1px solid rgba(0,255,204,0.3); color: var(--neon-cyan); font-family: inherit; border-radius: 4px;">
+                    </div>
+                    <div id="jwst-status" style="margin-bottom: 10px; color: var(--neon-amber);"></div>
+                    <div class="jwst-gallery" id="jwst-gallery"></div>
+                `;
+
+                this.panelManager.createPanel('jwst', {
+                    title: '🔭 NASA JWST IMAGES',
+                    x: 250,
+                    y: 150,
+                    width: 700,
+                    height: 550,
+                    content: content
+                });
+
+                const searchInput = content.querySelector('#jwst-search');
+                const gallery = content.querySelector('#jwst-gallery');
+                const status = content.querySelector('#jwst-status');
+
+                const loadImages = async (query = 'james webb') => {
+                    status.innerHTML = '<span class="spinner"></span> Fetching from NASA API...';
+
+                    try {
+                        const result = await this.nasaAPI.searchImages(query);
+
+                        status.textContent = `Found ${result.items.length} images${result.fallback ? ' (using fallback data)' : ''}`;
+
+                        gallery.innerHTML = '';
+                        result.items.forEach(img => {
+                            const card = document.createElement('div');
+                            card.className = 'jwst-card';
+                            card.innerHTML = `
+                                ${img.thumbnail ? `<img src="${img.thumbnail}" alt="${img.title}">` : '<div style="height: 150px; background: #222;"></div>'}
+                                <div class="jwst-info">
+                                    <div class="jwst-title">${img.title}</div>
+                                    <div class="jwst-date">${img.dateCreated ? new Date(img.dateCreated).toLocaleDateString() : 'No date'}</div>
+                                </div>
+                            `;
+                            gallery.appendChild(card);
+                        });
+                    } catch (error) {
+                        status.textContent = `Error: ${error.message}`;
+                    }
+                };
+
+                searchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        loadImages(searchInput.value || 'james webb');
+                    }
+                });
+
+                // Initial load
+                await loadImages();
+            }
+
+            openAICouncil() {
+                if (this.panelManager.getPanel('ai-council')) {
+                    this.panelManager.bringToFront('ai-council');
+                    return;
+                }
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <button class="action-btn" onclick="app.holdCouncilVote()">🗳️ Hold Vote</button>
+                    </div>
+                    <div id="council-results"></div>
+                `;
+
+                this.panelManager.createPanel('ai-council', {
+                    title: '🧠 AI COUNCIL',
+                    x: 300,
+                    y: 200,
+                    width: 500,
+                    height: 450,
+                    content: content
+                });
+            }
+
+            holdCouncilVote() {
+                const vote = this.aiCouncil.holdVote();
+                const results = document.getElementById('council-results');
+
+                if (results) {
+                    results.innerHTML = `
+                        <h4 style="margin-bottom: 15px;">Vote Results:</h4>
+                        <div style="background: rgba(0,255,204,0.05); padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                            <strong>Consensus: ${vote.consensus.decision}</strong>
+                            <p style="margin-top: 5px;">Score: ${vote.consensus.score.toFixed(3)}</p>
+                            <p style="color: var(--neon-amber);">Symbolic: ${vote.consensus.symbolic}</p>
+                        </div>
+                        <h4 style="margin-bottom: 10px;">Agent Votes:</h4>
+                    `;
+
+                    vote.votes.forEach(v => {
+                        results.innerHTML += `
+                            <div style="padding: 8px; background: rgba(0,255,204,0.03); margin: 5px 0; border-left: 2px solid var(--neon-cyan);">
+                                <strong>${v.agent}</strong> (weight: ${v.weight}) → ${v.decision}
+                                <span style="float: right;">confidence: ${v.confidence.toFixed(2)}</span>
+                            </div>
+                        `;
+                    });
+                }
+
+                this.reactor.emitEvent('ai_council_vote', { decision: vote.consensus.decision });
+            }
+
+            openSymbolic() {
+                if (this.panelManager.getPanel('symbolic')) {
+                    this.panelManager.bringToFront('symbolic');
+                    return;
+                }
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <div style="margin-bottom: 15px;">
+                        <input type="text" id="symbolic-input" placeholder="Enter expression (e.g., ~ | π √ ∆ v =)" style="width: 100%; padding: 10px; background: rgba(0,255,204,0.05); border: 1px solid rgba(0,255,204,0.3); color: var(--neon-cyan); font-family: inherit; border-radius: 4px;">
+                        <button class="action-btn" style="margin-top: 10px;" onclick="app.transformSymbolic()">Transform</button>
+                    </div>
+                    <div id="symbolic-result"></div>
+                    <div style="margin-top: 20px; padding: 15px; background: rgba(0,255,204,0.05); border-radius: 4px;">
+                        <h4>Operators:</h4>
+                        <p style="margin-top: 10px; line-height: 1.8;">
+                            ~ = wave | = axis | π = disc | √ = root<br>
+                            ∆ = transformation | v = vector | = = resolution
+                        </p>
+                    </div>
+                `;
+
+                this.panelManager.createPanel('symbolic', {
+                    title: '∫ SYMBOLIC ENGINE',
+                    x: 350,
+                    y: 250,
+                    width: 600,
+                    height: 500,
+                    content: content
+                });
+            }
+
+            transformSymbolic() {
+                const input = document.getElementById('symbolic-input');
+                const result = document.getElementById('symbolic-result');
+
+                if (!input || !result) return;
+
+                const expression = input.value.trim();
+                if (!expression) {
+                    result.textContent = 'Please enter an expression';
+                    return;
+                }
+
+                const transform = this.symbolicEngine.transform(expression);
+
+                result.innerHTML = `
+                    <div style="background: rgba(0,255,204,0.05); padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                        <h4>Result: ${transform.symbolic.numeric.toFixed(4)}</h4>
+                        <p style="margin-top: 10px; color: var(--neon-amber);">${transform.symbolic.interpretation}</p>
+                    </div>
+                    <h4>Pipeline:</h4>
+                `;
+
+                transform.pipeline.forEach((step, i) => {
+                    result.innerHTML += `
+                        <div style="padding: 8px; background: rgba(0,255,204,0.03); margin: 5px 0; border-left: 2px solid var(--neon-cyan);">
+                            <strong>Step ${i + 1}:</strong> ${step.operator.value} (${step.operator.name})
+                            <p style="font-size: 10px; margin-top: 3px;">${step.description}</p>
+                            <p style="font-size: 10px; color: var(--neon-amber);">
+                                ${step.previousState.value.toFixed(4)} → ${step.newState.value.toFixed(4)}
+                            </p>
+                        </div>
+                    `;
+                });
+            }
+
+            notify(title, message) {
+                const notification = document.createElement('div');
+                notification.className = 'notification';
+                notification.innerHTML = `
+                    <strong>${title}</strong>
+                    <p style="margin-top: 5px; font-size: 11px;">${message}</p>
+                `;
+
+                document.body.appendChild(notification);
+
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+
+            registerServiceWorker() {
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('./sw.js')
+                        .then(reg => console.log('Service Worker registered:', reg))
+                        .catch(err => console.error('Service Worker registration failed:', err));
+                }
+            }
+        }
+
+        // Initialize app
+        let app;
+        window.addEventListener('DOMContentLoaded', () => {
+            app = new InfinityGlassApp();
+            window.app = app; // Make globally accessible for onclick handlers
+        });
+    </script>
+</body>
+</html>

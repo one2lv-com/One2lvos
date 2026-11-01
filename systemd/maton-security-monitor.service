@@ -1,0 +1,30 @@
+# Template: run systemd/install.sh to fill in @ONE2LVOS_ROOT@ and @ONE2LVOS_USER@ for this machine
+[Unit]
+Description=Maton Security Monitor - API Key Exposure Response
+Documentation=file://@ONE2LVOS_ROOT@/SECURITY_INCIDENT_RESPONSE.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@ONE2LVOS_USER@
+WorkingDirectory=@ONE2LVOS_ROOT@
+EnvironmentFile=@ONE2LVOS_ROOT@/.env
+
+# Run the security monitor
+ExecStart=/usr/bin/python3 @ONE2LVOS_ROOT@/maton_security_monitor.py
+
+# Restart on failure
+Restart=on-failure
+RestartSec=300
+
+# Logging
+StandardOutput=append:@ONE2LVOS_ROOT@/logs/maton_monitor.log
+StandardError=append:@ONE2LVOS_ROOT@/logs/maton_monitor_error.log
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

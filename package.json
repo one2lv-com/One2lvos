@@ -1,0 +1,52 @@
+{
+  "name": "one2lvos",
+  "version": "1.0.2",
+  "description": "One2lvOS - AI-Powered Spatial Computing Operating System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "network": "node server/network-api.js",
+    "network-dev": "nodemon server/network-api.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "build": "webpack --mode production"
+  },
+  "keywords": [
+    "operating-system",
+    "ai",
+    "spatial-computing",
+    "voice-control",
+    "vector-memory",
+    "astra-db"
+  ],
+  "author": "One2lv <one2lv@one2lv.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/one2lv-com/One2lvos.git"
+  },
+  "dependencies": {
+    "@datastax/astra-db-ts": "^1.0.0",
+    "axios": "^1.6.2",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.22.3",
+    "http-proxy-middleware": "^4.2.0",
+    "openai": "^4.20.1",
+    "uuid": "^9.0.1",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.2",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

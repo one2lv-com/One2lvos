@@ -1,0 +1,18 @@
+{
+  "name": "one2lvos",
+  "version": "1.0.0-alpha",
+  "description": "A Self-Aware Cognitive Operating System",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "dev": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "operating-system",
+    "cognitive",
+    "pwa",
+    "desktop"
+  ],
+  "author": "One2lvOS Team",
+  "license": "MIT"
+}

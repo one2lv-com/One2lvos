@@ -1,0 +1,72 @@
+{
+  "version": "0.9",
+  "timestamp": 1720684800000,
+  "modules": {
+    "reactor": {
+      "enabled": true,
+      "config": {
+        "schedulerInterval": 16
+      }
+    },
+    "registry": {
+      "enabled": true,
+      "config": {
+        "maxNodes": 10000,
+        "autoArchive": true
+      }
+    },
+    "desktop": {
+      "enabled": true,
+      "config": {
+        "theme": "neon-cyan",
+        "terminalPosition": { "x": 50, "y": 50 },
+        "terminalSize": { "width": 800, "height": 500 }
+      }
+    },
+    "infinityGlasses": {
+      "enabled": true,
+      "config": {
+        "overlayOpacity": 0.8,
+        "trackingMode": "mouse"
+      }
+    }
+  },
+  "registry": {
+    "nodes": [
+      {
+        "id": "node_welcome_001",
+        "type": "system",
+        "data": {
+          "title": "Welcome Node",
+          "content": "Welcome to One2lvOS - Your spatial operating environment"
+        },
+        "timestamp": 1720684800000,
+        "connections": []
+      }
+    ],
+    "connections": []
+  },
+  "desktop": {
+    "windows": [],
+    "layout": "default",
+    "taskbar": {
+      "position": "bottom",
+      "height": 48
+    }
+  },
+  "user": {
+    "preferences": {
+      "theme": "neon-cyan",
+      "notifications": true,
+      "autoSave": true,
+      "autoSaveInterval": 30000,
+      "bootAnimation": true,
+      "terminalHistory": 100
+    },
+    "shortcuts": {
+      "toggleTerminal": "Ctrl+`",
+      "saveState": "Ctrl+S",
+      "openRegistry": "Ctrl+R"
+    }
+  }
+}

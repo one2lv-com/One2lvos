@@ -1,0 +1,363 @@
+/* One2lvOS Desktop Styles */
+
+:root {
+    --desktop-bg: #0a0a0a;
+    --desktop-fg: #ffffff;
+    --desktop-accent: #00d9ff;
+    --desktop-panel: rgba(20, 20, 30, 0.85);
+    --desktop-hover: rgba(0, 217, 255, 0.1);
+    --desktop-active: rgba(0, 217, 255, 0.2);
+    --desktop-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Desktop Container */
+.desktop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--desktop-bg);
+    font-family: var(--desktop-font);
+    color: var(--desktop-fg);
+    overflow: hidden;
+}
+
+.desktop.hidden {
+    display: none;
+}
+
+/* Desktop Background */
+.desktop-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        radial-gradient(circle at 20% 50%, rgba(0, 217, 255, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 50%, rgba(138, 43, 226, 0.1) 0%, transparent 50%),
+        var(--desktop-bg);
+    animation: bgShift 20s ease-in-out infinite;
+}
+
+@keyframes bgShift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-2%, -2%) scale(1.02); }
+}
+
+/* Desktop HUD */
+.hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9000;
+    pointer-events: none;
+}
+
+.hud > * {
+    pointer-events: auto;
+}
+
+.hud-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: var(--desktop-panel);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    height: 3rem;
+}
+
+.hud-menu {
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background 0.2s ease;
+}
+
+.hud-menu:hover {
+    background: var(--desktop-hover);
+}
+
+.hud-clock {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.9rem;
+}
+
+.hud-status {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.9rem;
+}
+
+/* Desktop Dock */
+.dock {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--desktop-panel);
+    backdrop-filter: blur(20px);
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dock-items {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.dock-item {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--desktop-hover);
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    font-size: 1.5rem;
+}
+
+.dock-item:hover {
+    transform: translateY(-5px) scale(1.1);
+    background: var(--desktop-active);
+}
+
+.dock-item.active::after {
+    content: '';
+    position: absolute;
+    bottom: -0.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0.3rem;
+    height: 0.3rem;
+    background: var(--desktop-accent);
+    border-radius: 50%;
+}
+
+.dock-separator {
+    width: 1px;
+    height: 2rem;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 0 0.5rem;
+}
+
+/* Window Container */
+.window-container {
+    position: fixed;
+    top: 3rem;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    z-index: 100;
+}
+
+/* Window */
+.window {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    background: var(--desktop-panel);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.75rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    transition: box-shadow 0.3s ease;
+}
+
+.window.focused {
+    border-color: var(--desktop-accent);
+    box-shadow: 0 20px 60px rgba(0, 217, 255, 0.3);
+}
+
+.window.minimized {
+    transform: scale(0.1);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.window.maximized {
+    top: 3rem !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: calc(100% - 3rem) !important;
+    border-radius: 0;
+}
+
+/* Window Titlebar */
+.window-titlebar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: move;
+    user-select: none;
+}
+
+.window-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    flex: 1;
+}
+
+.window-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.window-control {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.window-control:hover {
+    opacity: 0.7;
+}
+
+.window-control.minimize {
+    background: #ffbd2e;
+}
+
+.window-control.maximize {
+    background: #28c940;
+}
+
+.window-control.close {
+    background: #ff5f56;
+}
+
+/* Window Content */
+.window-content {
+    flex: 1;
+    overflow: auto;
+    padding: 1rem;
+}
+
+.window-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.window-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.window-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.window-content::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Resize Handles */
+.window-resize-handle {
+    position: absolute;
+}
+
+.window-resize-handle.n {
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    cursor: ns-resize;
+}
+
+.window-resize-handle.s {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 5px;
+    cursor: ns-resize;
+}
+
+.window-resize-handle.e {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: ew-resize;
+}
+
+.window-resize-handle.w {
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: ew-resize;
+}
+
+.window-resize-handle.ne {
+    top: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    cursor: nesw-resize;
+}
+
+.window-resize-handle.nw {
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    cursor: nwse-resize;
+}
+
+.window-resize-handle.se {
+    bottom: 0;
+    right: 0;
+    width: 10px;
+    height: 10px;
+    cursor: nwse-resize;
+}
+
+.window-resize-handle.sw {
+    bottom: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    cursor: nesw-resize;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dock {
+        bottom: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .dock-item {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1.2rem;
+    }
+
+    .window {
+        border-radius: 0;
+    }
+}

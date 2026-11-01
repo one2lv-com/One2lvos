@@ -1,0 +1,92 @@
+# One2lvOS Package Sources
+# Simulated Debian-based package repositories
+# Generated: 2026-09-07
+
+# ============================================
+# Base Debian Trixie Repository
+# ============================================
+deb http://ftp.us.debian.org/debian/ trixie main contrib non-free non-free-firmware
+deb-src http://ftp.us.debian.org/debian/ trixie main contrib non-free non-free-firmware
+
+# ============================================
+# Security Updates
+# ============================================
+deb http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+deb-src http://security.debian.org/debian-security trixie-security main contrib non-free non-free-firmware
+
+# ============================================
+# Stable Updates
+# ============================================
+deb http://ftp.us.debian.org/debian/ trixie-updates main contrib non-free non-free-firmware
+deb-src http://ftp.us.debian.org/debian/ trixie-updates main contrib non-free non-free-firmware
+
+# ============================================
+# Steam Repository (Gaming Capabilities)
+# ============================================
+deb http://repo.steampowered.com/steamos brewmaster main contrib non-free
+deb-src http://repo.steampowered.com/steamos brewmaster main contrib non-free
+
+# ============================================
+# One2lvOS Custom Repositories
+# ============================================
+deb http://repo.one2lv.com/debian/ stable main
+deb-src http://repo.one2lv.com/debian/ stable main
+
+deb http://repo.one2lv.com/debian/ stable-ai main
+deb-src http://repo.one2lv.com/debian/ stable-ai main
+
+# ============================================
+# NVIDIA Container Toolkit (AI/GPU)
+# ============================================
+deb https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH) /
+deb https://nvidia.github.io/nvidia-container-runtime/stable/deb/$(ARCH) /
+deb https://nvidia.github.io/nvidia-docker/debian/$(ARCH) /
+
+# ============================================
+# Docker CE Repository
+# ============================================
+deb [arch=amd64] https://download.docker.com/linux/debian trixie stable
+
+# ============================================
+# Node.js 20.x LTS
+# ============================================
+deb https://deb.nodesource.com/node_20.x nodistro main
+deb-src https://deb.nodesource.com/node_20.x nodistro main
+
+# ============================================
+# PostgreSQL Official Repository
+# ============================================
+deb http://apt.postgresql.org/pub/repos/apt trixie-pgdg main
+deb-src http://apt.postgresql.org/pub/repos/apt trixie-pgdg main
+
+# ============================================
+# Python Package Index Mirror
+# ============================================
+deb http://ppa.launchpad.net/deadsnakes/ppa/ubuntu trixie main
+deb-src http://ppa.launchpad.net/deadsnakes/ppa/ubuntu trixie main
+
+# ============================================
+# AI/ML Frameworks
+# ============================================
+deb http://repo.one2lv.com/debian/ stable-ml main
+deb-src http://repo.one2lv.com/debian/ stable-ml main
+
+# ============================================
+# Spatial Computing & Graphics
+# ============================================
+deb http://repo.one2lv.com/debian/ stable-spatial main
+deb-src http://repo.one2lv.com/debian/ stable-spatial main
+
+# ============================================
+# Voice Recognition & TTS
+# ============================================
+deb http://repo.one2lv.com/debian/ stable-voice main
+deb-src http://repo.one2lv.com/debian/ stable-voice main
+
+# ============================================
+# Vector Database & Embeddings
+# ============================================
+deb http://repo.one2lv.com/debian/ stable-vector main
+deb-src http://repo.one2lv.com/debian/ stable-vector main
+
+# End of sources.list

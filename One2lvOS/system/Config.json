@@ -1,0 +1,133 @@
+{
+  "system": {
+    "name": "One2lvOS",
+    "version": "1.0.0-alpha",
+    "build": "20260801",
+    "environment": "production"
+  },
+  "boot": {
+    "autoStart": true,
+    "restoreSession": true,
+    "loadSnapshot": true,
+    "snapshotPath": "/assets/boot.png",
+    "splashDuration": 3000,
+    "animateBootSequence": true
+  },
+  "reactor": {
+    "enabled": true,
+    "maxConcurrency": 4,
+    "schedulerInterval": 100,
+    "taskTimeout": 30000,
+    "retryAttempts": 3,
+    "priorityLevels": ["critical", "high", "normal", "low"],
+    "heartbeatInterval": 1000
+  },
+  "registry": {
+    "enabled": true,
+    "storagePath": "/registry",
+    "autoSync": true,
+    "syncInterval": 60000,
+    "maxEntries": 10000,
+    "compressionEnabled": true
+  },
+  "council": {
+    "enabled": true,
+    "members": ["architect", "witness", "observer", "moderator"],
+    "consensusRequired": 0.75,
+    "deliberationTimeout": 5000,
+    "recordDecisions": true
+  },
+  "itt": {
+    "enabled": true,
+    "maxTransitions": 1000,
+    "learningRate": 0.01,
+    "pruneInterval": 3600000
+  },
+  "memory": {
+    "shortTermCapacity": 1000,
+    "longTermCapacity": 100000,
+    "retentionPolicy": {
+      "critical": -1,
+      "important": 7776000000,
+      "useful": 2592000000,
+      "temporary": 0
+    },
+    "snapshotInterval": 300000,
+    "autoCheckpoint": true
+  },
+  "infinityGlass": {
+    "enabled": true,
+    "theme": "dark",
+    "transparency": 0.85,
+    "blurRadius": 20,
+    "animationDuration": 300,
+    "maxWindows": 20,
+    "stackingMode": "z-index",
+    "shader": {
+      "enabled": true,
+      "type": "aurora",
+      "quality": "high",
+      "fps": 60
+    }
+  },
+  "interplanetaryDisk": {
+    "enabled": true,
+    "backends": ["indexedDB", "localStorage", "png"],
+    "defaultBackend": "indexedDB",
+    "maxStorageSize": 524288000,
+    "checkpointInterval": 600000,
+    "vectorfsEnabled": true
+  },
+  "modules": {
+    "autoLoad": [
+      "terminal",
+      "dashboard"
+    ],
+    "loadOnDemand": [
+      "registry",
+      "reactor",
+      "council",
+      "itt",
+      "research",
+      "settings",
+      "explorer",
+      "editor",
+      "browser"
+    ]
+  },
+  "network": {
+    "enabled": true,
+    "offlineMode": false,
+    "cacheDuration": 3600000,
+    "retryAttempts": 3,
+    "timeout": 10000
+  },
+  "security": {
+    "sandboxModules": true,
+    "validateSnapshots": true,
+    "encryptStorage": false,
+    "allowRemoteCode": false
+  },
+  "performance": {
+    "lazyLoadModules": true,
+    "cacheAssets": true,
+    "minifyCode": true,
+    "enableServiceWorker": true,
+    "prefetchResources": true
+  },
+  "debugging": {
+    "enabled": false,
+    "logLevel": "info",
+    "verboseErrors": false,
+    "profilePerformance": false,
+    "showBootSequence": true
+  },
+  "ui": {
+    "language": "en",
+    "dateFormat": "YYYY-MM-DD",
+    "timeFormat": "24h",
+    "animations": true,
+    "soundEffects": false,
+    "notifications": true
+  }
+}

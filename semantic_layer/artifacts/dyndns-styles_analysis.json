@@ -1,0 +1,96 @@
+{
+  "colors": [
+    {
+      "hex": "#000",
+      "type": "hex",
+      "usage": [
+        "h1,h2,h3,h4,h5,#rfooter dt,.banner,.upsell-price span,.upsell-cta h3,.upsell-highlights,#rnav,.nav-title"
+      ]
+    },
+    {
+      "hex": "#fff",
+      "type": "hex",
+      "usage": [
+        "body"
+      ]
+    },
+    {
+      "hex": "#333",
+      "type": "hex",
+      "usage": [
+        "body"
+      ]
+    }
+  ],
+  "fonts": [
+    {
+      "family": "P22UndergroundLight",
+      "sources": [
+        "https://a.dyndns.com/css/fonts/p22underground-light-webfont.eot",
+        "https://a.dyndns.com/css/fonts/p22underground-light-webfont.eot?#iefix",
+        "https://a.dyndns.com/css/fonts/p22underground-light-webfont.woff",
+        "https://a.dyndns.com/css/fonts/p22underground-light-webfont.ttf"
+      ],
+      "type": "webfont"
+    },
+    {
+      "family": "P22UndergroundBook",
+      "sources": [
+        "https://a.dyndns.com/css/fonts/p22underground-book-webfont.eot",
+        "https://a.dyndns.com/css/fonts/p22underground-book-webfont.eot?#iefix",
+        "https://a.dyndns.com/css/fonts/p22underground-book-webfont.woff",
+        "https://a.dyndns.com/css/fonts/p22underground-book-webfont.ttf"
+      ],
+      "type": "webfont"
+    },
+    {
+      "family": "jrhand",
+      "sources": [
+        "https://a.dyndns.com/css/fonts/jrhand-webfont.eot",
+        "https://a.dyndns.com/css/fonts/jrhand-webfont.eot?#iefix",
+        "https://a.dyndns.com/css/fonts/jrhand-webfont.woff",
+        "https://a.dyndns.com/css/fonts/jrhand-webfont.ttf"
+      ],
+      "type": "webfont"
+    }
+  ],
+  "components": [
+    {
+      "type": "navigation",
+      "selector": ".nav-title",
+      "background": null,
+      "color": "#000"
+    },
+    {
+      "type": "navigation",
+      "selector": ".nav_button,.cta,.service_list,.packagegraybar,#topsearch,#navcontainer,#uncredited_banner,#sidebarForum,#sidenav-content .right-actions,#blendyboxcont,.actions_service a,.columns .col,.loginoptions,#dlbox,#host,#zone,.midbox,#checkout-content,#credit-card,.confirm table,.right-highlight,.warning-banner,#main-area,#related,.warningnote",
+      "background": null,
+      "color": null
+    },
+    {
+      "type": "navigation",
+      "selector": "#navcontainer,#uncredited_banner,#sidebarForum,#sidenav-content .right-actions,#blendyboxcont,.actions_service a,.columns .col,.loginoptions,#dlbox,#host,#zone,.midbox,#checkout-content,#credit-card,.confirm table,.right-highlight,.warning-banner,#main-area,#related,.warningnote",
+      "background": null,
+      "color": null
+    },
+    {
+      "type": "button",
+      "selector": ".cta,.service_list,.packagegraybar,#topsearch,#navcontainer,#uncredited_banner,#sidebarForum,#sidenav-content .right-actions,#blendyboxcont,.actions_service a,.columns .col,.loginoptions,#dlbox,#host,#zone,.midbox,#checkout-content,#credit-card,.confirm table,.right-highlight,.warning-banner,#main-area,#related,.warningnote",
+      "background": null,
+      "color": null
+    },
+    {
+      "type": "form",
+      "selector": "input,.right-box,.nav_button,.cta,.service_list,.packagegraybar,#topsearch,#navcontainer,#uncredited_banner,#sidebarForum,#sidenav-content .right-actions,#blendyboxcont,.actions_service a,.columns .col,.loginoptions,#dlbox,#host,#zone,.midbox,#checkout-content,#credit-card,.confirm table,.right-highlight,.warning-banner,#main-area,#related,.warningnote",
+      "background": null,
+      "color": null
+    },
+    {
+      "type": "alert",
+      "selector": ".warning-banner,#main-area,#related,.warningnote",
+      "background": null,
+      "color": null
+    }
+  ],
+  "layouts": []
+}

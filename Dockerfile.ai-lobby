@@ -1,0 +1,30 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy AI Lobby application code
+COPY One2lvOS/Agentic_Control/ai-lobby ./One2lvOS/Agentic_Control/ai-lobby
+
+# Expose port
+EXPOSE 8787
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD curl -f http://localhost:8787/health || exit 1
+
+# Set working directory to AI Lobby
+WORKDIR /app/One2lvOS/Agentic_Control/ai-lobby
+
+# Run the server
+CMD ["node", "server.js"]

@@ -1,0 +1,113 @@
+/* Lumenis Design System - Generated from Semantic Layer */
+
+:root {
+  --color-primary: #00A3FF;
+  --color-secondary: #6B7280;
+  --color-accent: #FFE36F;
+  --color-background: #FFFFFF;
+  --color-text: #1F2937;
+  --color-error: #DC2626;
+  --color-warning: #FFFDBD;
+  --color-success: #10B981;
+  --color-info: #FFF5D0;
+
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-secondary: 'JetBrains Mono', 'Courier New', monospace;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+}
+
+body {
+  font-family: var(--font-primary);
+  font-size: 16px;
+  color: var(--color-text);
+  background: var(--color-background);
+  line-height: 1.6;
+}
+
+.lumenis-btn-primary {
+  background: #00A3FF;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.lumenis-btn-secondary {
+  background: transparent;
+  color: #00A3FF;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  border: 2px solid #00A3FF;
+  cursor: pointer;
+}
+
+.lumenis-nav {
+  background: #1F2937;
+  color: #FFFFFF;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.lumenis-info-box {
+  background: #FFF5D0;
+  color: #1F2937;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #FFE36F;
+}
+
+.lumenis-warning {
+  background: #FFFDBD;
+  color: #1F2937;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #FFF925;
+}
+
+.lumenis-card {
+  background: #FFFFFF;
+  color: #1F2937;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 1px solid #E5E7EB;
+}
+
+.lumenis-input {
+  background: #FFFFFF;
+  color: #1F2937;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #D1D5DB;
+  font-size: 16px;
+}
+
+.lumenis-tooltip {
+  background: #1F2937;
+  color: #FFFFFF;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.lumenis-semantic-search {
+  background: #FFFFFF;
+  color: #1F2937;
+  padding: 16px;
+  border-radius: 12px;
+  border: 2px solid #00A3FF;
+  box-shadow: 0 2px 8px rgba(0, 163, 255, 0.1);
+}

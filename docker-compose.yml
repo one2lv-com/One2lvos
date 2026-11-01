@@ -1,0 +1,57 @@
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.gateway
+    ports:
+      - "${ONE2LV_PORT:-8080}:80"
+    depends_on:
+      core:
+        condition: service_healthy
+      lobby:
+        condition: service_healthy
+    restart: unless-stopped
+
+  core:
+    build:
+      context: .
+      dockerfile: core.Dockerfile
+    environment:
+      PORT: "3002"
+      ONE2LV_DATA_DIR: /var/lib/one2lv
+    volumes:
+      - one2lv-core-data:/var/lib/one2lv
+    expose:
+      - "3002"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3002/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    restart: unless-stopped
+
+  lobby:
+    build:
+      context: One2lvOS/Agentic_Control/ai-lobby
+    environment:
+      PORT: "8787"
+      NODE_ENV: production
+      CORE_URL: http://core:3002
+    volumes:
+      - one2lv-lobby-data:/app/data
+      - one2lv-lobby-workspace:/app/workspace
+    expose:
+      - "8787"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  one2lv-core-data:
+  one2lv-lobby-data:
+  one2lv-lobby-workspace:
