@@ -156,6 +156,9 @@ function bindGlobalUI() {
 
   // Terminal
   $('#termForm').addEventListener('submit', runTerm);
+
+  // APK Builder
+  initApkBuilder();
 }
 
 // ----- View switching -----
@@ -167,6 +170,7 @@ function switchView(name) {
   if (name === 'files') loadFiles();
   if (name === 'settings') loadSettingsView();
   if (name === 'hub') loadHub();
+  if (name === 'apkbuilder') apkRefresh();
 }
 
 // ----- Whoami / login -----
@@ -1011,6 +1015,43 @@ async function runTerm(e) {
     out.insertAdjacentHTML('beforeend', `<div class="term-line err">${escapeHtml(err.message)}</div>`);
   }
   out.scrollTop = out.scrollHeight;
+}
+
+// ----- APK Builder -----
+let apkPollTimer = null;
+
+async function apkRefresh() {
+  try {
+    const s = await api('/api/apk/status');
+    const badge = $('#apkPhaseBadge');
+    const bar = $('#apkProgressBar');
+    const pct = $('#apkPct');
+    const log = $('#apkLog');
+    if (badge) badge.textContent = s.phase;
+    if (bar) bar.style.width = (s.progress_pct || 0) + '%';
+    if (pct) pct.textContent = (s.progress_pct || 0) + '%';
+    if (log && Array.isArray(s.log)) log.textContent = s.log.join('\n');
+    if (s.phase === 'done' || s.phase === 'error') {
+      if (apkPollTimer) { clearInterval(apkPollTimer); apkPollTimer = null; }
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function initApkBuilder() {
+  const buildBtn = $('#apkBuildBtn');
+  const refreshBtn = $('#apkRefreshBtn');
+  if (buildBtn) buildBtn.addEventListener('click', async () => {
+    buildBtn.disabled = true;
+    try {
+      await api('/api/apk/build', { method: 'POST', body: {} });
+      if (apkPollTimer) clearInterval(apkPollTimer);
+      apkPollTimer = setInterval(apkRefresh, 1000);
+      await apkRefresh();
+    } catch (e) { toast('Build error: ' + e.message, 'error'); }
+    finally { buildBtn.disabled = false; }
+  });
+  if (refreshBtn) refreshBtn.addEventListener('click', apkRefresh);
+  apkRefresh();
 }
 
 // ----- Utilities -----

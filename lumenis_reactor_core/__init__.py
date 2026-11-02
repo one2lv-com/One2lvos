@@ -18,6 +18,7 @@ from .itt import ITTCouncil
 from .nodes import VanguardNodePool
 from .maton import MatonBridge
 from .swarm import SwarmOrchestrator, WorkerNode, TaskPulse, SwarmMonitor
+from .apk_builder import APKBuilderNode, BuildPhase, BuildStatus
 
 __all__ = [
     "LumenisReactor",
@@ -31,4 +32,7 @@ __all__ = [
     "WorkerNode",
     "TaskPulse",
     "SwarmMonitor",
+    "APKBuilderNode",
+    "BuildPhase",
+    "BuildStatus",
 ]
