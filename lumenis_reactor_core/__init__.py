@@ -10,6 +10,7 @@ Layers:
   L3: Execution - VanguardNodePool (async parallel tasks)
   L4: Integration - MatonBridge (external API gateway)
   L5: Swarm - Distributed execution layer
+  L6: RAG - Retrieval Augmented Generation (Astra DB vector search)
 """
 
 from .reactor import LumenisReactor, NvidiaReactor, ReasoningReactor
@@ -19,6 +20,7 @@ from .nodes import VanguardNodePool
 from .maton import MatonBridge
 from .swarm import SwarmOrchestrator, WorkerNode, TaskPulse, SwarmMonitor
 from .apk_builder import APKBuilderNode, BuildPhase, BuildStatus
+from .ragbot import LumenisRAG, RAGDocument, RAGResult
 
 __all__ = [
     "LumenisReactor",
@@ -35,4 +37,7 @@ __all__ = [
     "APKBuilderNode",
     "BuildPhase",
     "BuildStatus",
+    "LumenisRAG",
+    "RAGDocument",
+    "RAGResult",
 ]
