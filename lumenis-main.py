@@ -551,6 +551,21 @@ async def get_all_facts():
     return JSONResponse({"facts": facts, "count": len(facts)})
 
 
+def _exec_target(cmd: str):
+    """Where terminal commands run. With LUMENIS_EXEC_CHROOT set (the Colab notebook sets it
+    to its Ubuntu 26 root), commands run inside that root as root, so apt/sudo there are real.
+    Returns (command, cwd)."""
+    root = os.environ.get("LUMENIS_EXEC_CHROOT", "").strip()
+    if root and os.path.isdir(root):
+        import shlex as _shlex
+        inner = "cd /root 2>/dev/null; " + cmd
+        sudo = "" if os.geteuid() == 0 else "sudo -n "
+        return (f"{sudo}chroot {_shlex.quote(root)} /usr/bin/env -i HOME=/root TERM=xterm-256color "
+                f"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin "
+                f"DEBIAN_FRONTEND=noninteractive LANG=C.UTF-8 /bin/bash -lc {_shlex.quote(inner)}", "/")
+    return cmd, os.path.dirname(os.path.abspath(__file__))
+
+
 @app.post("/api/terminal")
 async def terminal_exec(body: dict):
     """Execute a shell command and return stdout/stderr."""
@@ -568,10 +583,11 @@ async def terminal_exec(body: dict):
     is_pkg = bool(_re.search(r"\b(apt|apt-get|dpkg|unattended-upgrade)\b", cmd))
     limit = 900 if is_pkg else 15
     env = dict(os.environ, DEBIAN_FRONTEND="noninteractive", NEEDRESTART_MODE="a")
+    run_cmd, run_cwd = _exec_target(cmd)
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=limit,
-            cwd=os.path.dirname(os.path.abspath(__file__)), env=env, stdin=subprocess.DEVNULL
+            run_cmd, shell=True, capture_output=True, text=True, timeout=limit,
+            cwd=run_cwd, env=env, stdin=subprocess.DEVNULL
         )
         return JSONResponse({
             "command": cmd,
@@ -619,12 +635,13 @@ async def terminal_ws(ws: WebSocket):
                     continue
 
                 await ws.send_text(json.dumps({"type": "start", "command": cmd}))
+                run_cmd, run_cwd = _exec_target(cmd)
                 process = await asyncio.create_subprocess_shell(
-                    cmd,
+                    run_cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.STDOUT,
                     stdin=asyncio.subprocess.DEVNULL,
-                    cwd=os.path.dirname(os.path.abspath(__file__)),
+                    cwd=run_cwd,
                     env=dict(os.environ, DEBIAN_FRONTEND="noninteractive", NEEDRESTART_MODE="a"),
                 )
                 async for chunk in process.stdout:
