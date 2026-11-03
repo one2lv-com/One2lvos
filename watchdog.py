@@ -200,6 +200,32 @@ def cmdline(pid: int) -> str:
         return ""
 
 
+def load_dotenv_file() -> dict:
+    """Read ROOT_DIR/.env (KEY=VALUE lines) the way startos.sh does (set -a; source .env),
+    so a reactor the watchdog starts gets the same keys as one startos.sh starts.
+    Values are passed to the child only, never logged."""
+    path = ROOT_DIR / ".env"
+    out = {}
+    try:
+        for raw in path.read_text().splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            if line.startswith("export "):
+                line = line[7:].lstrip()
+            k, v = line.split("=", 1)
+            k, v = k.strip(), v.strip()
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+                v = v[1:-1]
+            if k.replace("_", "").isalnum():
+                out[k] = v
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        log(f".env read error: {e}")
+    return out
+
+
 # ── reactor start / stop ──────────────────────────────────────────────────────
 
 def start_reactor():
@@ -208,7 +234,14 @@ def start_reactor():
         log(f"Port {REACTOR_PORT} already in use — not starting a second reactor")
         return None
     log(f"Starting reactor: {' '.join(REACTOR_CMD)}")
-    env = {**os.environ, "PYTHONUNBUFFERED": "1"}
+    env = {**os.environ, **load_dotenv_file(), "PYTHONUNBUFFERED": "1"}
+    env.setdefault("ONE2LV_BIND_HOST", REACTOR_HOST)
+    if REACTOR_PYTHON == str(_VENV_PY):
+        # same as `source .venv/bin/activate` in startos.sh, so subprocesses
+        # the reactor spawns with plain `python3` also get the venv
+        venv = str(ROOT_DIR / ".venv")
+        env["VIRTUAL_ENV"] = venv
+        env["PATH"] = f"{venv}/bin:" + env.get("PATH", "")
     log_path = ROOT_DIR / "logs" / "reactor.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "a") as lf:
