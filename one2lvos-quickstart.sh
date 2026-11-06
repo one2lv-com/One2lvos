@@ -143,7 +143,7 @@ ASTRA_VECTOR_METRIC=cosine
 SUPABASE_URL=https://pplbxjguhmfeuptyamic.supabase.co
 SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_KEY=YOUR_SUPABASE_SERVICE_KEY
-DATABASE_URL=postgresql://postgres.pplbxjguhmfeuptyamic:[YOUR-PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres
+DATABASE_URL=postgresql://postgres.YOUR_PROJECT:YOUR_DB_PASSWORD@YOUR_POOLER_HOST:6543/postgres
 
 # ============================================================================
 # SERVER CONFIGURATION

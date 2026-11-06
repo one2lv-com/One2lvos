@@ -332,9 +332,9 @@ def cmd_serve(a) -> int:
 
 # ── dist-check ─────────────────────────────────────────────────────────────────────────
 
-KEY_MARKERS = (b"-----BEGIN PRIVATE KEY-----", b"-----BEGIN ENCRYPTED PRIVATE KEY-----",
-               b"-----BEGIN OPENSSH PRIVATE KEY-----", b"-----BEGIN RSA PRIVATE KEY-----",
-               b"-----BEGIN EC PRIVATE KEY-----")
+_B = b"-----BEGIN "          # split so this file does not match its own scan
+KEY_MARKERS = tuple(_B + k + b" KEY-----" for k in
+                    (b"PRIVATE", b"ENCRYPTED PRIVATE", b"OPENSSH PRIVATE", b"RSA PRIVATE", b"EC PRIVATE"))
 STATE_NAMES = {"registry.db", "whodat-root.key", "identity.json", "system.key", "owner.key",
                ".env", "sfcompute_token.json"}
 PLACEHOLDER = re.compile(r"^(your[_-]|changeme|xxx|example|<|\$\{|replace|todo|none|null|true|false|\d+$)", re.I)
@@ -364,32 +364,50 @@ def _iter_files(path: Path):
         yield path.name, path.read_bytes()
 
 
-def dist_check(path: Path, env_files: list[Path], min_len: int = 12) -> list[dict]:
+SENSITIVE_NAME = re.compile(r"(KEY|TOKEN|SECRET|PASSWORD|PASSWD|PASS|PRIVATE|CREDENTIAL|AUTH|COOKIE|DSN|BUNDLE)", re.I)
+PUBLIC_NAME = re.compile(r"(PUBLIC_KEY|_PUB$|_PUBLIC$|KEYSPACE|KEY_ID$|_ENDPOINT$|_URL$|_MODEL$)", re.I)
+URL_WITH_CREDS = re.compile(r"^[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@", re.I)
+PUBLISHABLE = re.compile(r"(ANON_KEY|PUBLISHABLE)", re.I)
+
+
+def is_sensitive(name: str, value: str) -> bool:
+    """Which .env values count as credentials. Endpoints, model names and keyspaces
+    are configuration, not secrets; a URL with user:password@ in it is a secret."""
+    if URL_WITH_CREDS.match(value):
+        return True
+    return bool(SENSITIVE_NAME.search(name)) and not PUBLIC_NAME.search(name)
+
+
+def dist_check(path: Path, env_files: list[Path], min_len: int = 12, all_values: bool = False) -> list[dict]:
     needles: dict[bytes, str] = {}
     for ef in env_files:
         for k, v in parse_env_file(ef).items():
-            if len(v) >= min_len and not PLACEHOLDER.match(v):
+            if len(v) >= min_len and not PLACEHOLDER.match(v) and (all_values or is_sensitive(k, v)):
                 needles[v.encode()] = k
     hits = []
     for name, data in _iter_files(Path(path)):
         base = name.rsplit("/", 1)[-1]
         if base in STATE_NAMES:
-            hits.append({"file": name, "finding": f"key/state file '{base}' must not be distributed"})
+            hits.append({"file": name, "finding": f"key/state file '{base}' must not be distributed", "kind": "secret"})
         for mk in KEY_MARKERS:
             if mk in data:
-                hits.append({"file": name, "finding": "private key block"})
+                hits.append({"file": name, "finding": "private key block", "kind": "secret"})
                 break
         for needle, var in needles.items():
             if needle in data:
-                hits.append({"file": name, "finding": f"contains the value of {var}"})
+                kind = "publishable" if PUBLISHABLE.search(var) else "secret"
+                hits.append({"file": name, "finding": f"contains the value of {var}", "kind": kind})
     return hits
 
 
 def cmd_dist_check(a) -> int:
     envs = [Path(e) for e in (a.env or [])]
-    hits = dist_check(Path(a.path), envs)
-    _out({"path": a.path, "env_files_checked": [str(e) for e in envs], "findings": hits, "clean": not hits})
-    return 1 if hits else 0
+    hits = dist_check(Path(a.path), envs, all_values=a.all_values)
+    secret_hits = [h for h in hits if h["kind"] == "secret"]
+    _out({"path": a.path, "env_files_checked": [str(e) for e in envs], "findings": hits,
+          "clean": not secret_hits,
+          "note": "publishable = public-by-design client keys (e.g. Supabase anon); safe only with row-level security"})
+    return 1 if secret_hits else 0
 
 
 # ── argparse ─────────────────────────────────────────────────────────────────────────────
@@ -421,6 +439,7 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("serve"); s.add_argument("--host", default="127.0.0.1"); s.add_argument("--port", type=int, default=8097)
     s.set_defaults(fn=cmd_serve)
     s = sub.add_parser("dist-check"); s.add_argument("path"); s.add_argument("--env", action="append")
+    s.add_argument("--all-values", action="store_true", help="also match non-credential values (URLs, models)")
     s.set_defaults(fn=cmd_dist_check)
     return p
 

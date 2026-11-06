@@ -489,18 +489,20 @@ def test_cli_import_env_and_only_unset(tmp_path):
 def test_dist_check_finds_planted_secrets_and_keys(tmp_path):
     from whodat.cli import dist_check
     envf = tmp_path / "owner.env"
-    envf.write_text("NVIDIA_API_KEY=nvapi-REAL-OWNER-VALUE-0001\nPORT=8000\nX=your_key_here_please\n")
+    envf.write_text("NVIDIA_API_KEY=nvapi-REAL-OWNER-VALUE-0001\nPORT=8000\nX=your_key_here_please\n"
+                    "NVIDIA_API_ENDPOINT=https://integrate.api.nvidia.com/v1\nDATABASE_URL=postgres://u:hunter2pass@db.example.com/x\n")
     clean = tmp_path / "clean"; clean.mkdir()
-    (clean / "app.py").write_text("KEY = os.getenv('NVIDIA_API_KEY')\n")
+    (clean / "app.py").write_text("KEY = os.getenv('NVIDIA_API_KEY')\nURL = 'https://integrate.api.nvidia.com/v1'\n")
     assert dist_check(clean, [envf]) == []
     dirty = tmp_path / "dirty"; dirty.mkdir()
-    (dirty / "cfg.js").write_text("const k='nvapi-REAL-OWNER-VALUE-0001'")
+    (dirty / "cfg.js").write_text("const k='nvapi-REAL-OWNER-VALUE-0001'; const d='postgres://u:hunter2pass@db.example.com/x'")
     k = generate_private_key()
     core.save_private_key(dirty / "id" / "stray.pem", k)
     hits = dist_check(dirty, [envf])
-    assert {h["finding"] for h in hits} == {"contains the value of NVIDIA_API_KEY", "private key block"}
+    assert {h["finding"] for h in hits} == {"contains the value of NVIDIA_API_KEY", "private key block",
+                                            "contains the value of DATABASE_URL"}
     assert all("nvapi-REAL" not in json.dumps(h) for h in hits)    # report names, never values
     tgz = tmp_path / "rel.tar.gz"
     with tarfile.open(tgz, "w:gz") as tf:
         tf.add(dirty, arcname="rel")
-    assert len(dist_check(tgz, [envf])) == 2
+    assert len(dist_check(tgz, [envf])) == 3
