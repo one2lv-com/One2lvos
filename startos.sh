@@ -220,6 +220,14 @@ else
     echo -e "  ${YELLOW}⚠${NC} No .env file found - using system environment"
 fi
 
+# Who Dat: this installation's own identity + key vault (see WHODAT.md).
+# Fills only variables .env did not set; a failed handshake loads nothing.
+if [ -f "$ROOT_DIR/whodat_boot.sh" ]; then
+    # shellcheck disable=SC1091
+    source "$ROOT_DIR/whodat_boot.sh"
+    whodat_boot || true
+fi
+
 echo ""
 
 # ──────────────────────────────────────────────────────────────────────────

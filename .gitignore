@@ -126,3 +126,10 @@ cert.pem
 # IONOS diagnostics token file (lives outside the web root on the server)
 .diag_private/
 ionos_diagnostics/config.php
+
+# Who Dat identity keys, registry and vault root key - never commit or ship these
+.whodat/
+whodat-root.key
+registry.db
+**/identity/system.key
+**/identity/owner.key

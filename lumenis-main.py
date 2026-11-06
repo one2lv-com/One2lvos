@@ -1117,6 +1117,15 @@ try:
 except Exception as _sfc_err:  # never let the bridge break the reactor boot
     print(f"⚠ sfcompute MCP bridge not loaded: {_sfc_err}")
 
+# ── Who Dat identity handshake + per-owner key vault (/whodat). Status only goes in the tool list:
+#    Lumenis gets no tool that reads keys; keys are released only to a signed, enrolled system. ──
+try:
+    from whodat.api import router as _whodat_router, REGISTRY_ENTRIES as _WHODAT_TOOLS
+    app.include_router(_whodat_router)
+    TOOL_REGISTRY.extend(_WHODAT_TOOLS)
+except Exception as _wd_err:  # never let Who Dat break the reactor boot
+    print(f"⚠ Who Dat routes not loaded: {_wd_err}")
+
 # ── IONOS webspace diagnostics (Hermes tool) ──
 # Read-only. Calls the PHP diagnostics API on the IONOS webspace with IONOS_DIAG_TOKEN
 # from .env, and runs a real SFTP key login via ~/bin/ionos_sftp.sh list.
