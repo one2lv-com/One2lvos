@@ -8,6 +8,39 @@ const WebDAVHandler = require('./protocols/webdav-handler');
 const FTPHandler = require('./protocols/ftp-handler');
 const fs = require('fs').promises;
 const path = require('path');
+const fsSync = require('fs');
+
+// Built-in connection to this machine's own WebDAV server (webdav_server.py, :8090).
+// Its login is the AI Lobby admin login, read at connect time and never saved here.
+const LOBBY_CONFIG = path.join(__dirname, '../ai-lobby/data/config.json');
+const BUILTIN_ID = 'one2lv-files';
+const BUILTIN = {
+    id: BUILTIN_ID,
+    name: 'One2lvOS Files (this server)',
+    protocol: 'webdav',
+    host: '127.0.0.1',
+    port: parseInt(process.env.WEBDAV_PORT || '8090', 10),
+    path: '/',
+    builtin: true,
+    persistent: false,
+    autoReconnect: true
+};
+function lobbyAdminCredentials() {
+    const a = JSON.parse(fsSync.readFileSync(LOBBY_CONFIG, 'utf8')).admin;
+    return { username: String(a.username), password: String(a.password) };
+}
+
+// What the API may show: never passwords, handles or timers.
+function publicView(c) {
+    if (!c) return c;
+    return {
+        id: c.id, name: c.name || null, protocol: c.protocol, host: c.host, port: c.port,
+        path: c.path || '/', secure: !!c.secure, builtin: !!c.builtin, status: c.status,
+        lastError: c.lastError || null, lastConnected: c.lastConnected || null, created: c.created,
+        username: c.builtin ? '(AI Lobby admin)' : ((c.credentials && c.credentials.username) || null),
+        persistent: !!c.persistent, autoReconnect: !!c.autoReconnect
+    };
+}
 
 class NetworkService {
     constructor() {
@@ -36,6 +69,9 @@ class NetworkService {
         // Load saved connections
         await this.loadConnections();
 
+        // Built-in connection to the local WebDAV server
+        await this.ensureBuiltin();
+
         this.initialized = true;
         console.log('[NetworkService] Initialized successfully');
     }
@@ -49,6 +85,7 @@ class NetworkService {
             const config = JSON.parse(data);
 
             for (const conn of config.connections || []) {
+                if (conn.builtin || conn.id === BUILTIN_ID) continue;
                 try {
                     await this.createConnection(conn);
                 } catch (error) {
@@ -72,8 +109,10 @@ class NetworkService {
      */
     async saveConnections() {
         try {
-            const connections = this.router.getConnections().map(conn => ({
+            const connections = this.router.getConnections().filter(c => !c.builtin && !String(c.id).startsWith('test_')).map(conn => ({
                 id: conn.id,
+                name: conn.name || null,
+                secure: !!conn.secure,
                 protocol: conn.protocol,
                 host: conn.host,
                 port: conn.port,
@@ -87,7 +126,9 @@ class NetworkService {
 
             // Ensure config directory exists
             await fs.mkdir(path.dirname(this.configFile), { recursive: true });
-            await fs.writeFile(this.configFile, JSON.stringify(config, null, 2));
+            // Saved logins for other servers live here, so keep the file private.
+            await fs.writeFile(this.configFile, JSON.stringify(config, null, 2), { mode: 0o600 });
+            await fs.chmod(this.configFile, 0o600).catch(() => {});
 
             console.log('[NetworkService] Connections saved');
         } catch (error) {
@@ -99,9 +140,21 @@ class NetworkService {
      * Create a new connection
      */
     async createConnection(config) {
-        const connection = this.router.createStaticConnection(config);
+        const cfg = { ...(config || {}) };
+        delete cfg.builtin;
+        if (cfg.id === BUILTIN_ID) delete cfg.id;
+        const connection = this.router.createStaticConnection(cfg);
         await this.saveConnections();
         return connection;
+    }
+
+    async ensureBuiltin() {
+        if (this.router.getConnection(BUILTIN_ID)) return;
+        const c = this.router.createStaticConnection({ ...BUILTIN });
+        c.resolveCredentials = lobbyAdminCredentials;
+        c.persistent = true;
+        await this.router.connect(BUILTIN_ID).catch(e =>
+            console.error('[NetworkService] Built-in WebDAV not reachable yet:', e.message));
     }
 
     /**
@@ -123,6 +176,7 @@ class NetworkService {
      * Remove a connection
      */
     async removeConnection(connectionId) {
+        if (connectionId === BUILTIN_ID) throw new Error('The built-in One2lvOS Files connection cannot be removed');
         await this.router.removeConnection(connectionId);
         await this.saveConnections();
     }
@@ -131,14 +185,14 @@ class NetworkService {
      * Get all connections
      */
     getConnections() {
-        return this.router.getConnections();
+        return this.router.getConnections().filter(c => !String(c.id).startsWith('test_')).map(publicView);
     }
 
     /**
      * Get connection by ID
      */
     getConnection(connectionId) {
-        return this.router.getConnection(connectionId);
+        return publicView(this.router.getConnection(connectionId));
     }
 
     /**
@@ -158,7 +212,8 @@ class NetworkService {
         }
 
         if (connection.status !== 'connected') {
-            throw new Error(`Connection ${connectionId} is not connected`);
+            // Connect on demand (e.g. after a restart) instead of failing outright.
+            await this.router.connect(connectionId);
         }
 
         const handler = this.router.protocols.get(connection.protocol);
@@ -173,9 +228,14 @@ class NetworkService {
      * WebDAV operations
      */
     async webdavList(connectionId, remotePath = '/') {
-        const result = await this.executeOperation(connectionId, 'propfind', remotePath);
+        const result = await this.executeOperation(connectionId, 'propfind', remotePath, 1);
         const handler = this.router.protocols.get('webdav');
-        return handler.parseXmlResponse(result.body);
+        const conn = this.router.getConnection(connectionId);
+        return handler.parseXmlResponse(result.body, conn.handle, remotePath);
+    }
+
+    async webdavMove(connectionId, fromPath, toPath) {
+        return this.executeOperation(connectionId, 'move', fromPath, toPath);
     }
 
     async webdavGet(connectionId, remotePath) {
@@ -231,10 +291,13 @@ class NetworkService {
     async testConnection(config) {
         const testId = `test_${Date.now()}`;
         try {
+            const cfg = { ...(config || {}) };
+            delete cfg.builtin;
             const connection = this.router.createStaticConnection({
-                ...config,
+                ...cfg,
                 id: testId,
-                persistent: false
+                persistent: false,
+                autoReconnect: false
             });
 
             await this.router.connect(testId);

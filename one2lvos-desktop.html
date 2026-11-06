@@ -43,6 +43,105 @@
         .window.maximized {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
+
+        /* ── Breathing desktop ─────────────────────────────────────────────
+           Icons and windows rise and fall slowly, like a chest: a few percent
+           bigger on the in-breath, back on the out-breath, with a slight 3D
+           tilt, a glyph that swells a little more than its tile (depth), and a
+           faint sheen that drifts across at the top of each breath.
+           Pure CSS: no network, no API, no timers. Lives under body.o2-breathe,
+           which the lungs button in the taskbar turns on and off. Off by default
+           when the device asks for reduced motion. */
+        @keyframes o2-breathe-tile {
+            0%, 100% { scale: 1;     rotate: 1 -1 0 -2.5deg; }
+            50%      { scale: 1.045; rotate: 1 -1 0  2.5deg; }
+        }
+        @keyframes o2-breathe-glyph {
+            0%, 100% { scale: 1; }
+            50%      { scale: 1.07; }
+        }
+        @keyframes o2-breathe-soft {
+            0%, 100% { scale: 1; }
+            50%      { scale: 1.04; }
+        }
+        @keyframes o2-breathe-sheen {
+            0%   { transform: translateX(-130%) skewX(-20deg); opacity: 0; }
+            35%  { opacity: 0; }
+            50%  { opacity: 1; }
+            65%  { opacity: 0; }
+            100% { transform: translateX(130%) skewX(-20deg); opacity: 0; }
+        }
+        @keyframes o2-breathe-win {
+            0%, 100% { scale: 1; }
+            50%      { scale: 1.004; }
+        }
+        @keyframes o2-breathe-aura {
+            0%, 100% { opacity: 0.15; }
+            50%      { opacity: 0.75; }
+        }
+
+        /* Rhythm per icon: five phases and three slightly different lengths, so
+           the icons drift in and out of step like a room of sleepers, never in
+           lockstep. */
+        #desktop-icons > div { --o2-t: 7.6s; --o2-d: 0s; }
+        #desktop-icons > div:nth-child(3n+2) { --o2-t: 8.2s; }
+        #desktop-icons > div:nth-child(3n)   { --o2-t: 7.1s; }
+        #desktop-icons > div:nth-child(5n+2) { --o2-d: -1.5s; }
+        #desktop-icons > div:nth-child(5n+3) { --o2-d: -3s; }
+        #desktop-icons > div:nth-child(5n+4) { --o2-d: -4.5s; }
+        #desktop-icons > div:nth-child(5n)   { --o2-d: -6s; }
+        #start-menu-grid > div { --o2-d: 0s; }
+        #start-menu-grid > div:nth-child(4n+2) { --o2-d: -2s; }
+        #start-menu-grid > div:nth-child(4n+3) { --o2-d: -4s; }
+        #start-menu-grid > div:nth-child(4n)   { --o2-d: -6s; }
+
+        /* Desktop icons: tile breathes and tilts, glyph swells deeper, sheen drifts. */
+        body.o2-breathe #desktop-icons > div { perspective: 420px; }
+        body.o2-breathe #desktop-icons > div > div:first-child {
+            position: relative;
+            overflow: hidden;
+            animation: o2-breathe-tile var(--o2-t) ease-in-out var(--o2-d) infinite;
+        }
+        body.o2-breathe #desktop-icons > div > div:first-child > i {
+            animation: o2-breathe-glyph var(--o2-t) ease-in-out var(--o2-d) infinite;
+        }
+        body.o2-breathe #desktop-icons > div > div:first-child::after {
+            content: '';
+            position: absolute;
+            inset: -20% 10%;
+            pointer-events: none;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.32), rgba(165,243,252,0.22), transparent);
+            animation: o2-breathe-sheen var(--o2-t) ease-in-out var(--o2-d) infinite;
+        }
+
+        /* Start menu and taskbar: the glyphs breathe gently. The taskbar rebuilds
+           its buttons often, so --o2-sync (set from the clock below) keeps them
+           on the same breath instead of restarting it. */
+        body.o2-breathe #start-menu-grid > div > div:first-child > i {
+            animation: o2-breathe-soft 7.6s ease-in-out var(--o2-d) infinite;
+        }
+        body.o2-breathe #taskbar-apps > button > i:first-child {
+            animation: o2-breathe-glyph 7.6s ease-in-out var(--o2-sync, 0s) infinite;
+        }
+
+        /* Windows: the frame barely swells (0.4%) and a soft inner glow along
+           the edge brightens and dims with each breath. Maximized windows keep
+           still and only glow, so nothing pokes past the screen edge. */
+        body.o2-breathe .window:not(.maximized) {
+            animation: o2-breathe-win 9s ease-in-out infinite;
+        }
+        body.o2-breathe .window:nth-child(odd):not(.maximized),
+        body.o2-breathe .window:nth-child(odd)::after { animation-delay: -4.5s; }
+        body.o2-breathe .window::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            z-index: 60;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55), inset 0 0 22px rgba(125,211,252,0.28);
+            animation: o2-breathe-aura 9s ease-in-out infinite;
+        }
     </style>
 </head>
 <body class="text-gray-800 w-screen h-screen flex flex-col relative">
@@ -93,6 +192,10 @@
         </div>
 
         <div class="flex items-center gap-2 h-full text-white">
+            <!-- Breathing desktop on/off -->
+            <button id="o2-breathe-btn" onclick="o2ToggleBreathe()" title="Breathing icons" aria-pressed="true" class="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all group active:scale-95">
+                <i class="fas fa-lungs text-sm text-cyan-300 group-hover:text-cyan-200 drop-shadow-sm transition-colors"></i>
+            </button>
             <!-- State PNG buttons -->
             <button onclick="saveStatePNG()" title="Save desktop state as PNG" class="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all group active:scale-95">
                 <i class="fas fa-camera text-sm text-blue-300 group-hover:text-blue-200 drop-shadow-sm transition-colors"></i>
@@ -483,17 +586,29 @@
                 `
             },
             'steamos-dash': {
-                name: 'SteamOS Dashboard',
-                icon: 'fas fa-gamepad',
+                name: 'Steam Community',
+                icon: 'fab fa-steam',
                 color: 'text-blue-400',
-                width: 900,
-                height: 650,
+                width: 760,
+                height: 640,
                 content: `
-                    <div class="h-full flex flex-col bg-[#1b2838]">
-                        <iframe src="${STEAMOS}" class="flex-1 w-full border-none" id="steamos-iframe"></iframe>
-                        <div class="bg-[#1b2838] text-gray-400 text-xs px-3 py-1.5 flex items-center justify-between flex-shrink-0 border-t border-gray-700">
-                            <span><i class="fas fa-gamepad mr-1"></i> SteamOS Dashboard · port 8081</span>
-                            <button onclick="document.getElementById('steamos-iframe').src=STEAMOS" class="hover:text-white transition-colors"><i class="fas fa-redo-alt"></i></button>
+                    <div class="h-full flex flex-col bg-[#1b2838] text-gray-200">
+                        <div class="bg-[#171a21] px-4 py-3 flex-shrink-0 border-b border-[#2a475e]">
+                            <h2 class="text-lg font-bold text-white flex items-center gap-2"><i class="fab fa-steam text-[#66c0f4]"></i> Steam Community</h2>
+                            <p class="text-gray-400 text-xs mt-1">Opens Valve's official Steam pages in a new browser tab. Steam doesn't let its pages load inside other sites, so they can't open in this window. These are links only: nothing here runs SteamOS, installs Steam or streams games.</p>
+                        </div>
+                        <div class="flex-1 overflow-auto p-4">
+                            <div class="mb-4"><div class="text-[#66c0f4] text-xs font-bold uppercase tracking-wider mb-1">Search the Steam store</div>
+                            <div class="flex gap-2"><input id="steam-search" type="text" class="flex-1 bg-[#2a475e] text-white placeholder-gray-400 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#66c0f4]" placeholder="Game name, e.g. Brawlhalla" onkeypress="if(event.key==='Enter')steamStoreSearch()">
+                            <button onclick="steamStoreSearch()" class="bg-[#66c0f4] hover:bg-white text-[#1b2838] px-4 py-2 rounded-lg text-sm font-bold transition-colors"><i class="fas fa-search mr-1"></i>Search</button></div></div>
+                            <div class="mb-4"><div class="text-[#66c0f4] text-xs font-bold uppercase tracking-wider mb-1">Community</div><div class="grid grid-cols-2 gap-2"><a href="https://steamcommunity.com/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-home w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Community home</span><span class="text-[11px] opacity-70">steamcommunity.com</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/discussions/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-comments w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Discussions</span><span class="text-[11px] opacity-70">Steam forums</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/workshop/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-tools w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Workshop</span><span class="text-[11px] opacity-70">Mods and community content</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/market/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-store w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Community Market</span><span class="text-[11px] opacity-70">Browse items (no buying from here)</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/?subsection=broadcasts" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-broadcast-tower w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Live broadcasts</span><span class="text-[11px] opacity-70">Watch what people are streaming</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/search/users/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-user-friends w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Find players</span><span class="text-[11px] opacity-70">Search Steam profiles</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/search/groups/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-users w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Find groups</span><span class="text-[11px] opacity-70">Search Steam groups</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://store.steampowered.com/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-shopping-bag w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Steam store</span><span class="text-[11px] opacity-70">store.steampowered.com</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a></div></div>
+                            <div class="mb-4"><div class="text-[#66c0f4] text-xs font-bold uppercase tracking-wider mb-1">Brawlhalla</div><div class="grid grid-cols-2 gap-2"><a href="https://steamcommunity.com/app/291550" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-fist-raised w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Community hub</span><span class="text-[11px] opacity-70">Posts, art, videos</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/app/291550/broadcasts/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-video w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Live broadcasts</span><span class="text-[11px] opacity-70">Brawlhalla streams on Steam</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/app/291550/discussions/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-comment-dots w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Discussions</span><span class="text-[11px] opacity-70">Brawlhalla forums</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/app/291550/guides/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-book w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Guides</span><span class="text-[11px] opacity-70">Player-written guides</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://store.steampowered.com/app/291550/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-tag w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Store page</span><span class="text-[11px] opacity-70">Brawlhalla on Steam</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a></div></div>
+                            <div class="mb-4"><div class="text-[#66c0f4] text-xs font-bold uppercase tracking-wider mb-1">Your Steam account</div><div class="text-gray-400 text-[11px] mb-2">Steam asks you to sign in on its own site. One2lvOS never sees your Steam password.</div><div class="grid grid-cols-2 gap-2"><a href="https://steamcommunity.com/my/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-id-card w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">My profile</span><span class="text-[11px] opacity-70">Opens your profile after sign-in</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="https://steamcommunity.com/chat/" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-comment w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Steam web chat</span><span class="text-[11px] opacity-70">Friends and chat after sign-in</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a></div></div>
+                            <div class="mb-4"><div class="text-[#66c0f4] text-xs font-bold uppercase tracking-wider mb-1">Steam app on this device</div><div class="text-gray-400 text-[11px] mb-2">Only works on a device with the Steam app installed. Otherwise your browser will do nothing.</div><div class="grid grid-cols-2 gap-2"><a href="steam://open/friends" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-user-friends w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Open Friends</span><span class="text-[11px] opacity-70">In the Steam app</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a><a href="steam://url/CommunityHome" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fab fa-steam w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">Community in Steam app</span><span class="text-[11px] opacity-70">In the Steam app</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a></div></div>
+                            <div class="mb-4"><div class="text-[#66c0f4] text-xs font-bold uppercase tracking-wider mb-1">Playing remotely</div><div class="text-gray-400 text-[11px] mb-2">Valve's own page about Steam Remote Play. One2lvOS doesn't stream games itself.</div><div class="grid grid-cols-2 gap-2"><a href="https://store.steampowered.com/remoteplay" target="_blank" rel="noopener noreferrer" class="steam-link flex items-center gap-3 bg-[#2a475e] hover:bg-[#66c0f4] hover:text-[#1b2838] text-gray-100 rounded-lg px-3 py-2 transition-colors"><i class="fas fa-gamepad w-5 text-center"></i><span class="flex flex-col leading-tight"><span class="text-sm font-medium">About Steam Remote Play</span><span class="text-[11px] opacity-70">Valve's page</span></span><i class="fas fa-external-link-alt ml-auto text-[10px] opacity-60"></i></a></div></div>
+                        </div>
+                        <div class="bg-[#171a21] text-gray-400 text-xs px-3 py-1.5 flex items-center justify-between flex-shrink-0 border-t border-[#2a475e]">
+                            <span><i class="fab fa-steam mr-1"></i> Links to steamcommunity.com and store.steampowered.com · open in a new tab</span>
                         </div>
                     </div>
                 `
@@ -668,12 +783,33 @@
                                         <div><label class="block text-sm font-semibold text-gray-700 mb-1">Password</label>
                                         <input type="password" name="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm" placeholder="••••••••"></div>
                                     </div>
+                                    <label class="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" name="secure"> Use HTTPS</label>
                                     <div id="net-test-result" class="text-sm hidden"></div>
                                     <div class="flex gap-3 pt-2">
                                         <button type="button" onclick="netTestConn()" class="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-all text-sm"><i class="fas fa-vial mr-2"></i>Test</button>
                                         <button type="submit" class="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white py-2.5 rounded-lg font-semibold hover:shadow-lg transition-all text-sm"><i class="fas fa-save mr-2"></i>Save</button>
                                     </div>
                                 </form>
+                            </div>
+                        </div>
+                        <!-- WebDAV file browser (hidden by default) -->
+                        <div id="net-files-panel" class="hidden absolute inset-0 bg-black/50 items-center justify-center z-20">
+                            <div class="bg-white rounded-2xl shadow-2xl w-full h-[92%] mx-4 flex flex-col overflow-hidden">
+                                <div class="p-4 border-b flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <h2 class="text-lg font-bold text-gray-800 truncate"><i class="fas fa-folder-open text-blue-500 mr-2"></i><span id="net-files-title">Files</span></h2>
+                                        <div class="text-xs text-gray-500 truncate" id="net-files-path">/</div>
+                                    </div>
+                                    <div class="flex gap-2 flex-shrink-0">
+                                        <button onclick="netFilesUp()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold"><i class="fas fa-level-up-alt mr-1"></i>Up</button>
+                                        <button onclick="netFilesLoad()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+                                        <button onclick="netFilesMkdir()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold"><i class="fas fa-folder-plus mr-1"></i>New folder</button>
+                                        <label class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"><i class="fas fa-upload mr-1"></i>Upload<input type="file" multiple class="hidden" onchange="netFilesUpload(this)"></label>
+                                        <button onclick="netFilesClose()" class="text-gray-400 hover:text-gray-600 px-2"><i class="fas fa-times text-xl"></i></button>
+                                    </div>
+                                </div>
+                                <div id="net-files-status" class="text-xs px-4 py-1.5 text-gray-500 border-b">Ready</div>
+                                <div id="net-files-list" class="flex-1 overflow-auto text-sm"></div>
                             </div>
                         </div>
                     </div>
@@ -908,6 +1044,7 @@
   clear         - Clear terminal
   date          - Show current date
   whoami        - Show current user
+  steam         - Open the Steam Community window (links to Valve's sites)
 </div>`;
                 } else if (mainCmd === 'status') {
                     response = '<div class="text-yellow-400">Checking services...</div>';
@@ -924,12 +1061,14 @@
   Lumenis v7       - Port 8005  (Node.js Cosmic)
   AI Lobby         - Port 8006  (Agent hub/registry)
   Minimax Core     - Port 8080  (Node.js minimax/minimax-01)
-  SteamOS Dash     - Port 8081  (Python dashboard)
   Unified Gateway  - Port 8888  (FastAPI gateway)
   Lumenis UI       - Port 9001  (Static frontend)
   LumenisOS API    - Port 9002  (Node.js API server)
   Aetherix         - Port 9003  (Master terminal)
 </div>`;
+                } else if (mainCmd === 'steam') {
+                    openApp('steamos-dash');
+                    response = '<div class="text-gray-300">Opened Steam Community. Its links open steamcommunity.com and store.steampowered.com in a new tab. This does not install Steam, run SteamOS or stream games.</div>';
                 } else if (mainCmd === 'version') {
                     response = `<div class="text-cyan-400">One2lvOS Version 2.0.0</div>
 <div class="text-gray-400">AI-Powered Spatial Computing OS</div>
@@ -1004,7 +1143,6 @@
                 {name: 'Sovereign Core',  port: 3003, url: `${SOVEREIGN}/api/status`},
                 {name: 'AI Lobby',        port: 8006, url: `${LOBBY}/agents`},
                 {name: 'Minimax Core',    port: 8080, url: `${MINIMAX}/health`},
-                {name: 'SteamOS Dash',    port: 8081, url: `${STEAMOS}`},
                 {name: 'AI Arcade MCP',   port: 8003, url: `${ARCADE}/`},
                 {name: 'Lumenis v7',      port: 8005, url: `${LUMENIS_V7}`},
                 {name: 'Unified Gateway', port: 8888, url: `${GW}/status`},
@@ -1016,7 +1154,8 @@
             let html = '<div class="text-gray-300 mt-2">';
             for (const svc of services) {
                 try {
-                    await fetch(svc.url, {signal: AbortSignal.timeout(2000)});
+                    const r = await fetch(svc.url, {signal: AbortSignal.timeout(2000)});
+                    if (r.status >= 500) throw new Error('HTTP ' + r.status);
                     html += `\n  ${svc.name.padEnd(18)} [<span class="text-green-400">UP</span>] :${svc.port}`;
                 } catch {
                     html += `\n  ${svc.name.padEnd(18)} [<span class="text-red-400">DOWN</span>] :${svc.port}`;
@@ -1039,7 +1178,6 @@
                 {name: 'Lumenis v7',      icon: 'fas fa-star',           port: 8005, url: `${LUMENIS_V7}`},
                 {name: 'AI Lobby',        icon: 'fas fa-satellite-dish', port: 8006, url: `${LOBBY}/agents`},
                 {name: 'Minimax Core',    icon: 'fas fa-robot',          port: 8080, url: `${MINIMAX}/health`},
-                {name: 'SteamOS Dash',    icon: 'fas fa-gamepad',        port: 8081, url: `${STEAMOS}`},
                 {name: 'Unified Gateway', icon: 'fas fa-server',         port: 8888, url: `${GW}/status`},
                 {name: 'Lumenis UI',      icon: 'fas fa-window-maximize',port: 9001, url: `${LUMENIS_UI}`},
                 {name: 'LumenisOS API',   icon: 'fas fa-cube',           port: 9002, url: `${LUMENIS_OS}/api/healthz`},
@@ -1051,7 +1189,8 @@
                 let status = 'checking';
                 let statusClass = 'text-yellow-500';
                 try {
-                    await fetch(svc.url, {timeout: 2000});
+                    const r = await fetch(svc.url, {signal: AbortSignal.timeout(3000)});
+                    if (r.status >= 500) throw new Error('HTTP ' + r.status);
                     status = 'ONLINE';
                     statusClass = 'text-green-500';
                 } catch {
@@ -1550,27 +1689,37 @@
             }
         }
 
+        function netEsc(v) {
+            return String(v == null ? '' : v).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+        function netIdArg(id) { return netEsc(JSON.stringify(String(id))); }
+
         function netCardHTML(c) {
             const dot = {connected:'#10b981',disconnected:'#6b7280',connecting:'#f59e0b',error:'#ef4444'}[c.status]||'#6b7280';
             const icon = c.protocol === 'webdav' ? 'fa-cloud' : 'fa-server';
-            const btns = c.status === 'connected'
-                ? `<button onclick="netDisconnect('${c.id}')" class="flex-1 bg-red-50 text-red-600 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-100 transition-all"><i class="fas fa-unlink mr-1"></i>Disconnect</button>`
-                : `<button onclick="netConnect('${c.id}')" class="flex-1 bg-green-50 text-green-600 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-100 transition-all"><i class="fas fa-plug mr-1"></i>Connect</button>`;
+            const idA = netIdArg(c.id);
+            const browse = c.protocol === 'webdav'
+                ? `<button onclick="netFilesOpen(${idA})" class="flex-1 bg-blue-50 text-blue-600 py-1.5 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-all"><i class="fas fa-folder-open mr-1"></i>Browse</button>`
+                : '';
+            const btns = browse + (c.status === 'connected'
+                ? `<button onclick="netDisconnect(${idA})" class="flex-1 bg-red-50 text-red-600 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-100 transition-all"><i class="fas fa-unlink mr-1"></i>Disconnect</button>`
+                : `<button onclick="netConnect(${idA})" class="flex-1 bg-green-50 text-green-600 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-100 transition-all"><i class="fas fa-plug mr-1"></i>Connect</button>`);
+            const removeBtn = c.builtin ? '' : `<button onclick="netRemove(${idA})" class="bg-gray-100 text-gray-500 py-1.5 px-2.5 rounded-lg text-xs hover:bg-gray-200 transition-all"><i class="fas fa-trash"></i></button>`;
             return `<div class="bg-white rounded-xl shadow-lg p-4 hover:-translate-y-0.5 transition-transform">
                 <div class="flex items-start justify-between mb-3">
                     <div class="flex items-center gap-2">
                         <div class="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center"><i class="fas ${icon} text-white"></i></div>
-                        <div><div class="font-bold text-gray-800 text-sm">${c.id}</div><div class="text-xs text-gray-500">${c.protocol.toUpperCase()}</div></div>
+                        <div><div class="font-bold text-gray-800 text-sm">${netEsc(c.name || c.id)}</div><div class="text-xs text-gray-500">${netEsc(String(c.protocol).toUpperCase())}${c.secure ? ' · HTTPS' : ''}${c.builtin ? ' · built-in' : ''}</div></div>
                     </div>
                     <span style="width:8px;height:8px;border-radius:50%;background:${dot};display:inline-block;margin-top:6px"></span>
                 </div>
                 <div class="text-xs text-gray-600 space-y-1 mb-3">
-                    <div><i class="fas fa-server w-4"></i>${c.host}:${c.port}</div>
-                    <div><i class="fas fa-folder w-4"></i>${c.path||'/'}</div>
+                    <div><i class="fas fa-server w-4"></i>${netEsc(c.host)}:${netEsc(c.port)}</div>
+                    <div><i class="fas fa-folder w-4"></i>${netEsc(c.path||'/')}</div>
+                    ${c.username ? `<div><i class="fas fa-user w-4"></i>${netEsc(c.username)}</div>` : ''}
+                    ${c.lastError && c.status !== 'connected' ? `<div class="text-red-500"><i class="fas fa-exclamation-triangle w-4"></i>${netEsc(c.lastError)}</div>` : ''}
                 </div>
-                <div class="flex gap-2">${btns}
-                    <button onclick="netRemove('${c.id}')" class="bg-gray-100 text-gray-500 py-1.5 px-2.5 rounded-lg text-xs hover:bg-gray-200 transition-all"><i class="fas fa-trash"></i></button>
-                </div></div>`;
+                <div class="flex gap-2">${btns}${removeBtn}</div></div>`;
         }
 
         function netShowAdd() {
@@ -1595,9 +1744,11 @@
         async function netSaveConn(e) {
             e.preventDefault();
             const f = new FormData(e.target);
+            const secure = f.get('secure') === 'on';
             const cfg = {
+                name: f.get('name'), secure,
                 protocol: f.get('protocol'), host: f.get('host'),
-                port: parseInt(f.get('port')) || (f.get('protocol')==='ftp'?21:80),
+                port: parseInt(f.get('port')) || (f.get('protocol')==='ftp'?21:(secure?443:80)),
                 path: f.get('path') || '/',
                 credentials: {username: f.get('username'), password: f.get('password')},
                 persistent: true, autoReconnect: true
@@ -1605,7 +1756,7 @@
             try {
                 const r = await fetch(NET_API + '/connections', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(cfg)});
                 if (r.ok) { netHideAdd(); netRefresh(); }
-                else { alert('Failed to save connection'); }
+                else { const d = await r.json().catch(()=>({})); alert('Failed to save connection: ' + (d.error || r.status)); }
             } catch(err) { alert('Error: ' + err.message); }
         }
 
@@ -1615,7 +1766,7 @@
             if (res) { res.classList.remove('hidden'); res.textContent = 'Testing...'; res.className = 'text-sm text-gray-500'; }
             try {
                 const r = await fetch(NET_API + '/test', {method:'POST', headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({protocol:f.get('protocol'),host:f.get('host'),port:parseInt(f.get('port'))||21,path:f.get('path')||'/',credentials:{username:f.get('username'),password:f.get('password')}})});
+                    body: JSON.stringify({protocol:f.get('protocol'),host:f.get('host'),secure:f.get('secure')==='on',port:parseInt(f.get('port'))||(f.get('protocol')==='ftp'?21:(f.get('secure')==='on'?443:80)),path:f.get('path')||'/',credentials:{username:f.get('username'),password:f.get('password')}})});
                 const d = await r.json();
                 if (res) { res.textContent = d.success ? '✓ Connection successful!' : '✗ ' + d.message; res.className = 'text-sm ' + (d.success ? 'text-green-600' : 'text-red-600'); }
             } catch(err) { if(res){res.textContent='✗ '+err.message; res.className='text-sm text-red-600';} }
@@ -1631,8 +1782,131 @@
         }
         async function netRemove(id) {
             if (!confirm('Remove this connection?')) return;
-            await fetch(NET_API + '/connections/' + id, {method:'DELETE'}).catch(()=>{});
+            await fetch(NET_API + '/connections/' + encodeURIComponent(id), {method:'DELETE'}).catch(()=>{});
             netRefresh();
+        }
+
+        // ── WebDAV file browser ──────────────────────────────────────────
+        let _netFiles = { id: null, path: '/' };
+        function netJoin(dir, name) { return (dir.replace(/\/+$/, '') + '/' + name).replace(/\/+/g, '/'); }
+        function netFilesStatus(msg, err) {
+            const s = document.getElementById('net-files-status');
+            if (s) { s.textContent = msg; s.className = 'text-xs px-4 py-1.5 border-b ' + (err ? 'text-red-600' : 'text-gray-500'); }
+        }
+        function netFilesUrl(op) {
+            return NET_API + '/connections/' + encodeURIComponent(_netFiles.id) + '/webdav/' + op;
+        }
+        async function netFilesCall(op, opts, query) {
+            const r = await fetch(netFilesUrl(op) + (query ? '?path=' + encodeURIComponent(query) : ''), opts || {});
+            if (!r.ok) { const d = await r.json().catch(()=>({})); throw new Error(d.error || ('HTTP ' + r.status)); }
+            return r;
+        }
+        function netFilesOpen(id) {
+            const c = _netConns.find(x => x.id === id) || { id };
+            _netFiles = { id, path: '/' };
+            document.getElementById('net-files-title').textContent = c.name || c.id;
+            const p = document.getElementById('net-files-panel');
+            p.classList.remove('hidden'); p.classList.add('flex');
+            netFilesLoad();
+        }
+        function netFilesClose() {
+            const p = document.getElementById('net-files-panel');
+            if (p) { p.classList.add('hidden'); p.classList.remove('flex'); }
+            netRefresh();
+        }
+        function netFilesUp() {
+            if (_netFiles.path === '/') return;
+            _netFiles.path = _netFiles.path.replace(/\/[^\/]*\/?$/, '') || '/';
+            netFilesLoad();
+        }
+        function netFilesCd(path) { _netFiles.path = path || '/'; netFilesLoad(); }
+        function netFmtSize(n) {
+            if (!n) return '';
+            const u = ['B','KB','MB','GB']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+            return (i ? n.toFixed(1) : n) + ' ' + u[i];
+        }
+        async function netFilesLoad() {
+            const list = document.getElementById('net-files-list');
+            document.getElementById('net-files-path').textContent = _netFiles.path;
+            netFilesStatus('Loading…');
+            try {
+                const items = await (await netFilesCall('list', null, _netFiles.path)).json();
+                if (!items.length) {
+                    list.innerHTML = '<div class="p-10 text-center text-gray-400"><i class="fas fa-folder-open text-4xl mb-2 block"></i>This folder is empty. Use Upload or New folder.</div>';
+                } else {
+                    list.innerHTML = '<table class="w-full"><tbody>' + items.map(it => {
+                        const pA = netIdArg(it.path);
+                        const nameCell = it.isDir
+                            ? `<a href="#" onclick="netFilesCd(${pA});return false" class="text-blue-600 hover:underline"><i class="fas fa-folder text-yellow-500 mr-2"></i>${netEsc(it.name)}</a>`
+                            : `<span><i class="fas fa-file text-gray-400 mr-2"></i>${netEsc(it.name)}</span>`;
+                        return `<tr class="border-b hover:bg-gray-50">
+                            <td class="px-4 py-2">${nameCell}</td>
+                            <td class="px-2 py-2 text-xs text-gray-500 whitespace-nowrap">${netEsc(netFmtSize(it.size))}</td>
+                            <td class="px-2 py-2 text-xs text-gray-400 whitespace-nowrap">${netEsc(it.modified ? new Date(it.modified).toLocaleString() : '')}</td>
+                            <td class="px-4 py-2 text-right whitespace-nowrap">
+                                ${it.isDir ? '' : `<button title="Download" onclick="netFilesDownload(${pA})" class="text-gray-500 hover:text-blue-600 px-1.5"><i class="fas fa-download"></i></button>`}
+                                <button title="Rename" onclick="netFilesRename(${pA})" class="text-gray-500 hover:text-blue-600 px-1.5"><i class="fas fa-i-cursor"></i></button>
+                                <button title="Delete" onclick="netFilesDelete(${pA}, ${it.isDir ? 'true' : 'false'})" class="text-gray-500 hover:text-red-600 px-1.5"><i class="fas fa-trash"></i></button>
+                            </td></tr>`;
+                    }).join('') + '</tbody></table>';
+                }
+                netFilesStatus(items.length + ' item' + (items.length === 1 ? '' : 's'));
+            } catch (e) {
+                list.innerHTML = '';
+                netFilesStatus('Could not list this folder: ' + e.message, true);
+            }
+        }
+        async function netFilesDownload(path) {
+            netFilesStatus('Downloading…');
+            try {
+                const blob = await (await netFilesCall('get', null, path)).blob();
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = path.split('/').filter(Boolean).pop() || 'download';
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+                netFilesStatus('Downloaded ' + a.download);
+            } catch (e) { netFilesStatus('Download failed: ' + e.message, true); }
+        }
+        async function netFilesUpload(input) {
+            const files = Array.from(input.files || []);
+            input.value = '';
+            for (const f of files) {
+                if (f.size > 50 * 1024 * 1024) { netFilesStatus(f.name + ' is over the 50 MB upload limit', true); continue; }
+                netFilesStatus('Uploading ' + f.name + '…');
+                try {
+                    await netFilesCall('put', { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: f }, netJoin(_netFiles.path, f.name));
+                } catch (e) { netFilesStatus('Upload of ' + f.name + ' failed: ' + e.message, true); return; }
+            }
+            await netFilesLoad();
+            if (files.length) netFilesStatus('Uploaded ' + files.length + ' file' + (files.length === 1 ? '' : 's'));
+        }
+        async function netFilesMkdir() {
+            const name = (prompt('New folder name:') || '').trim();
+            if (!name) return;
+            if (/[\/]/.test(name) || name === '.' || name === '..') { netFilesStatus('Folder names cannot contain / or be . or ..', true); return; }
+            try {
+                await netFilesCall('mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: netJoin(_netFiles.path, name) }) });
+                netFilesLoad();
+            } catch (e) { netFilesStatus('Could not create folder: ' + e.message, true); }
+        }
+        async function netFilesRename(path) {
+            const old = path.split('/').filter(Boolean).pop();
+            const name = (prompt('Rename to:', old) || '').trim();
+            if (!name || name === old) return;
+            if (/[\/]/.test(name) || name === '.' || name === '..') { netFilesStatus('Names cannot contain / or be . or ..', true); return; }
+            const dir = path.replace(/\/[^\/]*\/?$/, '') || '/';
+            try {
+                await netFilesCall('move', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ from: path, to: netJoin(dir, name) }) });
+                netFilesLoad();
+            } catch (e) { netFilesStatus('Rename failed: ' + e.message, true); }
+        }
+        async function netFilesDelete(path, isDir) {
+            if (!confirm('Delete ' + (isDir ? 'folder ' : '') + path + (isDir ? ' and everything in it' : '') + '?')) return;
+            try {
+                await netFilesCall('delete', { method: 'DELETE' }, path);
+                netFilesLoad();
+            } catch (e) { netFilesStatus('Delete failed: ' + e.message, true); }
         }
 
         // ── MiniMax Hub status ───────────────────────────────────────────
@@ -2184,6 +2458,14 @@
             });
         }
 
+        // Steam Community app: opens Valve's official store search in a new tab.
+        function steamStoreSearch() {
+            const el = document.getElementById('steam-search');
+            const q = el ? el.value.trim() : '';
+            const url = q ? 'https://store.steampowered.com/search/?term=' + encodeURIComponent(q) : 'https://store.steampowered.com/search/';
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
+
         // Initialization
         function initOS() {
             const desktop = document.getElementById('desktop-icons');
@@ -2220,7 +2502,47 @@
 
         window.onload = initOS;
     </script>
+    <script>
+        // Breathing desktop: turns the CSS breathing on or off and remembers the
+        // choice on this device. Default is on, unless the device asks for reduced motion.
+        (function () {
+            var KEY = 'o2_breathe';
+            function wanted() {
+                var v = null;
+                try { v = localStorage.getItem(KEY); } catch (e) {}
+                if (v === 'on') return true;
+                if (v === 'off') return false;
+                return !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            }
+            function apply(on) {
+                document.body.classList.toggle('o2-breathe', on);
+                var b = document.getElementById('o2-breathe-btn');
+                if (b) {
+                    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+                    b.title = on ? 'Breathing icons: on (tap to turn off)' : 'Breathing icons: off (tap to turn on)';
+                    b.style.opacity = on ? '1' : '0.45';
+                }
+            }
+            window.o2ToggleBreathe = function () {
+                var on = !document.body.classList.contains('o2-breathe');
+                try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch (e) {}
+                apply(on);
+            };
+            apply(wanted());
+            // Taskbar buttons are rebuilt on every change; keep their breath on the clock.
+            var tb = document.getElementById('taskbar-apps');
+            if (tb && window.MutationObserver) {
+                new MutationObserver(function () {
+                    tb.style.setProperty('--o2-sync', (-((performance.now() / 1000) % 7.6)).toFixed(2) + 's');
+                }).observe(tb, { childList: true });
+            }
+        })();
+    </script>
     <!-- One2lvOS WebOS layer: site directory, reactor console, rewired endpoints -->
     <script src="/static/webos/o2-webos.js"></script>
+    <!-- One2lvOS voice: speech input, spoken replies, live conversation for Lumenis Chat -->
+    <script src="/static/webos/o2-voice.js"></script>
+    <!-- One2lvOS Canvas: page-building workspace (editor, live preview, files in One2lvOS Files /canvas) -->
+    <script src="/static/webos/o2-canvas.js"></script>
 </body>
 </html>

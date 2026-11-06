@@ -199,6 +199,13 @@ from lumenis_reactor_core.webos import router as webos_router, os_host_redirect 
 app.include_router(webos_router)
 app.middleware("http")(_webos_os_redirect)
 
+# ── One2lvOS voice: Gemini speech-to-text / text-to-speech proxy (key stays server-side) ──
+try:
+    from lumenis_reactor_core.voice import router as voice_router
+    app.include_router(voice_router)
+except Exception as _voice_err:  # never let voice break the reactor boot
+    print(f"⚠ voice proxy not loaded: {_voice_err}")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -1117,6 +1124,8 @@ TOOL_REGISTRY = [
     {"id": "facts.all",          "label": "All Facts",          "method": "GET",  "path": "/api/facts/all",                 "category": "Memory",   "icon": "🗂️", "params": []},
     {"id": "ionos.diagnostics",  "label": "IONOS Server Diagnostics", "method": "GET", "path": "/api/ionos/diagnostics", "category": "Hosting",  "icon": "🩺", "params": ["check"]},
     {"id": "ionos.sftp_check",   "label": "IONOS SFTP Login Test", "method": "GET",  "path": "/api/ionos/sftp-check",          "category": "Hosting",  "icon": "🔑", "params": []},
+    {"id": "shared_files.list",  "label": "Shared Folder: List",  "method": "GET",  "path": "/api/tools/shared_files/list",  "category": "Files",    "icon": "📂", "params": ["path"]},
+    {"id": "shared_files.read",  "label": "Shared Folder: Read Text File", "method": "GET", "path": "/api/tools/shared_files/read", "category": "Files", "icon": "📄", "params": ["path","offset"]},
 ]
 
 @app.get("/api/tools/registry")
@@ -1166,6 +1175,69 @@ async def ionos_sftp_check():
     """Real SFTP login with the reactor's SSH key (lists /one2lvos). Records the result for the dashboard."""
     res = await asyncio.to_thread(_ionos.sftp_check)
     return JSONResponse(res, status_code=200 if res.get("ok") else 502)
+
+
+# ── Shared folder (WebDAV share webdav_root) — read-only list/read ──
+# The council uses lumenis_reactor_core.shared_files in-process (Hermes step). These HTTP
+# routes are for direct use and need the same login as the WebDAV share (AI Lobby admin,
+# HTTP Basic), with the same lockout: 5 wrong tries -> 10 minutes.
+from lumenis_reactor_core import shared_files as _shared
+from fastapi import Request as _SFRequest
+import base64 as _sf_b64, hmac as _sf_hmac
+from collections import defaultdict as _sf_dd, deque as _sf_deque
+_SF_FAILS = _sf_dd(_sf_deque)
+
+def _sf_auth(request) -> "JSONResponse | None":
+    ip = request.headers.get("cf-connecting-ip") or (request.client.host if request.client else "?")
+    now = time.time()
+    q = _SF_FAILS[ip]
+    while q and q[0] < now - 600:
+        q.popleft()
+    if len(q) >= 5:
+        return JSONResponse({"ok": False, "error": "too many failed logins; try again later"}, status_code=429)
+    hdr = request.headers.get("authorization", "")
+    user = pw = ""
+    if hdr.lower().startswith("basic "):
+        try:
+            user, _, pw = _sf_b64.b64decode(hdr[6:]).decode("utf-8").partition(":")
+        except Exception:
+            user = pw = ""
+    try:
+        with open(Path(__file__).parent / "ai-lobby" / "data" / "config.json") as f:
+            adm = json.load(f)["admin"]
+        ok = _sf_hmac.compare_digest(user.encode(), str(adm["username"]).encode()) & \
+            _sf_hmac.compare_digest(pw.encode(), str(adm["password"]).encode())
+    except Exception:
+        ok = False
+    if not ok:
+        if hdr:
+            q.append(now)
+        return JSONResponse({"ok": False, "error": "login required (AI Lobby admin)"}, status_code=401,
+                            headers={"WWW-Authenticate": 'Basic realm="One2lvOS Files"'})
+    return None
+
+@app.get("/api/tools/shared_files/list")
+async def shared_files_list(request: _SFRequest, path: str = "", recursive: bool = True):
+    """List the WebDAV share (read-only; symlinks not followed)."""
+    denied = _sf_auth(request)
+    if denied:
+        return denied
+    try:
+        return JSONResponse(await asyncio.to_thread(_shared.list_dir, path, recursive))
+    except _shared.SharedFileError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+
+@app.get("/api/tools/shared_files/read")
+async def shared_files_read(request: _SFRequest, path: str, offset: int = 0, max_chars: int = 20000):
+    """Read a text file from the WebDAV share (read-only; binary files refused)."""
+    denied = _sf_auth(request)
+    if denied:
+        return denied
+    try:
+        res = await asyncio.to_thread(_shared.read_file, path, offset, max_chars)
+        return JSONResponse(res, status_code=200 if res.get("ok") else 415)
+    except _shared.SharedFileError as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
 
 
 # ── AI Lobby Integration ──────────────────────────────────────────────────────

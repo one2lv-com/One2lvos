@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from . import ionos as _ionos
+from . import shared_files as _shared
 
 # Requests that should trigger the IONOS webspace diagnostics tool (Hermes)
 _IONOS_RE = re.compile(
@@ -93,6 +94,14 @@ IONOS webspace diagnostics (internal tool, app id "ionos"):
   where <check> is one of: all (full diagnostic incl. real SFTP login), env (PHP version, storage),
   http (site status + latency), ssl (certificate), dns, index, htaccess, sftp (real SSH-key login), recent (latest changed files), ping.
   Use it whenever the user asks to check / diagnose the IONOS server, webspace, hosting or the static OS site.
+
+Shared folder (internal read-only tool, app id "shared_files"):
+  The One2lvOS WebDAV share (webdav_root) — files One2lv or Miles upload from the desktop
+  (Network Manager -> One2lvOS Files) land here. List it or read a text file from it:
+  {{"app": "shared_files", "path": "list", "method": "GET", "body": null, "description": "..."}}
+  {{"app": "shared_files", "path": "read:<file path inside the share>", "method": "GET", "body": null, "description": "..."}}
+  Read-only; binary files (images, PDFs, archives) are listed but cannot be read as text.
+  Use it whenever the user mentions the shared folder, WebDAV, uploaded files or a file they put in the share.
 
 Available external services (via Maton API Gateway):
 {manifest}
@@ -384,6 +393,9 @@ class ITTCouncil:
         seats_needed = nav.get("seats_needed", ["weaver"])
         plan = nav.get("plan", "")
         ionos_requested = bool(_IONOS_RE.search(user_message))
+        shared_requested = _shared.requested(user_message)
+        shared_reads: list[str] = []
+        shared_planned = False
         if ionos_requested and "hermes" not in seats_needed:
             seats_needed = list(seats_needed) + ["hermes"]
         await notify("navigator", f"✓ {intent} / {complexity}")
@@ -426,6 +438,15 @@ class ITTCouncil:
             if not isinstance(call_plan, list):
                 call_plan = []
 
+            # Shared-folder calls run locally (not via Maton)
+            shared_calls = [c for c in call_plan if isinstance(c, dict) and str(c.get("app", "")).lower() == "shared_files"]
+            call_plan = [c for c in call_plan if c not in shared_calls]
+            for c in shared_calls[:3]:
+                shared_planned = True
+                pth = str(c.get("path", "")).strip()
+                if pth.lower().startswith("read:"):
+                    shared_reads.append(pth[5:].strip())
+
             # IONOS diagnostics run locally (not via Maton)
             ionos_calls = [c for c in call_plan if isinstance(c, dict) and str(c.get("app", "")).lower() == "ionos"]
             call_plan = [c for c in call_plan if c not in ionos_calls]
@@ -465,6 +486,21 @@ class ITTCouncil:
                 await notify("hermes", f"✓ {len(results)} call(s) complete")
             elif not ionos_parts:
                 await notify("hermes", "✓ No external calls needed")
+
+        # ── Step 4a: Shared folder (WebDAV share, read-only, local) ────────────────
+        if shared_requested or shared_planned:
+            await notify("hermes", "Reading the shared folder (webdav_root)...")
+            try:
+                shared_text, shared_raw = await asyncio.to_thread(
+                    _shared.council_context, user_message, shared_reads
+                )
+                n_list = (shared_raw.get("listing") or {}).get("count", 0)
+                n_read = sum(1 for r in shared_raw.get("reads", []) if r.get("ok"))
+                await notify("hermes", f"✓ Shared folder: {n_list} item(s) listed, {n_read} file(s) read")
+            except Exception as e:  # never let the tool break a chat
+                shared_text = f"[Shared folder (webdav_root) — tool error]\n{e}"
+                await notify("hermes", "✗ Shared folder tool error")
+            external_data = "\n\n".join(([external_data] if external_data else []) + [shared_text])
 
         # ── Step 4b: Gambit — AI Arcade calls ────────────────────────────────
         arcade_data = ""

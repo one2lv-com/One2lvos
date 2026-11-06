@@ -515,6 +515,19 @@ else
     echo -e "  ${YELLOW}⚠${NC} Sovereign Agentic Core not found - skipped"
 fi
 
+# WebDAV file server (desktop Network Manager -> "One2lvOS Files"), localhost only
+if [ -f "$ROOT_DIR/webdav_server.py" ]; then
+    echo -e "  ${BLUE}→${NC} Starting WebDAV file server (127.0.0.1:8090)..."
+    if ss -ltn 2>/dev/null | grep -q '127.0.0.1:8090 '; then
+        echo -e "  ${GREEN}✓${NC} WebDAV already running"
+    else
+        PY_BIN="$ROOT_DIR/.venv/bin/python3"; [ -x "$PY_BIN" ] || PY_BIN=python3
+        setsid nohup "$PY_BIN" "$ROOT_DIR/webdav_server.py" >> "$ROOT_DIR/logs/webdav.log" 2>&1 < /dev/null &
+        sleep 2
+        ss -ltn 2>/dev/null | grep -q '127.0.0.1:8090 ' && echo -e "  ${GREEN}✓${NC} WebDAV ONLINE" || echo -e "  ${YELLOW}⚠${NC} WebDAV starting (see logs/webdav.log)"
+    fi
+fi
+
 # Network Service
 if [ -f "$ROOT_DIR/server/network-api.js" ] && [ "$HAS_NODE" = true ]; then
     echo -e "  ${BLUE}→${NC} Starting Network Service (port 3003)..."
@@ -534,6 +547,12 @@ if [ -f "$ROOT_DIR/server/network-api.js" ] && [ "$HAS_NODE" = true ]; then
 else
     echo -e "  ${YELLOW}⚠${NC} Network Service not found - skipped"
 fi
+
+# Keep WebDAV + Network Service alive (restarts them if they crash)
+[ -x "$ROOT_DIR/webdav_keepalive.sh" ] && (cd "$ROOT_DIR" && setsid nohup ./webdav_keepalive.sh >/dev/null 2>&1 < /dev/null &)
+
+# Keep the public bridge (127.0.0.1:8095, bridge.one2lv.com) alive; restarts it if it stops
+[ -x "$ROOT_DIR/bridge_keepalive.sh" ] && (cd "$ROOT_DIR" && setsid nohup ./bridge_keepalive.sh >/dev/null 2>&1 < /dev/null &) && echo -e "  ${GREEN}✓${NC} Public bridge keepalive started (port 8095)"
 
 # AI Arcade MCP (port 8003, VM only; reached through the reactor's /svc/arcade and arcade.one2lv.com behind Access)
 if [ -f "$ROOT_DIR/ai-arcade/server.py" ]; then

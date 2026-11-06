@@ -25,6 +25,10 @@ for pid in $(pgrep -f "server.py" || true); do
 done
 
 # Node services
+pkill -f "webdav_keepalive.sh" 2>/dev/null || true
+pkill -f "bridge_keepalive.sh" 2>/dev/null || true
+pkill -f "public_bridge.py" 2>/dev/null || true
+pkill -f "webdav_server.py" 2>/dev/null || true
 pkill -f "network-api.js" 2>/dev/null || true
 pkill -f "minimax.*index.js" 2>/dev/null || true
 for pid in $(pgrep -f "node " || true); do

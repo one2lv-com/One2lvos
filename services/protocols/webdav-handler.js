@@ -1,11 +1,30 @@
 /**
  * One2lvOS WebDAV Protocol Handler
- * Provides WebDAV client functionality for mesh routing
+ * WebDAV client used by the Network Manager (mesh routing).
+ *
+ * Paths given to every operation are relative to the connection's base path
+ * ("/" = the folder the connection points at). ".." segments are refused.
+ * Bodies are handled as Buffers so binary files survive a round trip.
  */
 
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
+
+const TIMEOUT_MS = 20000;
+const MAX_DOWNLOAD = 100 * 1024 * 1024;
+
+function xmlDecode(s) {
+    return String(s || '')
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n))
+        .replace(/&amp;/g, '&');
+}
+
+function tag(xml, name) {
+    const m = xml.match(new RegExp(`<(?:[\\w-]+:)?${name}\\b[^>]*>([\\s\\S]*?)</(?:[\\w-]+:)?${name}>`, 'i'));
+    return m ? xmlDecode(m[1].trim()) : null;
+}
 
 class WebDAVHandler {
     constructor() {
@@ -13,24 +32,32 @@ class WebDAVHandler {
         this.sessions = new Map();
     }
 
+    static credentialsOf(connection) {
+        if (typeof connection.resolveCredentials === 'function') return connection.resolveCredentials();
+        return connection.credentials;
+    }
+
     /**
-     * Connect to WebDAV server
+     * Connect to WebDAV server (verified with a PROPFIND on the base folder)
      */
     async connect(connection) {
-        const { host, port, path = '/', credentials } = connection;
-        const protocol = port === 443 ? 'https' : 'http';
-        const baseUrl = `${protocol}://${host}:${port}${path}`;
+        const { host, port, path = '/' } = connection;
+        const secure = connection.secure === true || Number(port) === 443;
+        let basePath = '/' + String(path || '/').replace(/^\/+/, '');
+        if (!basePath.endsWith('/')) basePath += '/';
+        const portPart = port ? `:${port}` : '';
+        const baseUrl = `${secure ? 'https' : 'http'}://${host}${portPart}${encodeURI(basePath)}`;
 
         const session = {
             id: connection.id,
             baseUrl,
-            credentials,
+            basePath: new URL(baseUrl).pathname,
+            credentials: WebDAVHandler.credentialsOf(connection),
             connected: true
         };
 
-        // Test connection with PROPFIND
         try {
-            await this.propfind(session, '/');
+            await this.propfind(session, '/', 0);
             this.sessions.set(connection.id, session);
             return session;
         } catch (error) {
@@ -38,21 +65,29 @@ class WebDAVHandler {
         }
     }
 
-    /**
-     * Disconnect from WebDAV server
-     */
     async disconnect(handle) {
-        if (handle && handle.id) {
-            this.sessions.delete(handle.id);
-        }
+        if (handle && handle.id) this.sessions.delete(handle.id);
     }
 
-    /**
-     * List directory contents (PROPFIND)
-     */
-    async propfind(session, remotePath, depth = 1) {
-        const url = new URL(remotePath, session.baseUrl);
+    /** Build an absolute URL for a path relative to the connection's base folder. */
+    resolve(session, remotePath = '/', isDir = false) {
+        const parts = String(remotePath || '/').split('/').filter(p => p && p !== '.');
+        if (parts.some(p => p === '..')) throw new Error('Path may not contain ".."');
+        let rel = parts.map(encodeURIComponent).join('/');
+        if (rel && isDir) rel += '/';
+        return new URL(rel, session.baseUrl);
+    }
 
+    authHeaders(session, extra = {}) {
+        const headers = { ...extra };
+        const c = session.credentials;
+        if (c && (c.username || c.password)) {
+            headers['Authorization'] = 'Basic ' + Buffer.from(`${c.username || ''}:${c.password || ''}`).toString('base64');
+        }
+        return headers;
+    }
+
+    async propfind(session, remotePath, depth = 1) {
         const body = `<?xml version="1.0" encoding="utf-8" ?>
 <D:propfind xmlns:D="DAV:">
   <D:prop>
@@ -64,226 +99,123 @@ class WebDAVHandler {
     <D:resourcetype/>
   </D:prop>
 </D:propfind>`;
-
-        const options = {
+        const url = this.resolve(session, remotePath, true);
+        return this.request(url, {
             method: 'PROPFIND',
-            headers: {
-                'Content-Type': 'application/xml',
+            headers: this.authHeaders(session, {
+                'Content-Type': 'application/xml; charset=utf-8',
                 'Content-Length': Buffer.byteLength(body),
-                'Depth': depth.toString()
-            }
-        };
-
-        if (session.credentials) {
-            const auth = Buffer.from(
-                `${session.credentials.username}:${session.credentials.password}`
-            ).toString('base64');
-            options.headers['Authorization'] = `Basic ${auth}`;
-        }
-
-        return this.request(url, options, body);
+                'Depth': String(depth)
+            })
+        }, body);
     }
 
-    /**
-     * Download file (GET)
-     */
     async get(session, remotePath) {
-        const url = new URL(remotePath, session.baseUrl);
-
-        const options = {
-            method: 'GET',
-            headers: {}
-        };
-
-        if (session.credentials) {
-            const auth = Buffer.from(
-                `${session.credentials.username}:${session.credentials.password}`
-            ).toString('base64');
-            options.headers['Authorization'] = `Basic ${auth}`;
-        }
-
-        return this.request(url, options);
+        return this.request(this.resolve(session, remotePath), { method: 'GET', headers: this.authHeaders(session) });
     }
 
-    /**
-     * Upload file (PUT)
-     */
     async put(session, remotePath, data) {
-        const url = new URL(remotePath, session.baseUrl);
-
-        const options = {
+        const buf = Buffer.isBuffer(data) ? data : Buffer.from(data == null ? '' : (typeof data === 'string' ? data : JSON.stringify(data)));
+        return this.request(this.resolve(session, remotePath), {
             method: 'PUT',
-            headers: {
-                'Content-Length': Buffer.byteLength(data)
-            }
-        };
-
-        if (session.credentials) {
-            const auth = Buffer.from(
-                `${session.credentials.username}:${session.credentials.password}`
-            ).toString('base64');
-            options.headers['Authorization'] = `Basic ${auth}`;
-        }
-
-        return this.request(url, options, data);
+            headers: this.authHeaders(session, { 'Content-Length': buf.length, 'Content-Type': 'application/octet-stream' })
+        }, buf);
     }
 
-    /**
-     * Create directory (MKCOL)
-     */
     async mkcol(session, remotePath) {
-        const url = new URL(remotePath, session.baseUrl);
-
-        const options = {
-            method: 'MKCOL',
-            headers: {}
-        };
-
-        if (session.credentials) {
-            const auth = Buffer.from(
-                `${session.credentials.username}:${session.credentials.password}`
-            ).toString('base64');
-            options.headers['Authorization'] = `Basic ${auth}`;
-        }
-
-        return this.request(url, options);
+        return this.request(this.resolve(session, remotePath, true), { method: 'MKCOL', headers: this.authHeaders(session) });
     }
 
-    /**
-     * Delete file or directory (DELETE)
-     */
     async delete(session, remotePath) {
-        const url = new URL(remotePath, session.baseUrl);
-
-        const options = {
-            method: 'DELETE',
-            headers: {}
-        };
-
-        if (session.credentials) {
-            const auth = Buffer.from(
-                `${session.credentials.username}:${session.credentials.password}`
-            ).toString('base64');
-            options.headers['Authorization'] = `Basic ${auth}`;
-        }
-
-        return this.request(url, options);
+        if (!String(remotePath || '').split('/').filter(Boolean).length) throw new Error('Refusing to delete the root folder');
+        return this.request(this.resolve(session, remotePath), { method: 'DELETE', headers: this.authHeaders(session) });
     }
 
-    /**
-     * Copy file or directory (COPY)
-     */
     async copy(session, srcPath, dstPath) {
-        const url = new URL(srcPath, session.baseUrl);
-        const dstUrl = new URL(dstPath, session.baseUrl);
-
-        const options = {
+        return this.request(this.resolve(session, srcPath), {
             method: 'COPY',
-            headers: {
-                'Destination': dstUrl.href
-            }
-        };
-
-        if (session.credentials) {
-            const auth = Buffer.from(
-                `${session.credentials.username}:${session.credentials.password}`
-            ).toString('base64');
-            options.headers['Authorization'] = `Basic ${auth}`;
-        }
-
-        return this.request(url, options);
+            headers: this.authHeaders(session, { 'Destination': this.resolve(session, dstPath).href, 'Overwrite': 'F' })
+        });
     }
 
-    /**
-     * Move file or directory (MOVE)
-     */
     async move(session, srcPath, dstPath) {
-        const url = new URL(srcPath, session.baseUrl);
-        const dstUrl = new URL(dstPath, session.baseUrl);
-
-        const options = {
+        return this.request(this.resolve(session, srcPath), {
             method: 'MOVE',
-            headers: {
-                'Destination': dstUrl.href
-            }
-        };
-
-        if (session.credentials) {
-            const auth = Buffer.from(
-                `${session.credentials.username}:${session.credentials.password}`
-            ).toString('base64');
-            options.headers['Authorization'] = `Basic ${auth}`;
-        }
-
-        return this.request(url, options);
+            headers: this.authHeaders(session, { 'Destination': this.resolve(session, dstPath).href, 'Overwrite': 'F' })
+        });
     }
 
     /**
-     * Generic HTTP/HTTPS request wrapper
+     * HTTP/HTTPS request; resolves with a Buffer body for 2xx, rejects otherwise.
      */
     async request(url, options, body = null) {
         return new Promise((resolve, reject) => {
             const client = url.protocol === 'https:' ? https : http;
-
-            const req = client.request(url, options, (res) => {
-                let data = '';
-
+            const req = client.request(url, { ...options, timeout: TIMEOUT_MS }, (res) => {
+                const chunks = [];
+                let size = 0;
                 res.on('data', (chunk) => {
-                    data += chunk;
+                    size += chunk.length;
+                    if (size > MAX_DOWNLOAD) { req.destroy(new Error('File too large (over 100 MB)')); return; }
+                    chunks.push(chunk);
                 });
-
                 res.on('end', () => {
+                    const buf = Buffer.concat(chunks);
                     if (res.statusCode >= 200 && res.statusCode < 300) {
-                        resolve({
-                            status: res.statusCode,
-                            headers: res.headers,
-                            body: data
-                        });
+                        resolve({ status: res.statusCode, headers: res.headers, body: buf });
                     } else {
-                        reject(new Error(`HTTP ${res.statusCode}: ${res.statusMessage}`));
+                        const msg = res.statusCode === 401 ? 'wrong username or password'
+                            : res.statusCode === 404 ? 'not found'
+                            : res.statusCode === 405 ? 'not allowed (does it already exist?)'
+                            : res.statusCode === 412 ? 'destination already exists'
+                            : res.statusMessage;
+                        reject(new Error(`HTTP ${res.statusCode}: ${msg}`));
                     }
                 });
             });
-
-            req.on('error', (error) => {
-                reject(error);
-            });
-
-            if (body) {
-                req.write(body);
-            }
-
+            req.on('timeout', () => req.destroy(new Error(`timed out after ${TIMEOUT_MS / 1000}s`)));
+            req.on('error', reject);
+            if (body) req.write(body);
             req.end();
         });
     }
 
     /**
-     * Parse WebDAV XML response
+     * Parse a PROPFIND multistatus (any namespace prefix) into entries relative
+     * to the connection's base folder. The listed folder itself is left out.
      */
-    parseXmlResponse(xmlData) {
-        // Simple XML parsing for demonstration
-        // In production, use a proper XML parser like 'fast-xml-parser'
+    parseXmlResponse(xmlData, session, listedPath = '/') {
+        const xml = Buffer.isBuffer(xmlData) ? xmlData.toString('utf8') : String(xmlData || '');
         const items = [];
-        const responseRegex = /<D:response>(.*?)<\/D:response>/gs;
-        const matches = xmlData.matchAll(responseRegex);
-
-        for (const match of matches) {
-            const responseXml = match[1];
-            const hrefMatch = responseXml.match(/<D:href>(.*?)<\/D:href>/);
-            const displayNameMatch = responseXml.match(/<D:displayname>(.*?)<\/D:displayname>/);
-            const sizeMatch = responseXml.match(/<D:getcontentlength>(.*?)<\/D:getcontentlength>/);
-            const typeMatch = responseXml.match(/<D:getcontenttype>(.*?)<\/D:getcontenttype>/);
-
-            if (hrefMatch) {
-                items.push({
-                    href: hrefMatch[1],
-                    name: displayNameMatch ? displayNameMatch[1] : hrefMatch[1],
-                    size: sizeMatch ? parseInt(sizeMatch[1]) : 0,
-                    type: typeMatch ? typeMatch[1] : 'directory'
-                });
-            }
+        const re = /<(?:[\w-]+:)?response\b[^>]*>([\s\S]*?)<\/(?:[\w-]+:)?response>/gi;
+        const base = session ? session.basePath : '/';
+        const listed = '/' + String(listedPath || '/').split('/').filter(Boolean).join('/');
+        for (const m of xml.matchAll(re)) {
+            const r = m[1];
+            const hrefRaw = tag(r, 'href');
+            if (!hrefRaw) continue;
+            let hrefPath;
+            try { hrefPath = new URL(hrefRaw, session ? session.baseUrl : 'http://x/').pathname; } catch { continue; }
+            let decoded;
+            try { decoded = decodeURIComponent(hrefPath); } catch { decoded = hrefPath; }
+            let baseDecoded;
+            try { baseDecoded = decodeURIComponent(base); } catch { baseDecoded = base; }
+            let rel = decoded.startsWith(baseDecoded) ? decoded.slice(baseDecoded.length) : decoded;
+            rel = '/' + rel.split('/').filter(Boolean).join('/');
+            if (rel === listed) continue;
+            const isDir = /<(?:[\w-]+:)?collection\b/i.test(r);
+            const size = tag(r, 'getcontentlength');
+            items.push({
+                name: rel.split('/').filter(Boolean).pop() || tag(r, 'displayname') || rel,
+                path: rel,
+                href: hrefRaw,
+                isDir,
+                size: isDir ? 0 : (size ? parseInt(size, 10) || 0 : 0),
+                type: isDir ? 'directory' : (tag(r, 'getcontenttype') || 'application/octet-stream'),
+                modified: tag(r, 'getlastmodified')
+            });
         }
-
+        items.sort((a, b) => (b.isDir - a.isDir) || a.name.localeCompare(b.name));
         return items;
     }
 }

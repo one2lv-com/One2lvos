@@ -46,15 +46,28 @@ class MeshRouter {
             path = '/',
             credentials,
             persistent = true,
-            autoReconnect = true
+            autoReconnect = true,
+            name,
+            secure = false,
+            builtin = false
         } = connectionConfig;
+
+        if (!protocol || !this.protocols.has(String(protocol).toLowerCase())) {
+            throw new Error(`Protocol ${protocol} not supported`);
+        }
+        if (!host || !/^[A-Za-z0-9.\-:\[\]]+$/.test(String(host))) {
+            throw new Error('A valid host is required');
+        }
 
         const connection = {
             id: id || this.generateConnectionId(),
+            name: name || null,
             protocol: protocol.toLowerCase(),
             host,
             port,
             path,
+            secure: !!secure,
+            builtin: !!builtin,
             credentials,
             persistent,
             autoReconnect,
@@ -66,7 +79,9 @@ class MeshRouter {
         this.connections.set(connection.id, connection);
 
         if (persistent) {
-            this.connect(connection.id);
+            // Never let a failed background connect become an unhandled rejection
+            // (that would crash the whole Network API process).
+            this.connect(connection.id).catch(() => {});
         }
 
         return connection;
@@ -91,6 +106,8 @@ class MeshRouter {
             const result = await protocolHandler.connect(connection);
             connection.status = 'connected';
             connection.lastConnected = Date.now();
+            connection.lastError = null;
+            connection.retries = 0;
             connection.handle = result;
 
             console.log(`[MeshRouter] Connected to ${connection.protocol}://${connection.host}:${connection.port}`);
@@ -100,8 +117,15 @@ class MeshRouter {
             connection.lastError = error.message;
             console.error(`[MeshRouter] Connection failed:`, error);
 
-            if (connection.autoReconnect) {
-                setTimeout(() => this.connect(connectionId), 5000);
+            // Retry with back-off, at most 5 times, and stop if the connection was removed.
+            connection.retries = (connection.retries || 0) + 1;
+            if (connection.autoReconnect && connection.retries <= 5) {
+                clearTimeout(connection._retryTimer);
+                connection._retryTimer = setTimeout(() => {
+                    if (this.connections.get(connectionId) === connection && connection.status !== 'connected') {
+                        this.connect(connectionId).catch(() => {});
+                    }
+                }, 5000 * connection.retries);
             }
             throw error;
         }
@@ -112,7 +136,9 @@ class MeshRouter {
      */
     async disconnect(connectionId) {
         const connection = this.connections.get(connectionId);
+        if (connection) clearTimeout(connection._retryTimer);
         if (!connection || connection.status !== 'connected') {
+            if (connection && connection.status !== 'connected') connection.status = 'disconnected';
             return;
         }
 
@@ -273,6 +299,8 @@ class MeshRouter {
      * Remove connection
      */
     async removeConnection(id) {
+        const c = this.connections.get(id);
+        if (c) clearTimeout(c._retryTimer);
         await this.disconnect(id);
         this.connections.delete(id);
     }

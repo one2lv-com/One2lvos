@@ -12,12 +12,18 @@ const PORT = process.env.NETWORK_API_PORT || 3003;
 const HOST = process.env.ONE2LV_BIND_HOST || '127.0.0.1';
 
 // Middleware
-app.use(cors());
-app.use(express.json());
+// Only One2lvOS pages may call this API from a browser (same-origin calls through the
+// reactor's /svc/network proxy need no CORS at all).
+app.use(cors({
+    origin: (origin, cb) => cb(null, !origin || /^https:\/\/([a-z0-9-]+\.)?one2lv\.com$/i.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin))
+}));
+app.use(express.json({ limit: '1mb' }));
+// File uploads (WebDAV/FTP put) arrive as raw bytes.
+const rawUpload = express.raw({ type: () => true, limit: '50mb' });
 // Static pages only. The repo root also holds .env, databases, backups and server code,
 // so serve page assets by extension and never anything from private folders.
 const STATIC_OK = /\.(html?|css|js|mjs|png|jpe?g|gif|svg|ico|webp|woff2?|ttf|map)$/i;
-const PRIVATE_DIR = /(^|\/)(\.[^/]*|backups?|data|logs|server|node_modules|memory|conversations|dreams|snapshots|vault|sovereign_vault)(\/|$)/i;
+const PRIVATE_DIR = /(^|\/)(\.[^/]*|backups?|data|logs|server|node_modules|memory|conversations|dreams|snapshots|vault|sovereign_vault|webdav_root|config)(\/|$)/i;
 app.use((req, res, next) => {
   if (req.method !== 'GET' && req.method !== 'HEAD') return next();
   if (req.path.startsWith('/api/')) return next();
@@ -70,7 +76,7 @@ app.get('/api/network/connections/:id', (req, res) => {
 app.post('/api/network/connections', async (req, res) => {
     try {
         const connection = await networkService.createConnection(req.body);
-        res.status(201).json(connection);
+        res.status(201).json(networkService.getConnection(connection.id));
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
@@ -84,7 +90,7 @@ app.delete('/api/network/connections/:id', async (req, res) => {
         await networkService.removeConnection(req.params.id);
         res.json({ success: true });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(400).json({ error: error.message });
     }
 });
 
@@ -162,8 +168,10 @@ app.get('/api/network/connections/:id/webdav/get', async (req, res) => {
         }
 
         const result = await networkService.webdavGet(req.params.id, path);
+        const fname = path.split('/').filter(Boolean).pop() || 'download';
         res.setHeader('Content-Type', 'application/octet-stream');
-        res.setHeader('Content-Disposition', `attachment; filename="${path.split('/').pop()}"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${fname.replace(/[^\x20-\x7e]|["\\]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(fname)}`);
+        res.setHeader('X-Content-Type-Options', 'nosniff');
         res.send(result.body);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -173,14 +181,15 @@ app.get('/api/network/connections/:id/webdav/get', async (req, res) => {
 /**
  * Upload WebDAV file
  */
-app.put('/api/network/connections/:id/webdav/put', async (req, res) => {
+app.put('/api/network/connections/:id/webdav/put', rawUpload, async (req, res) => {
     try {
         const path = req.query.path;
         if (!path) {
             return res.status(400).json({ error: 'Path required' });
         }
 
-        await networkService.webdavPut(req.params.id, path, req.body);
+        const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+        await networkService.webdavPut(req.params.id, path, body);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -198,6 +207,22 @@ app.delete('/api/network/connections/:id/webdav/delete', async (req, res) => {
         }
 
         await networkService.webdavDelete(req.params.id, path);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * Move / rename WebDAV file or directory
+ */
+app.post('/api/network/connections/:id/webdav/move', async (req, res) => {
+    try {
+        const { from, to } = req.body || {};
+        if (!from || !to) {
+            return res.status(400).json({ error: 'from and to required' });
+        }
+        await networkService.webdavMove(req.params.id, from, to);
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -258,7 +283,7 @@ app.get('/api/network/connections/:id/ftp/get', async (req, res) => {
 /**
  * Upload FTP file
  */
-app.put('/api/network/connections/:id/ftp/put', async (req, res) => {
+app.put('/api/network/connections/:id/ftp/put', rawUpload, async (req, res) => {
     try {
         const path = req.query.path;
         if (!path) {

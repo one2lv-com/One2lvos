@@ -133,3 +133,8 @@ whodat-root.key
 registry.db
 **/identity/system.key
 **/identity/owner.key
+data/bridge_tokens.json
+
+# WebDAV share contents (user files) - keep only the welcome file in git
+webdav_root/*
+!webdav_root/WELCOME.txt
