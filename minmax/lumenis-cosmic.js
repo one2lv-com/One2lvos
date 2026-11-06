@@ -10,7 +10,8 @@ const supabase = createClient(
 );
 
 // Discord Webhook
-const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || 'https://discord.com/api/webhooks/754920938356604989/cjJFt6Cs6ok01hpnQowGLE0i2U1nqCV_8ycK3f-ltPLc-FOqRUTn4pn3hSUx80vmg02s';
+// Set DISCORD_WEBHOOK (or DISCORD_WEBHOOK_URL) in your environment; no webhook ships in code.
+const DISCORD_WEBHOOK = process.env.DISCORD_WEBHOOK || process.env.DISCORD_WEBHOOK_URL || '';
 
 // NVIDIA NIM Integration
 const NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || '';

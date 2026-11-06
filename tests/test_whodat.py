@@ -486,6 +486,64 @@ def test_cli_import_env_and_only_unset(tmp_path):
     assert "NVIDIA_API_KEY=nv-abc-123" in r.stdout and "GITHUB_TOKEN" not in r.stdout
 
 
+# ── The reactor's own key flow: lumenis-main.py calls whodat.client.load_into_environ() at import ──
+
+def _reactor_load(tmp_path, env, home_name="wd", root_name="root.key"):
+    """Run the exact function the reactor runs, in a clean child process, and return its result."""
+    code = ("import json,os\nfrom whodat.client import load_into_environ\n"
+            "st=load_into_environ(only_unset=True)\n"
+            "print(json.dumps({'st':st,'nv':os.environ.get('NVIDIA_API_KEY'),'gh':os.environ.get('GITHUB_TOKEN')}))")
+    e = {k: v for k, v in os.environ.items() if not k.startswith("WHODAT_") and k not in ("NVIDIA_API_KEY", "GITHUB_TOKEN")}
+    e.update({"WHODAT_HOME": str(tmp_path / home_name), "WHODAT_ROOT_KEY_FILE": str(tmp_path / root_name),
+              "PYTHONPATH": str(ROOT)}, **env)
+    r = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=e, cwd=str(ROOT), timeout=60)
+    assert r.returncode == 0, r.stderr
+    return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def test_reactor_gets_its_keys_through_whodat_and_dotenv_wins(tmp_path):
+    assert run_cli(["init", "--email", "a@example.com"], tmp_path).returncode == 0
+    run_cli(["secret", "put", "NVIDIA_API_KEY"], tmp_path, stdin="nv-from-vault")
+    run_cli(["secret", "put", "GITHUB_TOKEN"], tmp_path, stdin="gh-from-vault")
+    out = _reactor_load(tmp_path, {"GITHUB_TOKEN": "gh-from-dotenv"})
+    assert out["st"]["ok"] is True and out["nv"] == "nv-from-vault" and out["gh"] == "gh-from-dotenv"
+    assert out["st"]["loaded"] == ["NVIDIA_API_KEY"] and out["st"]["skipped_already_set"] == ["GITHUB_TOKEN"]
+    assert "nv-from-vault" not in json.dumps(out["st"])          # status carries names only
+
+
+def test_reactor_key_load_fails_closed(tmp_path):
+    assert run_cli(["init", "--email", "a@example.com"], tmp_path).returncode == 0
+    run_cli(["secret", "put", "NVIDIA_API_KEY"], tmp_path, stdin="nv-from-vault")
+    # 1. no identity on this installation
+    out = _reactor_load(tmp_path, {}, home_name="nobody")
+    assert out["st"]["ok"] is False and out["nv"] is None and "no identity" in out["st"]["reason"]
+    # 2. root key missing
+    out = _reactor_load(tmp_path, {}, root_name="missing.key")
+    assert out["st"]["ok"] is False and out["nv"] is None and out["st"]["loaded"] == []
+    # 3. copied identity data with a different (stranger's) system key: signature fails
+    import shutil
+    shutil.copytree(tmp_path / "wd", tmp_path / "clone")
+    (tmp_path / "clone" / "identity" / "system.key").unlink()
+    core.save_private_key(tmp_path / "clone" / "identity" / "system.key", generate_private_key())
+    out = _reactor_load(tmp_path, {}, home_name="clone")
+    assert out["st"]["ok"] is False and out["nv"] is None
+    # 4. revoked system
+    m = json.loads((tmp_path / "wd/identity/identity.json").read_text())
+    assert run_cli(["revoke", m["system_id"]], tmp_path).returncode == 0
+    out = _reactor_load(tmp_path, {})
+    assert out["st"]["ok"] is False and out["nv"] is None
+    # 5. switched off
+    out = _reactor_load(tmp_path, {"WHODAT_BOOT": "0"})
+    assert out["st"]["attempted"] is False and out["nv"] is None
+
+
+def test_reactor_source_runs_whodat_before_reading_keys():
+    src = (ROOT / "lumenis-main.py").read_text()
+    i = src.index("load_into_environ")
+    assert i < src.index("from fastapi import")
+    assert i < src.index("os.environ.get(\"NVIDIA_API_KEY\"") if "os.environ.get(\"NVIDIA_API_KEY\"" in src else True
+
+
 def test_dist_check_finds_planted_secrets_and_keys(tmp_path):
     from whodat.cli import dist_check
     envf = tmp_path / "owner.env"

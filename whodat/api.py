@@ -92,6 +92,18 @@ async def _body(request: Request) -> dict:
     return body
 
 
+def _reactor_load() -> dict:
+    """How this process got its keys from Who Dat at start: ok, how many, why not. No names, no values."""
+    from .client import LAST_LOAD
+    if not LAST_LOAD.get("attempted"):
+        return {"attempted": False, "reason": LAST_LOAD.get("reason", "not run in this process")}
+    out = {"attempted": True, "ok": bool(LAST_LOAD.get("ok")), "loaded_count": len(LAST_LOAD.get("loaded", [])),
+           "already_set_count": len(LAST_LOAD.get("skipped_already_set", [])), "at": LAST_LOAD.get("at")}
+    if LAST_LOAD.get("reason"):
+        out["reason"] = LAST_LOAD["reason"]
+    return out
+
+
 @router.get("")
 async def whodat_info():
     try:
@@ -99,9 +111,11 @@ async def whodat_info():
         return JSONResponse({"ok": True, "protocol": core.PROTOCOL, "question": "Who Dat?",
                              "registry_id": reg.registry_id,
                              "vault": "unlocked" if reg.vault_unlocked else "locked",
-                             "open_registration": open_registration()}, headers=NO_STORE)
+                             "open_registration": open_registration(),
+                             "reactor_keys": _reactor_load()}, headers=NO_STORE)
     except WhoDatError as e:
-        return _err(e)
+        return JSONResponse({"ok": False, "detail": e.detail, "reactor_keys": _reactor_load()},
+                            status_code=e.status, headers=NO_STORE)
 
 
 @router.post("/challenge")
@@ -172,7 +186,7 @@ async def whodat_register(request: Request):
 
 
 REGISTRY_ENTRIES = [
-    {"id": "whodat.status", "label": "Who Dat: Registry Status", "method": "GET", "path": "/whodat",
+    {"id": "whodat.status", "label": "Who Dat: Identity + Key Status", "method": "GET", "path": "/whodat",
      "category": "Identity", "icon": "🧲", "params": []},
 ]
 

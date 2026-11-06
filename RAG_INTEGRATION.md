@@ -58,7 +58,7 @@ Already configured in `.env`:
 ```bash
 # Astra DB (required for RAG)
 ASTRA_DB_API_ENDPOINT=https://9b5b1939-fd21-477d-95b8-a1aecc5f90b9-us-east-2.apps.astra.datastax.com
-ASTRA_DB_APPLICATION_TOKEN=AstraCS:wdhjJlzIvxbEWgIWnNApOWDA:...
+ASTRA_DB_APPLICATION_TOKEN=AstraCS:...
 ASTRA_DB_KEYSPACE=one2lvOS
 
 # NVIDIA AI (for embeddings)

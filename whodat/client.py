@@ -216,6 +216,49 @@ def open_local_registry(home: Path | None = None) -> Registry:
     return Registry(home / "registry.db", core.load_root_key())
 
 
+# Result of the last in-process load (names only, never values). Read by GET /whodat.
+LAST_LOAD: dict = {"attempted": False}
+
+
+def load_into_environ(only_unset: bool = True, home: Path | None = None, environ=None) -> dict:
+    """The reactor's own Who Dat step: answer "Who Dat?" with this installation's system key,
+    and on a verified handshake put the owner's vault keys into the process environment.
+
+    Fail closed: any failure (no identity, revoked system, wrong/missing root key, registry down,
+    forged or copied identity) loads nothing and leaves the environment exactly as it was.
+    Never raises. Returns and records a status with key NAMES only.
+    """
+    env = os.environ if environ is None else environ
+    status = {"attempted": True, "ok": False, "loaded": [], "skipped_already_set": [], "at": int(time.time())}
+    try:
+        if env.get("WHODAT_BOOT", "auto") == "0":
+            status.update(attempted=False, reason="disabled (WHODAT_BOOT=0)")
+        else:
+            ident = Identity(home)
+            if not ident.exists:
+                status["reason"] = "no identity on this installation (run: python3 -m whodat init --email ...)"
+            else:
+                m = ident.meta()
+                t = transport_for(ident)
+                sess = handshake(t, ident.system_key(), m["system_id"], collect_whose_data(m))
+                values = t.secrets(sess["session_token"])
+                staged = {}
+                for k in sorted(values):
+                    if not core.NAME_RE.match(k) or k.startswith("WHODAT_"):
+                        continue
+                    if only_unset and env.get(k):
+                        status["skipped_already_set"].append(k)
+                        continue
+                    staged[k] = values[k]
+                env.update(staged)          # all-or-nothing: only after the whole handshake succeeded
+                status.update(ok=True, system_id=sess.get("system_id"), loaded=sorted(staged))
+    except Exception as e:  # noqa: BLE001 - any failure means no keys
+        status.update(ok=False, loaded=[], reason=f"handshake failed, no keys loaded: {type(e).__name__}")
+    LAST_LOAD.clear()
+    LAST_LOAD.update(status)
+    return dict(status)
+
+
 def transport_for(identity: Identity, registry_url: str | None = None):
     url = registry_url or os.getenv("WHODAT_REGISTRY_URL") or identity.meta().get("registry_url") or ""
     if url:

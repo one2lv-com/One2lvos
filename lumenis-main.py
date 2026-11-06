@@ -17,6 +17,21 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+# ── Who Dat: the reactor asks for its own keys before anything reads the environment.
+#    It signs "Whose Data?" with this installation's system key; on a verified handshake the
+#    owner's vault keys fill only variables not already set (.env still wins). Any failure loads
+#    nothing and the reactor boots on .env as before. WHODAT_BOOT=0 turns it off. See WHODAT.md. ──
+try:
+    from whodat.client import load_into_environ as _whodat_load
+    _wd = _whodat_load(only_unset=True)
+    if _wd.get("ok"):
+        print(f"🧲 Who Dat: handshake verified; {len(_wd['loaded'])} key(s) loaded from the vault, "
+              f"{len(_wd['skipped_already_set'])} already set")
+    elif _wd.get("attempted"):
+        print(f"⚠ Who Dat: {_wd.get('reason')}")
+except Exception as _wd_boot_err:  # never let Who Dat break the reactor boot
+    print(f"⚠ Who Dat not available: {type(_wd_boot_err).__name__}")
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -2385,7 +2400,7 @@ async def save_working_snapshot(payload: dict):
         "reactor": reactor.get_status(),
         "compass": compass.get_stats(),
         "env": {
-            "NVIDIA_API_KEY": os.environ.get("NVIDIA_API_KEY", "")[:20] + "...",
+            "NVIDIA_API_KEY": "set" if os.environ.get("NVIDIA_API_KEY") else "not set",
             "LLM_MODEL": os.environ.get("LLM_MODEL", ""),
             "ASTRA_DB_API_ENDPOINT": os.environ.get("ASTRA_DB_API_ENDPOINT", "")[:50] + "...",
         },
