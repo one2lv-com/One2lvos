@@ -28,6 +28,83 @@ BOLD='\033[1m'
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
+# ──────────────────────────────────────────────────────────────────────────
+# AUTO-UPDATE FROM GITHUB (safe fast-forward only)
+# ──────────────────────────────────────────────────────────────────────────
+# Pulls the latest origin/main before anything starts, but ONLY when that can
+# never lose work: the checkout must be on the update branch, have no modified
+# tracked files, and be strictly behind GitHub (a pure fast-forward). A dirty,
+# ahead or diverged checkout is left exactly as it is, with a message saying why.
+#   ONE2LVOS_AUTO_UPDATE=0        skip the update entirely
+#   ONE2LVOS_UPDATE_BRANCH=name   branch to follow (default: main)
+_o2log() {
+    echo -e "$1"
+    export ONE2LVOS_UPDATE_STATUS="$1"
+    mkdir -p "$ROOT_DIR/logs" 2>/dev/null && echo "$(date -Iseconds 2>/dev/null) $1" >> "$ROOT_DIR/logs/auto-update.log" 2>/dev/null || true
+}
+one2lvos_auto_update() {
+    [ "${ONE2LVOS_AUTO_UPDATE:-1}" = "0" ] && { _o2log "  ⏭  Auto-update disabled (ONE2LVOS_AUTO_UPDATE=0)"; return 0; }
+    [ -n "${ONE2LVOS_UPDATE_DONE:-}" ] && return 0
+    command -v git >/dev/null 2>&1 || { _o2log "  ⏭  Auto-update skipped: git not installed"; return 0; }
+    git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || { _o2log "  ⏭  Auto-update skipped: not a git checkout"; return 0; }
+
+    local want branch local_sha remote_sha
+    want="${ONE2LVOS_UPDATE_BRANCH:-main}"
+    branch="$(git -C "$ROOT_DIR" symbolic-ref --short -q HEAD || true)"
+    if [ "$branch" != "$want" ]; then
+        _o2log "  ⏭  Auto-update skipped: on '${branch:-detached HEAD}', not '$want'"
+        return 0
+    fi
+
+    _o2log "  🔄 Checking GitHub for updates to '$want'..."
+    if ! GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="${GIT_SSH_COMMAND:-ssh -o BatchMode=yes -o ConnectTimeout=10}" \
+         timeout 45 git -C "$ROOT_DIR" fetch --quiet origin "$want" 2>/dev/null; then
+        _o2log "  ⚠  Auto-update skipped: could not reach GitHub (offline or no access)"
+        return 0
+    fi
+
+    local_sha="$(git -C "$ROOT_DIR" rev-parse HEAD)"
+    remote_sha="$(git -C "$ROOT_DIR" rev-parse "refs/remotes/origin/$want" 2>/dev/null || git -C "$ROOT_DIR" rev-parse FETCH_HEAD)"
+
+    if [ "$local_sha" = "$remote_sha" ]; then
+        _o2log "  ✓ Already up to date (${local_sha:0:7})"
+        return 0
+    fi
+    if git -C "$ROOT_DIR" merge-base --is-ancestor "$remote_sha" "$local_sha"; then
+        _o2log "  ⏭  Auto-update skipped: this checkout has local commits not on GitHub (ahead)"
+        return 0
+    fi
+    if ! git -C "$ROOT_DIR" merge-base --is-ancestor "$local_sha" "$remote_sha"; then
+        _o2log "  ⚠  Auto-update skipped: this checkout and GitHub have diverged - merge by hand"
+        return 0
+    fi
+    if [ -n "$(git -C "$ROOT_DIR" status --porcelain --untracked-files=no)" ]; then
+        _o2log "  ⚠  Auto-update skipped: uncommitted changes to tracked files - commit or stash them first"
+        return 0
+    fi
+
+    if git -C "$ROOT_DIR" merge --ff-only --quiet "$remote_sha"; then
+        _o2log "  ✓ Updated ${local_sha:0:7} → ${remote_sha:0:7}"
+        if ! git -C "$ROOT_DIR" diff --quiet "$local_sha" "$remote_sha" -- requirements.txt 2>/dev/null; then
+            _o2log "  ⚠  requirements.txt changed - run: pip install -r requirements.txt"
+        fi
+        return 10   # tells the caller to re-run the (possibly new) startos.sh
+    fi
+    _o2log "  ⚠  Auto-update skipped: fast-forward refused (an untracked file may be in the way)"
+    return 0
+}
+
+if [ -z "${ONE2LVOS_UPDATE_DONE:-}" ]; then
+    _o2_update_rc=0
+    one2lvos_auto_update || _o2_update_rc=$?
+    if [ "$_o2_update_rc" = "10" ]; then
+        export ONE2LVOS_UPDATE_DONE=1
+        echo "  ↻ Restarting startos.sh with the updated code..."
+        exec bash "$ROOT_DIR/startos.sh" "$@"
+    fi
+    unset _o2_update_rc
+fi
+
 # Use the project's virtualenv when there is one (system python3 may lack uvicorn etc.)
 if [ -f "$ROOT_DIR/.venv/bin/activate" ]; then
     # shellcheck disable=SC1091
@@ -70,6 +147,7 @@ echo ""
 # ──────────────────────────────────────────────────────────────────────────
 echo -e "${CYAN}${BOLD}[1/10] PRE-FLIGHT CHECKS${NC}"
 echo "────────────────────────────────────────────────────────────────────────────"
+[ -n "${ONE2LVOS_UPDATE_STATUS:-}" ] && echo -e "  GitHub:${ONE2LVOS_UPDATE_STATUS#  }"
 
 # Check Python
 if command -v python3 >/dev/null 2>&1; then
