@@ -1109,6 +1109,14 @@ async def tool_registry():
     """Return the full tool registry available to Lumenis."""
     return JSONResponse({"tools": TOOL_REGISTRY, "count": len(TOOL_REGISTRY)})
 
+# ── sfcompute Autoresearch MCP bridge (🧲 X-Lumenis-Auth on every upstream call, ∆| bodies accepted) ──
+try:
+    from lumenis_reactor_core.sfcompute_mcp import router as _sfcompute_router, REGISTRY_ENTRIES as _SFC_TOOLS
+    app.include_router(_sfcompute_router)
+    TOOL_REGISTRY.extend(_SFC_TOOLS)
+except Exception as _sfc_err:  # never let the bridge break the reactor boot
+    print(f"⚠ sfcompute MCP bridge not loaded: {_sfc_err}")
+
 # ── IONOS webspace diagnostics (Hermes tool) ──
 # Read-only. Calls the PHP diagnostics API on the IONOS webspace with IONOS_DIAG_TOKEN
 # from .env, and runs a real SFTP key login via ~/bin/ionos_sftp.sh list.

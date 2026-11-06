@@ -192,6 +192,12 @@ _INITIAL_AGENTS = [
                        "minesweeper", "sudoku", "scrabble", "battleship", "pacman",
                        "tetris", "space_invaders", "pong", "universal_paperclips"],
      "mcp_url": "http://localhost:8003/mcp", "library": 51},
+    # Remote GPU compute (sfcompute Autoresearch), reached through the reactor bridge
+    {"id": "sfcompute_autoresearch", "name": "sfcompute Autoresearch MCP", "system": "SF Compute",
+     "role": "compute_provider",  "url": "http://localhost:8000/mcp/sfcompute", "protocol": "mcp-streamable-http",
+     "capabilities": ["h100 nodes", "cpu nodes", "batch jobs", "sandboxes", "billing (read)"],
+     "mcp_url": "https://mcp.autoresearch.sfcompute.com", "marker": "X-Lumenis-Auth: 🧲",
+     "note": "read-only tools open; paid tools need SFCOMPUTE_MCP_ALLOW_TOOLS"},
 ]
 
 for profile in _INITIAL_AGENTS:
