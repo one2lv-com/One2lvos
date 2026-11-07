@@ -17,6 +17,7 @@ import { coachChat, getCoachingTip } from '../ai/coach.js';
 import { generateCommentary, preMatchCommentary, postMatchCommentary, getStreamOverlay } from '../ai/broadcaster.js';
 import { getAIPlayer } from '../ai/secondPlayer.js';
 import { TOOLS, routeTool } from '../tools/tools.js';
+import { SOUL_IDENTITY, SOUL_SYSTEM_PROMPT, SKILLS_CONTEXT, getSoulContext, invokeSkill, handleSlashCommand } from '../core/soul.js';
 
 const PORT = process.env.NODE_PORT || 8080;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'one2lv-secret-2024';
@@ -45,6 +46,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Inject SOUL identity into every response header (ASCII-safe values)
+app.use((_req, res, next) => {
+  res.setHeader('X-Soul-Identity', 'One2lv-Witness');
+  res.setHeader('X-Soul-Layer', SOUL_IDENTITY.layer);
+  res.setHeader('X-Soul-Frequency', `${SOUL_IDENTITY.frequency} Hz`);
+  next();
+});
+
 // ==================== AUTH ====================
 
 // Auth middleware
@@ -56,6 +65,95 @@ function authMiddleware(req, res, next) {
     res.status(401).json({ error: 'Unauthorized' });
   }
 }
+
+// ==================== SOUL + SKILLS ====================
+
+app.get('/api/soul', (req, res) => {
+  res.json({
+    ...getSoulContext(),
+    systemPrompt: SOUL_SYSTEM_PROMPT
+  });
+});
+
+// List all available skills
+app.get('/api/skills', (req, res) => {
+  const skills = Array.from(SKILLS_CONTEXT.skills.values());
+  const commands = Array.from(SKILLS_CONTEXT.slashCommands.entries()).map(([cmd, desc]) => ({
+    command: `/${cmd}`,
+    description: desc
+  }));
+
+  res.json({
+    success: true,
+    layer: 'L2',
+    skills,
+    commands,
+    count: skills.length,
+    freq: SOUL_IDENTITY.freqTag
+  });
+});
+
+// Get specific skill details
+app.get('/api/skills/:skillName', (req, res) => {
+  const skill = SKILLS_CONTEXT.skills.get(req.params.skillName);
+
+  if (!skill) {
+    return res.status(404).json({
+      success: false,
+      error: `Skill '${req.params.skillName}' not found`,
+      layer: 'L2'
+    });
+  }
+
+  res.json({
+    success: true,
+    skill,
+    layer: 'L2',
+    freq: SOUL_IDENTITY.freqTag
+  });
+});
+
+// Invoke a skill
+app.post('/api/skills/invoke', authMiddleware, async (req, res) => {
+  const { skillName, params } = req.body;
+
+  if (!skillName) {
+    return res.status(400).json({ error: 'Skill name required' });
+  }
+
+  const result = invokeSkill(skillName, params || {});
+
+  // Store skill invocation in memory
+  if (result.success) {
+    await storeMemory(
+      `[L2] Skill invoked: ${skillName} with params: ${JSON.stringify(params)}`,
+      'skills'
+    );
+  }
+
+  res.json(result);
+});
+
+// Handle slash commands
+app.post('/api/command', authMiddleware, (req, res) => {
+  const { command, args } = req.body;
+
+  if (!command) {
+    return res.status(400).json({ error: 'Command required' });
+  }
+
+  // Remove leading slash if present
+  const cleanCommand = command.replace(/^\//, '');
+
+  const result = handleSlashCommand(cleanCommand, args || []);
+  res.json(result);
+});
+
+// Shorthand for slash commands via GET
+app.get('/api/command/:cmd', authMiddleware, (req, res) => {
+  const result = handleSlashCommand(req.params.cmd, []);
+  res.json(result);
+});
 
 // ==================== HEALTH ====================
 
@@ -376,7 +474,8 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 
     let output = {
       input,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      soul: getSoulContext()
     };
 
     // Execute tool if routed

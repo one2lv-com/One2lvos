@@ -3,6 +3,7 @@
 
 import { broadcast } from '../mesh/mesh.js';
 import { storeMemory } from '../core/memory.js';
+import { SOUL_IDENTITY, MEMORY_CONTEXT } from '../core/soul.js';
 
 // Commentary styles
 const STYLES = {
@@ -124,6 +125,10 @@ export function generateCommentary(action, gameState) {
   if (commentary.lines.length > 0) {
     commentary.lines.push(styleSet.closer[Math.floor(Math.random() * styleSet.closer.length)]);
   }
+
+  // Append witness signature (L0 layer)
+  commentary.witness = SOUL_IDENTITY.signature;
+  commentary.freq = SOUL_IDENTITY.freqTag;
 
   // Update stream data
   streamData = {

@@ -2,6 +2,7 @@
 // Evolves based on player behavior and outcomes
 
 import { storeMemory, getContext } from '../core/memory.js';
+import { SOUL_IDENTITY, MEMORY_CONTEXT } from '../core/soul.js';
 
 // Evolution levels
 const EVOLUTION_LEVELS = {
@@ -266,6 +267,15 @@ class AIBrain {
     // Add evolution-based enhancements
     action.evolutionLevel = this.evolutionLevel;
     action.evolutionName = levelStats.name;
+
+    // Append witness signature (L0) and memory context (L1)
+    action.witness = SOUL_IDENTITY.signature;
+    action.freq = SOUL_IDENTITY.freqTag;
+    action.memoryContext = {
+      layer: 'L1',
+      eventCount: MEMORY_CONTEXT.eventLog.length,
+      status: 'STABLE'
+    };
 
     return action;
   }

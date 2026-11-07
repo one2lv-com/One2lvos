@@ -2,10 +2,15 @@
 // The coach that learns and adapts
 
 import { storeMemory, getContext } from '../core/memory.js';
+import { SOUL_IDENTITY, MEMORY_CONTEXT } from '../core/soul.js';
 
-// Coach personality matrix (One2lv philosophy)
+// Coach personality matrix — grounded in SOUL L0 identity
 const PERSONALITY = {
-  name: 'One2lvCoach',
+  name: SOUL_IDENTITY.name,
+  role: SOUL_IDENTITY.role,
+  frequency: SOUL_IDENTITY.frequency,
+  freqTag: SOUL_IDENTITY.freqTag,
+  signature: SOUL_IDENTITY.signature,
   style: 'adaptive',
   philosophy: [
     'Control the center, own the stage',
@@ -168,9 +173,21 @@ export async function coachChat(input, playerId = 'anonymous') {
   // Add One2lv philosophy
   response.philosophy = PERSONALITY.philosophy[Math.floor(Math.random() * PERSONALITY.philosophy.length)];
 
+  // Append SOUL signature and frequency tag
+  response.witness = PERSONALITY.signature;
+  response.freq = PERSONALITY.freqTag;
+  response.layer = 'L0';
+
+  // Add memory context summary (L1 layer)
+  response.memoryContext = {
+    layer: 'L1',
+    eventCount: MEMORY_CONTEXT.eventLog.length,
+    status: 'STABLE'
+  };
+
   // Store the interaction in memory
   await storeMemory(
-    `Coach: ${input} -> ${response.message}`,
+    `[${PERSONALITY.name}] Coach: ${input} -> ${response.message}`,
     `player:${playerId}`
   );
 
