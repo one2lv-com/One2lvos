@@ -200,6 +200,17 @@ if [ -f "$ROOT_DIR/.env" ]; then
     set +a
     echo -e "  ${GREEN}✓${NC} Loaded .env configuration"
 
+    # Auto-update NVIDIA models with latest from API
+    if [ -f "$ROOT_DIR/update_nvidia_models.py" ]; then
+        python3 "$ROOT_DIR/update_nvidia_models.py" 2>&1 | while IFS= read -r line; do
+            echo -e "  $line"
+        done || true
+        # Reload .env after model update
+        set -a
+        source "$ROOT_DIR/.env"
+        set +a
+    fi
+
     # Verify critical keys
     if [ -n "$NVIDIA_API_KEY" ]; then
         echo -e "  ${GREEN}✓${NC} NVIDIA API Key configured"
