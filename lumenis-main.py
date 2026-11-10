@@ -1141,6 +1141,16 @@ try:
 except Exception as _sfc_err:  # never let the bridge break the reactor boot
     print(f"⚠ sfcompute MCP bridge not loaded: {_sfc_err}")
 
+# ── Tool engine: learned sfcompute catalog + local tools (/engine). Off with ONE2LVOS_TOOL_ENGINE=0. ──
+if os.getenv("ONE2LVOS_TOOL_ENGINE", "1") != "0":
+    try:
+        from lumenis_reactor_core import tool_engine as _tool_engine
+        _tool_engine.set_fact_sink(lambda k, v: compass.store_fact(key=k, value=v, source="tool_engine"))
+        app.include_router(_tool_engine.router)
+        TOOL_REGISTRY.extend(_tool_engine.REGISTRY_ENTRIES)
+    except Exception as _te_err:  # never let the engine break the reactor boot
+        print(f"⚠ tool engine not loaded: {_te_err}")
+
 # ── Who Dat identity handshake + per-owner key vault (/whodat). Status only goes in the tool list:
 #    Lumenis gets no tool that reads keys; keys are released only to a signed, enrolled system. ──
 try:

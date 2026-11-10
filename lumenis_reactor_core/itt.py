@@ -26,6 +26,22 @@ from typing import Optional
 from . import ionos as _ionos
 from . import shared_files as _shared
 
+try:  # Tool engine (sfcompute catalog + local tools); never let it break the council
+    from . import tool_engine as _engine
+except Exception as _engine_err:  # pragma: no cover
+    _engine = None
+    print(f"⚠ tool engine not loaded in council: {_engine_err}")
+import os as _os
+_ENGINE_ON = _os.getenv("ONE2LVOS_TOOL_ENGINE", "1") != "0"
+
+# Requests that should send the council to the tool engine (Hermes)
+_ENGINE_RE = re.compile(
+    r"(tool[\s_-]?engine|sfcompute|sf\s*compute|\bengine\.(learn|status|describe|list|validate)\b|"
+    r"\blocal\.[a-z_]+\b|\b(open|finish|get|list)_missions?\b|\bpost_update\b|\bquery_(logs|metrics)\b|"
+    r"\bsearch_traces\b|\blist_audit_events\b|\btool catalog\b)",
+    re.I,
+)
+
 # Requests that should trigger the IONOS webspace diagnostics tool (Hermes)
 _IONOS_RE = re.compile(
     r"\b(ionos|webspace|web\s*space|onlinehome|webspace-host|hosting\s+server|server\s+diagnostics?|"
@@ -102,6 +118,20 @@ Shared folder (internal read-only tool, app id "shared_files"):
   {{"app": "shared_files", "path": "read:<file path inside the share>", "method": "GET", "body": null, "description": "..."}}
   Read-only; binary files (images, PDFs, archives) are listed but cannot be read as text.
   Use it whenever the user mentions the shared folder, WebDAV, uploaded files or a file they put in the share.
+
+Tool engine (internal tool, app id "tool_engine"): Lumenis' own engine for the sfcompute Autoresearch tools.
+  {{"app": "tool_engine", "path": "<tool name>", "method": "POST", "body": {{arguments}}, "description": "..."}}
+  Tool names:
+    engine.status | engine.learn (pull the catalog from the server) | engine.describe {{"name": "<tool>"}}
+    (one tool's architecture, from disk) | engine.list {{"kind": "local|remote_read|refused", "q": "..."}} |
+    engine.validate {{"name": "<tool>", "arguments": {{...}}}} | engine.catalog_versions | engine.rollback_catalog
+    local.<name>: run on this machine, no server, no credit: open_mission {{"title", "goal"}}, post_update
+    {{"mission_id", "text"}}, list_updates, get_mission, list_missions, finish_mission {{"mission_id", "result"}},
+    save_chart, delete_chart, export_file {{"path"}}, list_artifacts, get_artifact, query_logs {{"file", "contains"}},
+    query_metrics, search_traces, get_trace, list_audit_events
+    sfcompute.<name>: SF Compute's read-only tools (get_*, list_*, query_*, search_*) via the bridge, e.g.
+    sfcompute.list_nodes, sfcompute.get_billing. Tools that start, change, delete or pay for compute are refused (403).
+  Use it whenever the user mentions the tool engine, sfcompute, missions, tool architecture, or these tool names.
 
 Available external services (via Maton API Gateway):
 {manifest}
@@ -398,6 +428,9 @@ class ITTCouncil:
         shared_planned = False
         if ionos_requested and "hermes" not in seats_needed:
             seats_needed = list(seats_needed) + ["hermes"]
+        engine_requested = bool(_engine and _ENGINE_ON and _ENGINE_RE.search(user_message))
+        if engine_requested and "hermes" not in seats_needed:
+            seats_needed = list(seats_needed) + ["hermes"]
         await notify("navigator", f"✓ {intent} / {complexity}")
 
         # ── Step 3: Witness — memory context ─────────────────────────────────
@@ -464,6 +497,23 @@ class ITTCouncil:
             if ionos_parts:
                 external_data = "\n\n".join(ionos_parts)
                 await notify("hermes", f"✓ IONOS diagnostics complete ({len(ionos_parts)})")
+
+            # Tool engine calls run in the reactor (not via Maton)
+            engine_calls = [c for c in call_plan if isinstance(c, dict)
+                            and str(c.get("app", "")).lower().replace("-", "_") == "tool_engine"]
+            call_plan = [c for c in call_plan if c not in engine_calls]
+            if engine_calls and _engine and _ENGINE_ON:
+                engine_results = []
+                for c in engine_calls[:3]:
+                    tname = str(c.get("path", "")).strip("/ ").replace("/", ".") or "engine.status"
+                    body = c.get("body") if isinstance(c.get("body"), dict) else {}
+                    await notify("hermes", f"Tool engine: {tname}...")
+                    engine_results.append(await _engine.dispatch(tname, body, caller="council"))
+                ok_n = sum(1 for r in engine_results if r["ok"])
+                external_data = "\n\n".join(([external_data] if external_data else [])
+                                            + [_engine.council_summary(engine_results)])
+                await notify("hermes", f"✓ Tool engine: {ok_n}/{len(engine_results)} call(s) ok")
+                ionos_parts = ionos_parts or ["engine"]  # suppress the 'no external calls' note
 
             if call_plan:
                 service_names = ", ".join(
