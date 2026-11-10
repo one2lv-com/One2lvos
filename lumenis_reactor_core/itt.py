@@ -431,6 +431,10 @@ class ITTCouncil:
         engine_requested = bool(_engine and _ENGINE_ON and _ENGINE_RE.search(user_message))
         if engine_requested and "hermes" not in seats_needed:
             seats_needed = list(seats_needed) + ["hermes"]
+        # A question about memory always gets the memory seat, even on a "simple" route.
+        if "witness" not in seats_needed and re.search(
+                r"\b(remember|recall|memory|memories|you know about|did i tell you)\b", user_message, re.I):
+            seats_needed = list(seats_needed) + ["witness"]
         await notify("navigator", f"✓ {intent} / {complexity}")
 
         # ── Step 3: Witness — memory context ─────────────────────────────────
@@ -443,6 +447,23 @@ class ITTCouncil:
                 if facts
                 else "No relevant prior facts."
             )
+            # Long-term vector memory in Astra DB (real NVIDIA embeddings + vector search).
+            astra_block = ""
+            try:
+                from . import astra_vectors as _av
+                if _av.configured():
+                    av = await asyncio.wait_for(
+                        _av.search_vectors(user_message[:500], limit=4, min_similarity=0.35), timeout=12)
+                    if av["ok"] and av["results"]:
+                        astra_block = "\n".join(
+                            f"- {r['key']}: {str(r['value'])[:300]} (sim {r['similarity']})" for r in av["results"])
+                        facts_text = "Astra vector memory (similarity-ranked):\n" + astra_block + "\n\nLocal facts:\n" + facts_text
+                    elif not av["ok"]:
+                        facts_text += f"\n\n[Astra vector memory unavailable: {av.get('error')}]"
+            except asyncio.TimeoutError:
+                facts_text += "\n\n[Astra vector memory timed out]"
+            except Exception as _ave:
+                facts_text += f"\n\n[Astra vector memory error: {type(_ave).__name__}]"
             history_context = "\n".join(
                 f"{m['role']}: {m['content'][:200]}"
                 for m in self.compass.get_llm_history(session_id, limit=6)
@@ -452,6 +473,10 @@ class ITTCouncil:
                 user_message,
                 f"Recent facts:\n{facts_text}\n\nRecent history:\n{history_context}",
             )
+            if astra_block:
+                # Hand the retrieved records to the later seats verbatim, not only the Witness summary.
+                memory_context += ("\n\nRetrieved long-term memory (Astra DB, verbatim, similarity-ranked; "
+                                   "use only if relevant):\n" + astra_block)
             await notify("witness", "✓ Context loaded")
 
         # ── Step 4: Hermes — external service calls ───────────────────────────

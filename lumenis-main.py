@@ -37,6 +37,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from lumenis_reactor_core import LumenisReactor, NvidiaReactor, FluxCompass, ITTCouncil, MatonBridge, VanguardNodePool
+from lumenis_reactor_core import astra_vectors as _astra_mem
 
 # ── Global instances ──────────────────────────────────────────────────────────
 reactor = LumenisReactor()
@@ -260,7 +261,10 @@ async def store_fact(body: dict):
         value=body["value"],
         session_id=body.get("session_id"),
     )
-    return {"fact_id": fid}
+    # Mirror to Astra vector memory; report the outcome instead of hiding it.
+    astra = await _astra_mem.store(body["key"], str(body["value"]), source=body.get("source") or "api_facts",
+                                   session_id=body.get("session_id"), doc_id=fid)
+    return {"fact_id": fid, "astra": astra}
 
 
 @app.get("/api/tasks")
@@ -315,8 +319,12 @@ async def websocket_endpoint(ws: WebSocket):
                 await ws.send_json({"type": "session_created", "session_id": sid})
 
             elif action == "recall":
-                facts = compass.recall_facts(msg.get("query", ""))
-                await ws.send_json({"type": "recall_result", "facts": facts})
+                q = msg.get("query", "")
+                facts = compass.recall_facts(q)
+                vec = await _astra_mem.search_vectors(q, limit=5) if q.strip() else {"ok": True, "results": []}
+                await ws.send_json({"type": "recall_result", "facts": facts,
+                                    "astra": vec.get("results", []),
+                                    **({"astra_error": vec["error"]} if not vec["ok"] else {})})
 
             elif action == "store_fact":
                 fid = compass.store_fact(
@@ -324,7 +332,9 @@ async def websocket_endpoint(ws: WebSocket):
                     value=msg["value"],
                     session_id=msg.get("session_id"),
                 )
-                await ws.send_json({"type": "fact_stored", "fact_id": fid})
+                astra = await _astra_mem.store(msg["key"], str(msg["value"]), source="ws_store_fact",
+                                               session_id=msg.get("session_id"), doc_id=fid)
+                await ws.send_json({"type": "fact_stored", "fact_id": fid, "astra": astra})
 
     except WebSocketDisconnect:
         pass
@@ -797,49 +807,72 @@ async def load_state_png(body: dict):
 import httpx as _httpx_tools
 
 # ── Astra DB Vector Memory ────────────────────────────────────────────────
+# All Astra memory goes through lumenis_reactor_core.astra_vectors: real NVIDIA embeddings,
+# real vector search, and every failure reported (nothing swallowed, no 200 on a failed write).
+
+
 @app.post("/api/tools/memory/store")
 async def tool_memory_store(body: dict):
-    """Store a fact in Astra DB vector memory using NVIDIA embeddings."""
+    """Store a fact locally (FluxCompass) and in Astra DB vector memory (NVIDIA embeddings)."""
     try:
-        text = body.get("text", "").strip()
-        key = body.get("key", "")
+        text = str(body.get("text", "")).strip()
+        key = str(body.get("key", "")).strip()
         if not text:
             return JSONResponse({"error": "text required"}, status_code=400)
-        # Also store in FluxCompass for local recall
-        fact_id = compass.store_fact(key=key or text[:40], value=text, source="lumenis_tool")
-        # Try Astra DB if available
-        astra_result = {"stored": "flux_compass", "fact_id": fact_id}
-        astra_endpoint = os.environ.get("ASTRA_DB_API_ENDPOINT", "")
-        astra_token = os.environ.get("ASTRA_DB_APPLICATION_TOKEN", "")
-        collection = os.environ.get("COLLECTION_NAME", "aria_memory")
-        if astra_endpoint and astra_token:
-            try:
-                url = f"{astra_endpoint}/api/json/v1/{os.environ.get('ASTRA_DB_KEYSPACE','one2lvOS')}/{collection}"
-                async with _httpx_tools.AsyncClient(timeout=15) as c:
-                    r = await c.post(url,
-                        headers={"Token": astra_token, "Content-Type": "application/json"},
-                        json={"insertOne": {"document": {"_id": fact_id, "key": key or text[:40], "value": text, "source": "lumenis", "ts": int(time.time())}}}
-                    )
-                    if r.status_code == 200:
-                        astra_result["stored"] = "astra_db+flux_compass"
-            except Exception:
-                pass
-        return JSONResponse({"ok": True, "result": astra_result, "text": text})
+        fact_id = compass.store_fact(key=key or text[:40], value=text,
+                                     session_id=body.get("session_id"), source=body.get("source") or "lumenis_tool")
+        astra = await _astra_mem.store(key or text[:40], text, source=body.get("source") or "lumenis_tool",
+                                       session_id=body.get("session_id"), doc_id=fact_id)
+        stored = "astra_db+flux_compass" if astra["ok"] else "flux_compass"
+        result = {"stored": stored, "fact_id": fact_id, "astra": astra}
+        if not astra["ok"]:
+            # Local copy is saved, but the Astra write failed: say so, and not with a 200.
+            return JSONResponse({"ok": False, "partial": True, "result": result, "text": text,
+                                 "error": f"saved locally only; Astra write failed: {astra.get('error')}"},
+                                status_code=502)
+        return JSONResponse({"ok": True, "result": result, "text": text})
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
 
 @app.post("/api/tools/memory/search")
 async def tool_memory_search(body: dict):
-    """Search FluxCompass facts and Astra DB for relevant memories."""
+    """Search FluxCompass facts, Astra vector memory, and the legacy Astra collection."""
     try:
-        query = body.get("query", "").strip()
+        query = str(body.get("query", "")).strip()
         limit = int(body.get("limit", 5))
         if not query:
             return JSONResponse({"error": "query required"}, status_code=400)
-        facts = compass.recall_facts(query, limit=limit)
-        return JSONResponse({"query": query, "results": facts, "count": len(facts), "source": "flux_compass"})
+        local = compass.recall_facts(query, limit=limit)
+        for f in local:
+            f.setdefault("source_store", "flux_compass")
+        vec, legacy = await asyncio.gather(_astra_mem.search_vectors(query, limit=limit),
+                                           _astra_mem.search_legacy(query, limit=limit))
+        # Legacy aria_memory docs that were copied into the vector collection show up there already.
+        seen = {str(r.get("id", "")) for r in vec.get("results", [])}
+        legacy_rows = [r for r in legacy.get("results", []) if f"legacy-aria_memory-{r.get('id')}" not in seen]
+        results = list(vec.get("results", [])) + legacy_rows + local
+        sources = {
+            "astra_vector": {"ok": vec["ok"], "collection": vec.get("collection"), "count": len(vec.get("results", [])),
+                             **({"error": vec["error"]} if not vec["ok"] else {})},
+            "astra_legacy": {"ok": legacy["ok"], "collection": legacy.get("collection"), "count": len(legacy.get("results", [])),
+                             **({"error": legacy["error"]} if not legacy["ok"] else {})},
+            "flux_compass": {"ok": True, "count": len(local)},
+        }
+        out = {"query": query, "results": results, "count": len(results),
+               "source": "astra_db+flux_compass" if vec["ok"] else "flux_compass", "sources": sources}
+        if not vec["ok"]:
+            out["error"] = f"Astra vector search failed: {vec.get('error')}"
+        return JSONResponse(out)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.get("/api/tools/memory/astra_status")
+async def tool_memory_astra_status():
+    """Live check: Astra vector collection reachable, its dimension, and a real embedding of matching size."""
+    st = await _astra_mem.status()
+    return JSONResponse(st, status_code=200 if st["ok"] else 503)
 
 @app.get("/api/tools/memory/all")
 async def tool_memory_all():
@@ -1105,6 +1138,7 @@ async def tool_system_revert():
 TOOL_REGISTRY = [
     {"id": "memory.store",       "label": "Store Memory",       "method": "POST", "path": "/api/tools/memory/store",        "category": "Memory",   "icon": "🧠", "params": ["key","text"]},
     {"id": "memory.search",      "label": "Search Memory",      "method": "POST", "path": "/api/tools/memory/search",       "category": "Memory",   "icon": "🔍", "params": ["query","limit"]},
+    {"id": "memory.astra_status", "label": "Astra Memory Status", "method": "GET", "path": "/api/tools/memory/astra_status", "category": "Memory",   "icon": "🧪", "params": []},
     {"id": "memory.all",         "label": "All Memories",       "method": "GET",  "path": "/api/tools/memory/all",          "category": "Memory",   "icon": "📚", "params": []},
     {"id": "discord.send",       "label": "Discord Send",       "method": "POST", "path": "/api/tools/discord/send",        "category": "Discord",  "icon": "💬", "params": ["content","channel_id"]},
     {"id": "discord.messages",   "label": "Discord Read",       "method": "GET",  "path": "/api/tools/discord/messages",    "category": "Discord",  "icon": "📨", "params": ["limit"]},
