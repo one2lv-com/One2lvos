@@ -352,13 +352,15 @@ async def handle_chat(ws: WebSocket, msg: dict):
     """Process a chat message through the ITT Council."""
     user_text = msg.get("message", "").strip()
     session_id = msg.get("session_id")
+    guest = msg.get("guest") is True
 
     if not user_text:
         return
 
     # Create session if not provided
     if not session_id:
-        session_id = compass.create_session("Auto Session")
+        session_id = compass.create_session(
+            ("Guest: " + str(msg.get("guest_name", "app"))[:40]) if guest else "Auto Session")
         await ws.send_json({"type": "session_created", "session_id": session_id})
 
     # Persist user message
@@ -384,6 +386,7 @@ async def handle_chat(ws: WebSocket, msg: dict):
             user_message=user_text,
             session_id=session_id,
             stream_cb=stream_cb,
+            guest=guest,
         )
 
     node = await node_pool.run("council.process", council_task())
@@ -426,11 +429,19 @@ async def handle_chat(ws: WebSocket, msg: dict):
                 "plan": decision.plan,
                 "risk_level": decision.risk_level,
                 "external_data": bool(decision.external_data),
+                "guest_mode": guest,
             },
         }
     )
     except (RuntimeError, Exception):
         pass  # Client disconnected before completion could be sent
+
+
+@app.get("/api/guest_mode")
+async def guest_mode_info():
+    """Lets the public bridge confirm this reactor honours guest-mode chats."""
+    return JSONResponse({"supported": True, "skips": ["hermes", "witness", "gambit", "shared_files",
+                                                      "ionos", "tool_engine", "auto_learn"]})
 
 
 # ── Frontier #3: Human-Centered Design — Serve v8 HUD ────────────────────────

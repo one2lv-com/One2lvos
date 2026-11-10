@@ -138,3 +138,6 @@ data/bridge_tokens.json
 # WebDAV share contents (user files) - keep only the welcome file in git
 webdav_root/*
 !webdav_root/WELCOME.txt
+
+# One2lvOS bridge: hashed app access keys (never commit)
+data/bridge_app_keys.json

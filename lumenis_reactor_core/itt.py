@@ -371,6 +371,7 @@ class ITTCouncil:
         user_message: str,
         session_id: str,
         stream_cb=None,
+        guest: bool = False,
     ) -> CouncilDecision:
         """
         Run the full council pipeline for a user message.
@@ -435,11 +436,18 @@ class ITTCouncil:
         if "witness" not in seats_needed and re.search(
                 r"\b(remember|recall|memory|memories|you know about|did i tell you)\b", user_message, re.I):
             seats_needed = list(seats_needed) + ["witness"]
+        if guest:
+            # Guest mode (shared One2lvOS app): the council answers as itself, but with no
+            # services, files, tool engine, arcade actions or private memory recall.
+            seats_needed = [s for s in seats_needed if s not in ("hermes", "witness", "gambit")]
+            ionos_requested = shared_requested = engine_requested = False
+            if intent in ("external", "arcade"):
+                intent = "chat"
         await notify("navigator", f"✓ {intent} / {complexity}")
 
         # ── Step 3: Witness — memory context ─────────────────────────────────
         memory_context = ""
-        if "witness" in seats_needed or complexity != "simple":
+        if not guest and ("witness" in seats_needed or complexity != "simple"):
             await notify("witness", "Retrieving memory...")
             facts = self.compass.recall_facts(user_message[:100])
             facts_text = (
@@ -481,7 +489,7 @@ class ITTCouncil:
 
         # ── Step 4: Hermes — external service calls ───────────────────────────
         external_data = ""
-        if "hermes" in seats_needed or intent == "external":
+        if not guest and ("hermes" in seats_needed or intent == "external"):
             await notify("hermes", "Reaching out to services...")
             hermes_raw = await self._call_seat("hermes", user_message, memory_context)
 
@@ -563,7 +571,7 @@ class ITTCouncil:
                 await notify("hermes", "✓ No external calls needed")
 
         # ── Step 4a: Shared folder (WebDAV share, read-only, local) ────────────────
-        if shared_requested or shared_planned:
+        if not guest and (shared_requested or shared_planned):
             await notify("hermes", "Reading the shared folder (webdav_root)...")
             try:
                 shared_text, shared_raw = await asyncio.to_thread(
@@ -579,7 +587,7 @@ class ITTCouncil:
 
         # ── Step 4b: Gambit — AI Arcade calls ────────────────────────────────
         arcade_data = ""
-        if "gambit" in seats_needed or intent == "arcade":
+        if not guest and ("gambit" in seats_needed or intent == "arcade"):
             await notify("gambit", "Querying Arcade...")
             gambit_raw = await self._call_seat("gambit", user_message, memory_context)
 
@@ -656,6 +664,11 @@ Arcade data:
 {arcade_data if arcade_data else "None"}
 
 Plan: {plan}"""
+        if guest:
+            weaver_context += ("\n\nGUEST CONVERSATION: you are speaking with a guest of One2lv through the shared "
+                               "One2lvOS app, not with One2lv himself. Be yourself, Lumenis. Do not reveal private "
+                               "details about One2lv, his accounts, keys, servers or files, and do not offer to run "
+                               "tools, send messages or change systems for a guest.")
 
         full_response = []
 
@@ -672,13 +685,13 @@ Plan: {plan}"""
         await notify("weaver", "✓ Done")
 
         # ── Step 7: Autonomous Learning (Frontier #4) ───────────────────────────
-        learned = self.compass.auto_learn(final, session_id)
+        learned = 0 if guest else self.compass.auto_learn(final, session_id)
         if learned:
             await notify("witness", f"✓ Auto-learned {learned} insight(s)")
 
         # Also store user message in compass for context
         # ── Step 7b: Auto-extract facts ──────────────────────────────────────
-        if "my name is" in user_message.lower():
+        if not guest and "my name is" in user_message.lower():
             name_start = user_message.lower().index("my name is") + 11
             name = user_message[name_start:].split()[0].strip(".,!?")
             self.compass.store_fact("user_name", name, session_id, "user_stated")
