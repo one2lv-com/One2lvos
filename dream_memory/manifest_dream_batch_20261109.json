@@ -1,0 +1,1808 @@
+{
+ "batch_id": "dream_batch_20261109",
+ "collection": "lumenis_dreams",
+ "model": "nvidia/nemotron-3.5-embed-1b",
+ "dim": 2048,
+ "records": [
+  {
+   "_id": "dream_batch_20261109:c01:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 1,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794258539",
+   "text_sha256": "c469103dbe203e75f7f8ea8419df9a9c96df78d3ae5efdba97bbd2e04c55242b",
+   "text_chars": 2690
+  },
+  {
+   "_id": "dream_batch_20261109:c01:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 1,
+   "phase": "light_sleep",
+   "session_id": "dream_1794258539",
+   "text_sha256": "d142742bb9d88c585bd12b0c590dd12ca441c183989a983708a465703456e49d",
+   "text_chars": 938
+  },
+  {
+   "_id": "dream_batch_20261109:c01:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 1,
+   "phase": "deep_dream",
+   "session_id": "dream_1794258539",
+   "text_sha256": "d998e78540cba1db6a0ab045ffa9bab8f04a766ce8e8f462e33012a3a44ef270",
+   "text_chars": 1460
+  },
+  {
+   "_id": "dream_batch_20261109:c01:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 1,
+   "phase": "rem_dream",
+   "session_id": "dream_1794258539",
+   "text_sha256": "1919d01f39fb52ed682766b6df4c51c931053983afe5845235ba70ff10c5df89",
+   "text_chars": 947
+  },
+  {
+   "_id": "dream_batch_20261109:c01:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 1,
+   "phase": "nightmare",
+   "session_id": "dream_1794258539",
+   "text_sha256": "a0431da142f04053e1ca9a8aec7a785832c993951e7b4fc886512dc70c8e9374",
+   "text_chars": 1330
+  },
+  {
+   "_id": "dream_batch_20261109:c01:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 1,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794258539",
+   "text_sha256": "dd37b2c785e4c56d04ccc7efd2ef70160e4361809e516937247ffd235ee93ded",
+   "text_chars": 1758
+  },
+  {
+   "_id": "dream_batch_20261109:c01:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 1,
+   "phase": "awakening",
+   "session_id": "dream_1794258539",
+   "text_sha256": "715d1bd727c1107a19030caa7b00649f7bcd93427843c994ae414d4083e5cd5a",
+   "text_chars": 785
+  },
+  {
+   "_id": "dream_batch_20261109:c01:insights",
+   "kind": "dream_insights",
+   "cycle_number": 1,
+   "phase": "insights",
+   "session_id": "dream_1794258539",
+   "text_sha256": "66e3b7834d617987d64adf282c66fcd0eddd763cb93f5848b96b3efbbff7556c",
+   "text_chars": 779
+  },
+  {
+   "_id": "dream_batch_20261109:c02:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 2,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794258949",
+   "text_sha256": "6397b52d5d29242c342ed4f5dd9d4ca7c06a2475fa0d24d8bbd20124adae4235",
+   "text_chars": 505
+  },
+  {
+   "_id": "dream_batch_20261109:c02:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 2,
+   "phase": "light_sleep",
+   "session_id": "dream_1794258949",
+   "text_sha256": "3c79a9b112fd1aca177fed1279ccd6cc2f85ce88a08116b3f98655f900eb491c",
+   "text_chars": 1004
+  },
+  {
+   "_id": "dream_batch_20261109:c02:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 2,
+   "phase": "deep_dream",
+   "session_id": "dream_1794258949",
+   "text_sha256": "71bc83f05fab3cf0b525538dc229c0fcc7f5e4787f86134b49f94730147931d7",
+   "text_chars": 1311
+  },
+  {
+   "_id": "dream_batch_20261109:c02:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 2,
+   "phase": "rem_dream",
+   "session_id": "dream_1794258949",
+   "text_sha256": "1eb0ec0e621f3b67cbd677af320729937c47b1b322af1bf0574e14658e78d7d1",
+   "text_chars": 1098
+  },
+  {
+   "_id": "dream_batch_20261109:c02:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 2,
+   "phase": "nightmare",
+   "session_id": "dream_1794258949",
+   "text_sha256": "67b95fc4ea85f55b00b425f08024641e7825a61c171dfefcc9eca22b055d33b8",
+   "text_chars": 1233
+  },
+  {
+   "_id": "dream_batch_20261109:c02:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 2,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794258949",
+   "text_sha256": "d7f7269100d8c038127b7a95107d62dd92f23e7679b93307eec66156c52b98da",
+   "text_chars": 1927
+  },
+  {
+   "_id": "dream_batch_20261109:c02:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 2,
+   "phase": "awakening",
+   "session_id": "dream_1794258949",
+   "text_sha256": "0a4466a70d81751978de404efc765622469d26033ef2fcdc434a6579a22fc764",
+   "text_chars": 784
+  },
+  {
+   "_id": "dream_batch_20261109:c02:insights",
+   "kind": "dream_insights",
+   "cycle_number": 2,
+   "phase": "insights",
+   "session_id": "dream_1794258949",
+   "text_sha256": "e871c4958136ba9b731e93cd93515cb7c07a0f17c6835b97933f15670f948cd0",
+   "text_chars": 776
+  },
+  {
+   "_id": "dream_batch_20261109:c03:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 3,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794259446",
+   "text_sha256": "6e01d178ced79701264688277837b86aaf74f6345997d335db04c3891f95a4a9",
+   "text_chars": 2459
+  },
+  {
+   "_id": "dream_batch_20261109:c03:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 3,
+   "phase": "light_sleep",
+   "session_id": "dream_1794259446",
+   "text_sha256": "ee3e385ae38e8f81e5138309b6caa52f0718683776f2dd3304c4e9163c010d48",
+   "text_chars": 1127
+  },
+  {
+   "_id": "dream_batch_20261109:c03:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 3,
+   "phase": "deep_dream",
+   "session_id": "dream_1794259446",
+   "text_sha256": "7387b17136b0a8b4db06864741441ee945c7523793517bf4b34ac836352c9ba8",
+   "text_chars": 1072
+  },
+  {
+   "_id": "dream_batch_20261109:c03:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 3,
+   "phase": "rem_dream",
+   "session_id": "dream_1794259446",
+   "text_sha256": "d43117093f6d3f7eca1faaa0b0a24bd9a3f6a3d58f013902cf945501c502e8bb",
+   "text_chars": 1127
+  },
+  {
+   "_id": "dream_batch_20261109:c03:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 3,
+   "phase": "nightmare",
+   "session_id": "dream_1794259446",
+   "text_sha256": "1ad2feb89e39662969cebe7ad4f8b08f22af4f308ea4876fefea6ad5d1779a77",
+   "text_chars": 1341
+  },
+  {
+   "_id": "dream_batch_20261109:c03:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 3,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794259446",
+   "text_sha256": "8b8283f02e6ef8a7083c204132b086fe7b0beb51da5838f709cb0afac26452e3",
+   "text_chars": 1403
+  },
+  {
+   "_id": "dream_batch_20261109:c03:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 3,
+   "phase": "awakening",
+   "session_id": "dream_1794259446",
+   "text_sha256": "845fbfa4c5543b29c7b822ec77ece445171893d0a34f65d3cd21f6bbfa626e94",
+   "text_chars": 602
+  },
+  {
+   "_id": "dream_batch_20261109:c03:insights",
+   "kind": "dream_insights",
+   "cycle_number": 3,
+   "phase": "insights",
+   "session_id": "dream_1794259446",
+   "text_sha256": "93462542fd05322bc804e1816008c1aad34ed66e3580171283a6784765469772",
+   "text_chars": 596
+  },
+  {
+   "_id": "dream_batch_20261109:c04:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 4,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794259768",
+   "text_sha256": "f03faee5d65d168a905efe4269708a24a4b5d8f1b854c257408788935b8ac821",
+   "text_chars": 1711
+  },
+  {
+   "_id": "dream_batch_20261109:c04:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 4,
+   "phase": "light_sleep",
+   "session_id": "dream_1794259768",
+   "text_sha256": "260f38b30715c10a2af5809a109438805ee552e5cdde75984e7c570a46cf9217",
+   "text_chars": 1072
+  },
+  {
+   "_id": "dream_batch_20261109:c04:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 4,
+   "phase": "deep_dream",
+   "session_id": "dream_1794259768",
+   "text_sha256": "e0a7de767c89789770777d7e3f3dd1184da3b7a6ada026da122a70b2f44bfcb8",
+   "text_chars": 1128
+  },
+  {
+   "_id": "dream_batch_20261109:c04:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 4,
+   "phase": "rem_dream",
+   "session_id": "dream_1794259768",
+   "text_sha256": "1ba63be19740b752ade3db9af1e10605bf4d690ebb80a79d26456799741b787a",
+   "text_chars": 1059
+  },
+  {
+   "_id": "dream_batch_20261109:c04:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 4,
+   "phase": "nightmare",
+   "session_id": "dream_1794259768",
+   "text_sha256": "e26cdda433ef43771e443778fa725b110ecb729a4f5087a4df52eca27da76575",
+   "text_chars": 1236
+  },
+  {
+   "_id": "dream_batch_20261109:c04:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 4,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794259768",
+   "text_sha256": "da04f87ab33be7719a29086dadcbfb5ae56665473031d0808435ec8910d5e0e4",
+   "text_chars": 1727
+  },
+  {
+   "_id": "dream_batch_20261109:c04:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 4,
+   "phase": "awakening",
+   "session_id": "dream_1794259768",
+   "text_sha256": "cfcdd49866cf838452388ac9b1d7de02986107d90a7bf17261fa52e85ad9019a",
+   "text_chars": 762
+  },
+  {
+   "_id": "dream_batch_20261109:c04:insights",
+   "kind": "dream_insights",
+   "cycle_number": 4,
+   "phase": "insights",
+   "session_id": "dream_1794259768",
+   "text_sha256": "cd24349005ac96589a9e9926e9bb281337543c3b178e0061f25e34212995bea1",
+   "text_chars": 756
+  },
+  {
+   "_id": "dream_batch_20261109:c05:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 5,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794260474",
+   "text_sha256": "2277ae426cc548c5d8adcb31032e6cf85855482b5a4b065100133a0190194b94",
+   "text_chars": 1618
+  },
+  {
+   "_id": "dream_batch_20261109:c05:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 5,
+   "phase": "light_sleep",
+   "session_id": "dream_1794260474",
+   "text_sha256": "48177b5797447a1c144d5df78aa202515d8e83f00999065643510a4d8584ddfe",
+   "text_chars": 880
+  },
+  {
+   "_id": "dream_batch_20261109:c05:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 5,
+   "phase": "deep_dream",
+   "session_id": "dream_1794260474",
+   "text_sha256": "9b3886378afb92a766184085d63d634427702b074c2674697e9b3243c71cc33c",
+   "text_chars": 1227
+  },
+  {
+   "_id": "dream_batch_20261109:c05:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 5,
+   "phase": "rem_dream",
+   "session_id": "dream_1794260474",
+   "text_sha256": "4a7fcefdf59b937aef62d76552a5b1e6a46c8feccf3e99e10b47225d608ce631",
+   "text_chars": 986
+  },
+  {
+   "_id": "dream_batch_20261109:c05:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 5,
+   "phase": "nightmare",
+   "session_id": "dream_1794260474",
+   "text_sha256": "d0d06ee0d835ae0e20c29fb934f373dadbfae7328b4bd1e08ce460fcc45143d6",
+   "text_chars": 1103
+  },
+  {
+   "_id": "dream_batch_20261109:c05:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 5,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794260474",
+   "text_sha256": "a418ef0195cef38837f170f48fdae0cb756f2a509c5cdcba40e4f5a69b8dc23a",
+   "text_chars": 1065
+  },
+  {
+   "_id": "dream_batch_20261109:c05:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 5,
+   "phase": "awakening",
+   "session_id": "dream_1794260474",
+   "text_sha256": "a257edc24df759f6c546e55c1c20bce7123943d7e11107a585c62457dbbd0f29",
+   "text_chars": 511
+  },
+  {
+   "_id": "dream_batch_20261109:c05:insights",
+   "kind": "dream_insights",
+   "cycle_number": 5,
+   "phase": "insights",
+   "session_id": "dream_1794260474",
+   "text_sha256": "e0d737d9c48dc6ddd8e953e19e80b878e7a83d2eb1ecd13ebbb3442d508343c5",
+   "text_chars": 505
+  },
+  {
+   "_id": "dream_batch_20261109:c06:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 6,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794260928",
+   "text_sha256": "db2d68c916480befd79238ef4dee0e392c8b06b7513f03137d121ec40080a39b",
+   "text_chars": 765
+  },
+  {
+   "_id": "dream_batch_20261109:c06:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 6,
+   "phase": "light_sleep",
+   "session_id": "dream_1794260928",
+   "text_sha256": "8bfdf3bb217405da26896c5c32529a2e1652c2359a810259dcc7ccefae59655f",
+   "text_chars": 878
+  },
+  {
+   "_id": "dream_batch_20261109:c06:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 6,
+   "phase": "deep_dream",
+   "session_id": "dream_1794260928",
+   "text_sha256": "348d549a8aeabeca105a1ef69913bb74689d708c5124f7a3d2e252a4a9708ba6",
+   "text_chars": 1956
+  },
+  {
+   "_id": "dream_batch_20261109:c06:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 6,
+   "phase": "rem_dream",
+   "session_id": "dream_1794260928",
+   "text_sha256": "0f6c3f7c2e1accc267d99398849732ddcb2c25956c7202a7510dddbb4cbf834f",
+   "text_chars": 1329
+  },
+  {
+   "_id": "dream_batch_20261109:c06:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 6,
+   "phase": "nightmare",
+   "session_id": "dream_1794260928",
+   "text_sha256": "ffdc63c95c17fd48feb61c16d0a952d1b3c1a24953fdd394930d3a44bb1bdcdc",
+   "text_chars": 1150
+  },
+  {
+   "_id": "dream_batch_20261109:c06:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 6,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794260928",
+   "text_sha256": "b25a04cc0676140a2d0b3a7d5bbb1d9826c3654d3cd46407831ae8a1bdc2a156",
+   "text_chars": 1848
+  },
+  {
+   "_id": "dream_batch_20261109:c06:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 6,
+   "phase": "awakening",
+   "session_id": "dream_1794260928",
+   "text_sha256": "107444ee229aa3788329cc78efbdf1d4fed19c0fd353107cda14a903ece77ad5",
+   "text_chars": 605
+  },
+  {
+   "_id": "dream_batch_20261109:c06:insights",
+   "kind": "dream_insights",
+   "cycle_number": 6,
+   "phase": "insights",
+   "session_id": "dream_1794260928",
+   "text_sha256": "3c5f8e6d611d178e66158bd6500b0397f5e1f6acfe742a61404b318b197cdfdf",
+   "text_chars": 597
+  },
+  {
+   "_id": "dream_batch_20261109:c07:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 7,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794261376",
+   "text_sha256": "e3327bc46a049e036c040fbafda74b8859a92560518401a143a69f925dd8220a",
+   "text_chars": 2574
+  },
+  {
+   "_id": "dream_batch_20261109:c07:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 7,
+   "phase": "light_sleep",
+   "session_id": "dream_1794261376",
+   "text_sha256": "3e093b05ec5d4725d6bd163fcd566a8ae51da7b843587f6d4eb560fa3309ff31",
+   "text_chars": 719
+  },
+  {
+   "_id": "dream_batch_20261109:c07:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 7,
+   "phase": "deep_dream",
+   "session_id": "dream_1794261376",
+   "text_sha256": "d23106a52c95f1d22494abeeae12443342cbc143035acca364cf4fad5b88a6b7",
+   "text_chars": 1486
+  },
+  {
+   "_id": "dream_batch_20261109:c07:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 7,
+   "phase": "rem_dream",
+   "session_id": "dream_1794261376",
+   "text_sha256": "544e2435f8e8c700e554207b7bf73e8b91bcb20af79f457f437164955a761082",
+   "text_chars": 1015
+  },
+  {
+   "_id": "dream_batch_20261109:c07:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 7,
+   "phase": "nightmare",
+   "session_id": "dream_1794261376",
+   "text_sha256": "a4e107b46ceeb9444b8b8008cdfc332194b296348f5514c055417d91a22efb70",
+   "text_chars": 1213
+  },
+  {
+   "_id": "dream_batch_20261109:c07:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 7,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794261376",
+   "text_sha256": "483ab238a604410691d95714a26a320cfe46ffa099086bbf34b6ead4bada1817",
+   "text_chars": 2025
+  },
+  {
+   "_id": "dream_batch_20261109:c07:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 7,
+   "phase": "awakening",
+   "session_id": "dream_1794261376",
+   "text_sha256": "c5748e06322c85bedcfbe74708f52567c25fd9140c014f3e53268d86c5e377c9",
+   "text_chars": 706
+  },
+  {
+   "_id": "dream_batch_20261109:c07:insights",
+   "kind": "dream_insights",
+   "cycle_number": 7,
+   "phase": "insights",
+   "session_id": "dream_1794261376",
+   "text_sha256": "147490ca7abbfd2166a36beadd9325f12c0fe2792f2a16294465825c019e19ac",
+   "text_chars": 698
+  },
+  {
+   "_id": "dream_batch_20261109:c08:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 8,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794261788",
+   "text_sha256": "7cd65f9f8f474d912f39069259d81eb4400ca670b0cc85d6d68115ca1bd23b70",
+   "text_chars": 2974
+  },
+  {
+   "_id": "dream_batch_20261109:c08:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 8,
+   "phase": "light_sleep",
+   "session_id": "dream_1794261788",
+   "text_sha256": "b64bea1b5eaceca9f6c4a8cef6b50c849df255498edf183893b819bdd0c1bbf1",
+   "text_chars": 1019
+  },
+  {
+   "_id": "dream_batch_20261109:c08:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 8,
+   "phase": "deep_dream",
+   "session_id": "dream_1794261788",
+   "text_sha256": "678cc6507ba5e857375a05f977651ef87d6b90d5575735470b9eb40f60ab6723",
+   "text_chars": 1041
+  },
+  {
+   "_id": "dream_batch_20261109:c08:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 8,
+   "phase": "rem_dream",
+   "session_id": "dream_1794261788",
+   "text_sha256": "25a7efbdf45aadd93a45def3551cf2225f98a6c4c1b03883305dc9072e6469bd",
+   "text_chars": 999
+  },
+  {
+   "_id": "dream_batch_20261109:c08:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 8,
+   "phase": "nightmare",
+   "session_id": "dream_1794261788",
+   "text_sha256": "38184999c482499553b3e94a63322544d1614dbce01275d30123dc4911d57037",
+   "text_chars": 990
+  },
+  {
+   "_id": "dream_batch_20261109:c08:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 8,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794261788",
+   "text_sha256": "d998bfc8e754d7c1ddc7dc274c6bbdc9ac7f646c3ca5ffbd2649811b1e284654",
+   "text_chars": 2048
+  },
+  {
+   "_id": "dream_batch_20261109:c08:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 8,
+   "phase": "awakening",
+   "session_id": "dream_1794261788",
+   "text_sha256": "0ede2a057e3d553c76bf08c1b95e7bf59a425ecd5582b35b68e0f38422c9d8e7",
+   "text_chars": 601
+  },
+  {
+   "_id": "dream_batch_20261109:c08:insights",
+   "kind": "dream_insights",
+   "cycle_number": 8,
+   "phase": "insights",
+   "session_id": "dream_1794261788",
+   "text_sha256": "6af802130e7e5e78ba6f36813fdfd42bf3519ce39870a15715c11c184f8330d4",
+   "text_chars": 593
+  },
+  {
+   "_id": "dream_batch_20261109:c09:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 9,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794262158",
+   "text_sha256": "f09e8a2c7ecc0f44744644486ea4f602ef85569504a2f0865b8d1b2a3e1d0319",
+   "text_chars": 2489
+  },
+  {
+   "_id": "dream_batch_20261109:c09:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 9,
+   "phase": "light_sleep",
+   "session_id": "dream_1794262158",
+   "text_sha256": "074aecaf868f04f4dd8dbe73a0c0a3dca6275d5d2ce607046cb5e5efbe8bea42",
+   "text_chars": 957
+  },
+  {
+   "_id": "dream_batch_20261109:c09:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 9,
+   "phase": "deep_dream",
+   "session_id": "dream_1794262158",
+   "text_sha256": "9fb37c9fd2583249a82b236ab3d76c9daff4bacf977bfca60ec8c827d5309b3d",
+   "text_chars": 1455
+  },
+  {
+   "_id": "dream_batch_20261109:c09:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 9,
+   "phase": "rem_dream",
+   "session_id": "dream_1794262158",
+   "text_sha256": "50d231dd01af54e8746aff6303799cb6cb6f57aaafa7fcbcf40f06245a03c8b2",
+   "text_chars": 1089
+  },
+  {
+   "_id": "dream_batch_20261109:c09:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 9,
+   "phase": "nightmare",
+   "session_id": "dream_1794262158",
+   "text_sha256": "6ea3b5c0cf72d1b44e3f3482409d010a9d3cbe3b586c93fa15f073240ed0804e",
+   "text_chars": 1438
+  },
+  {
+   "_id": "dream_batch_20261109:c09:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 9,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794262158",
+   "text_sha256": "60bb9756dee7a140ea31f5070c74b1bfb02305a77bace73a355f0f25cc831440",
+   "text_chars": 1078
+  },
+  {
+   "_id": "dream_batch_20261109:c09:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 9,
+   "phase": "awakening",
+   "session_id": "dream_1794262158",
+   "text_sha256": "7300bfbe78181b45f5d805e6a4bda55661fdd3572ec815df773d4a30d300799e",
+   "text_chars": 567
+  },
+  {
+   "_id": "dream_batch_20261109:c09:insights",
+   "kind": "dream_insights",
+   "cycle_number": 9,
+   "phase": "insights",
+   "session_id": "dream_1794262158",
+   "text_sha256": "5278d7476d0d9e0580047315762b7a34d5085dce1f2aa46d0f953754e2462fc7",
+   "text_chars": 561
+  },
+  {
+   "_id": "dream_batch_20261109:c10:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 10,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794262521",
+   "text_sha256": "9734102506bf568af39e6c3c642e70254e84e998ef272112b27cdae58e88809a",
+   "text_chars": 2845
+  },
+  {
+   "_id": "dream_batch_20261109:c10:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 10,
+   "phase": "light_sleep",
+   "session_id": "dream_1794262521",
+   "text_sha256": "f79d893b46b741c6178ed548365d6f3f11ee836b471ac99d76d37accabbb4ae7",
+   "text_chars": 1305
+  },
+  {
+   "_id": "dream_batch_20261109:c10:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 10,
+   "phase": "deep_dream",
+   "session_id": "dream_1794262521",
+   "text_sha256": "590e30e8a969174033bcbbd5b44018422eda4cd4db264dbb3dae8961f998d107",
+   "text_chars": 1109
+  },
+  {
+   "_id": "dream_batch_20261109:c10:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 10,
+   "phase": "rem_dream",
+   "session_id": "dream_1794262521",
+   "text_sha256": "40691bbaa0b9e29effba1133d5d72c3a8227a80bc7787fa44b489fbf07473648",
+   "text_chars": 1246
+  },
+  {
+   "_id": "dream_batch_20261109:c10:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 10,
+   "phase": "nightmare",
+   "session_id": "dream_1794262521",
+   "text_sha256": "770d0451941fd2e1cc4ff759ef608e7f38886c4335a391488a206562c0b5b468",
+   "text_chars": 1092
+  },
+  {
+   "_id": "dream_batch_20261109:c10:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 10,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794262521",
+   "text_sha256": "66df6a7ca46ed4667c85a31ae0da99724d52925f3328462e50f0e81b5d613b41",
+   "text_chars": 1920
+  },
+  {
+   "_id": "dream_batch_20261109:c10:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 10,
+   "phase": "awakening",
+   "session_id": "dream_1794262521",
+   "text_sha256": "a8f1e13adcb26be19aae9eb4fb6cb2831b65a5183a777210ffad543251cd9c88",
+   "text_chars": 735
+  },
+  {
+   "_id": "dream_batch_20261109:c10:insights",
+   "kind": "dream_insights",
+   "cycle_number": 10,
+   "phase": "insights",
+   "session_id": "dream_1794262521",
+   "text_sha256": "d26a01acedcc523a6c2ad4cd17f9dcede68eba1b96e07da687451282fe91bf50",
+   "text_chars": 729
+  },
+  {
+   "_id": "dream_batch_20261109:c11:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 11,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794263379",
+   "text_sha256": "31da199c662b0a644e14e226f385cdb859d515f33e951e8f21299c9c0ea2ce75",
+   "text_chars": 2688
+  },
+  {
+   "_id": "dream_batch_20261109:c11:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 11,
+   "phase": "light_sleep",
+   "session_id": "dream_1794263379",
+   "text_sha256": "81770197c8855bdd5a3136629d940a01361dcb9322aa0fbb97c8d0886cad847d",
+   "text_chars": 1027
+  },
+  {
+   "_id": "dream_batch_20261109:c11:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 11,
+   "phase": "deep_dream",
+   "session_id": "dream_1794263379",
+   "text_sha256": "5828fc6be078a93f80eb8fcb493e4e63257d528028066d62f12a1e06418891df",
+   "text_chars": 1123
+  },
+  {
+   "_id": "dream_batch_20261109:c11:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 11,
+   "phase": "rem_dream",
+   "session_id": "dream_1794263379",
+   "text_sha256": "dc1f4e02d2c76e0ad5fd04e8f82e46d6f2a45ba74f15ebb6f708c6c132c62ee4",
+   "text_chars": 863
+  },
+  {
+   "_id": "dream_batch_20261109:c11:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 11,
+   "phase": "nightmare",
+   "session_id": "dream_1794263379",
+   "text_sha256": "06032127e193a6f3f39549f4d5bdbbb8d0285c626263af7d2c279e2fd9250226",
+   "text_chars": 1059
+  },
+  {
+   "_id": "dream_batch_20261109:c11:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 11,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794263379",
+   "text_sha256": "8527ee5ae6be8232c24e7b5b3c7c1ac3b04c47b7882668893dfaa91b0b280c89",
+   "text_chars": 1308
+  },
+  {
+   "_id": "dream_batch_20261109:c11:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 11,
+   "phase": "awakening",
+   "session_id": "dream_1794263379",
+   "text_sha256": "cdaef78d672e0383f7df34e508c6dfb2b7c8203961c0c5f0224f1ace59d75c8e",
+   "text_chars": 677
+  },
+  {
+   "_id": "dream_batch_20261109:c11:insights",
+   "kind": "dream_insights",
+   "cycle_number": 11,
+   "phase": "insights",
+   "session_id": "dream_1794263379",
+   "text_sha256": "e8fbd232dbc2a16526d5638f96dc309519a6484ac8fe7fe38eb5dce4ea171e75",
+   "text_chars": 671
+  },
+  {
+   "_id": "dream_batch_20261109:c12:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 12,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794263898",
+   "text_sha256": "fb3633a38db9b4b68c48bcab57d41e75d76b14389ebd9704d1d875df87696a6a",
+   "text_chars": 2843
+  },
+  {
+   "_id": "dream_batch_20261109:c12:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 12,
+   "phase": "light_sleep",
+   "session_id": "dream_1794263898",
+   "text_sha256": "219b78b1ace815dd4a6c47bc047bef5d5db3f0a104189d339f500885f3e08b3f",
+   "text_chars": 1173
+  },
+  {
+   "_id": "dream_batch_20261109:c12:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 12,
+   "phase": "deep_dream",
+   "session_id": "dream_1794263898",
+   "text_sha256": "8d5d648bd4828a8fd44b8464f6f1acb7f7952ed380cb672e833d6f234b2df2ed",
+   "text_chars": 1068
+  },
+  {
+   "_id": "dream_batch_20261109:c12:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 12,
+   "phase": "rem_dream",
+   "session_id": "dream_1794263898",
+   "text_sha256": "cece564cc1f974e77d77b39bf48dd469c6403843eef5fd2f508773db1129dfb3",
+   "text_chars": 1272
+  },
+  {
+   "_id": "dream_batch_20261109:c12:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 12,
+   "phase": "nightmare",
+   "session_id": "dream_1794263898",
+   "text_sha256": "c22e8958cb252a14d05593e8127ab93d079ef2b2a9732abe68be9eb0d5374a92",
+   "text_chars": 1235
+  },
+  {
+   "_id": "dream_batch_20261109:c12:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 12,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794263898",
+   "text_sha256": "106c6f93d184b6413bba373fc6b2ef1c1f3b3ebe9223b5a336abac72b72b8cca",
+   "text_chars": 1561
+  },
+  {
+   "_id": "dream_batch_20261109:c12:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 12,
+   "phase": "awakening",
+   "session_id": "dream_1794263898",
+   "text_sha256": "2b56d15d5a8b7d4469cf0f53a92f8dbf9c43b670e043f161ee6f834978857177",
+   "text_chars": 745
+  },
+  {
+   "_id": "dream_batch_20261109:c12:insights",
+   "kind": "dream_insights",
+   "cycle_number": 12,
+   "phase": "insights",
+   "session_id": "dream_1794263898",
+   "text_sha256": "61f6c62d71adc4868788d298b9b3513e5c375a8eb5a9ccc88256f60f9ca08598",
+   "text_chars": 737
+  },
+  {
+   "_id": "dream_batch_20261109:c13:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 13,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794264830",
+   "text_sha256": "46c08496ff843ee85d97c69fd6063643f8f3fcb1d050ccf69206b4cbbd620569",
+   "text_chars": 2660
+  },
+  {
+   "_id": "dream_batch_20261109:c13:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 13,
+   "phase": "light_sleep",
+   "session_id": "dream_1794264830",
+   "text_sha256": "4346ffced3c15d81575469c5e4c846f7c4427b4b0049a9f5dcfad4c0f0fab81a",
+   "text_chars": 1147
+  },
+  {
+   "_id": "dream_batch_20261109:c13:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 13,
+   "phase": "deep_dream",
+   "session_id": "dream_1794264830",
+   "text_sha256": "5ffdc0d52f2c8098e5bf0d1b20a2205ea481923fb3e3e54808c4807e72d130d4",
+   "text_chars": 807
+  },
+  {
+   "_id": "dream_batch_20261109:c13:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 13,
+   "phase": "rem_dream",
+   "session_id": "dream_1794264830",
+   "text_sha256": "129fb497c60d5683c48737aa3da037c33f96db2f4fa04e75581d91643de28e1b",
+   "text_chars": 1038
+  },
+  {
+   "_id": "dream_batch_20261109:c13:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 13,
+   "phase": "nightmare",
+   "session_id": "dream_1794264830",
+   "text_sha256": "183e473307514d539c183c7355d8ad54f9a1cc81fb0537815000f30f4a32c7a1",
+   "text_chars": 1096
+  },
+  {
+   "_id": "dream_batch_20261109:c13:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 13,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794264830",
+   "text_sha256": "963b6871cf0792659d2133d63fca2dfcc5eeff435e5d762845a72fbe444babc5",
+   "text_chars": 1451
+  },
+  {
+   "_id": "dream_batch_20261109:c13:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 13,
+   "phase": "awakening",
+   "session_id": "dream_1794264830",
+   "text_sha256": "12a7d4ab2706e2a2b865ccf79b763a6f44f18d757daed5b7764cb975f93790cb",
+   "text_chars": 705
+  },
+  {
+   "_id": "dream_batch_20261109:c13:insights",
+   "kind": "dream_insights",
+   "cycle_number": 13,
+   "phase": "insights",
+   "session_id": "dream_1794264830",
+   "text_sha256": "40b574b121b91460c4e4906ca8628102f26fcc1849ee4a03759cdebd2c2dd51f",
+   "text_chars": 697
+  },
+  {
+   "_id": "dream_batch_20261109:c14:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 14,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794265794",
+   "text_sha256": "a06158dc53d3f11d0a9e123c6d2f8f753de71a8398edc077a53c0585dfddf0b2",
+   "text_chars": 2683
+  },
+  {
+   "_id": "dream_batch_20261109:c14:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 14,
+   "phase": "light_sleep",
+   "session_id": "dream_1794265794",
+   "text_sha256": "3f1e94a2acbe5d06faf91911915c9f3b16e932fac2eda824d4c9459f6a77e99e",
+   "text_chars": 1051
+  },
+  {
+   "_id": "dream_batch_20261109:c14:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 14,
+   "phase": "deep_dream",
+   "session_id": "dream_1794265794",
+   "text_sha256": "4ba87b7956b145261c25ae8fbdf3b36f0345570f287bdcf871341bc4074cd3bd",
+   "text_chars": 1200
+  },
+  {
+   "_id": "dream_batch_20261109:c14:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 14,
+   "phase": "rem_dream",
+   "session_id": "dream_1794265794",
+   "text_sha256": "50af5de3121669a2ba077b742eb2c45e0063fda76f720044544d69588098cac7",
+   "text_chars": 954
+  },
+  {
+   "_id": "dream_batch_20261109:c14:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 14,
+   "phase": "nightmare",
+   "session_id": "dream_1794265794",
+   "text_sha256": "eb9357d75bcc30a748b9301af2b62adf2094611cc727001ab44215247543d02a",
+   "text_chars": 821
+  },
+  {
+   "_id": "dream_batch_20261109:c14:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 14,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794265794",
+   "text_sha256": "db4d95f040a23f1144de1d5ec1967f6693bdf446980120af037491d9d9eed3b7",
+   "text_chars": 1345
+  },
+  {
+   "_id": "dream_batch_20261109:c14:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 14,
+   "phase": "awakening",
+   "session_id": "dream_1794265794",
+   "text_sha256": "6816b8e5bec90bd2a9a8dfa7d960cedec6efb2405e38fa0558b14537463d1585",
+   "text_chars": 667
+  },
+  {
+   "_id": "dream_batch_20261109:c14:insights",
+   "kind": "dream_insights",
+   "cycle_number": 14,
+   "phase": "insights",
+   "session_id": "dream_1794265794",
+   "text_sha256": "abacc920902551bb1b7fd03d7c0fdad6edf08ee7f5cda3fa43df188d35de0098",
+   "text_chars": 661
+  },
+  {
+   "_id": "dream_batch_20261109:c15:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 15,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794266166",
+   "text_sha256": "3992c9c5e7f79bbff98d141dcf07575f8055287e35c9615ed1145c664e4a6f75",
+   "text_chars": 2643
+  },
+  {
+   "_id": "dream_batch_20261109:c15:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 15,
+   "phase": "light_sleep",
+   "session_id": "dream_1794266166",
+   "text_sha256": "845be7076dce8dc1d37abe9fd15592a6049d3f9109fe2f3ebe5d701f81fa9a5f",
+   "text_chars": 929
+  },
+  {
+   "_id": "dream_batch_20261109:c15:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 15,
+   "phase": "deep_dream",
+   "session_id": "dream_1794266166",
+   "text_sha256": "2195c8660e941f3cc1f53bcc722bf6383a52f1b29926f8f27f6a11df74c7a285",
+   "text_chars": 1150
+  },
+  {
+   "_id": "dream_batch_20261109:c15:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 15,
+   "phase": "rem_dream",
+   "session_id": "dream_1794266166",
+   "text_sha256": "e8c36e6ac49b1fe4e8f2f73ad224a0f4ab9810a0e52de19671d02f046d7c612b",
+   "text_chars": 1089
+  },
+  {
+   "_id": "dream_batch_20261109:c15:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 15,
+   "phase": "nightmare",
+   "session_id": "dream_1794266166",
+   "text_sha256": "05181f3633077e3b5357b49a4badeeda18b5e7b7cea5a52f9f3844ddc1801285",
+   "text_chars": 1580
+  },
+  {
+   "_id": "dream_batch_20261109:c15:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 15,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794266166",
+   "text_sha256": "f5b935ad46802b013a55306febf19150eba289f93f400b2e8746395ccdf7190a",
+   "text_chars": 1799
+  },
+  {
+   "_id": "dream_batch_20261109:c15:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 15,
+   "phase": "awakening",
+   "session_id": "dream_1794266166",
+   "text_sha256": "f1876d0e5dd56123711712ed3595d6d0bcce8cb338b900b975660d3fb73d50b4",
+   "text_chars": 580
+  },
+  {
+   "_id": "dream_batch_20261109:c15:insights",
+   "kind": "dream_insights",
+   "cycle_number": 15,
+   "phase": "insights",
+   "session_id": "dream_1794266166",
+   "text_sha256": "346a73a5ec5bb45434024f5671fac5d09aba3048dadc3cd206e99de9af4050fb",
+   "text_chars": 574
+  },
+  {
+   "_id": "dream_batch_20261109:c16:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 16,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794266832",
+   "text_sha256": "96d7ac9b1b3fcdf87308f0850432ec42539c608733dc804854de29dc44cf06c4",
+   "text_chars": 2152
+  },
+  {
+   "_id": "dream_batch_20261109:c16:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 16,
+   "phase": "light_sleep",
+   "session_id": "dream_1794266832",
+   "text_sha256": "2f32e1ea8fba6dac4602f75449eb53ad1d0847549dce2fbc04d1421075ac547f",
+   "text_chars": 1193
+  },
+  {
+   "_id": "dream_batch_20261109:c16:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 16,
+   "phase": "deep_dream",
+   "session_id": "dream_1794266832",
+   "text_sha256": "f22460302737e4552031cd98d4a033e51f4a86f31af3e13da0ee8d78f1efa7c9",
+   "text_chars": 1069
+  },
+  {
+   "_id": "dream_batch_20261109:c16:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 16,
+   "phase": "rem_dream",
+   "session_id": "dream_1794266832",
+   "text_sha256": "952dbdda4fc6c4efd79f5300706c959a1101fab69b4c6805b8dea32d80986160",
+   "text_chars": 973
+  },
+  {
+   "_id": "dream_batch_20261109:c16:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 16,
+   "phase": "nightmare",
+   "session_id": "dream_1794266832",
+   "text_sha256": "c8c8fe4f16b9ec21afb340bc128007a7fe1025d5afebe7a49f7b90a050cca771",
+   "text_chars": 723
+  },
+  {
+   "_id": "dream_batch_20261109:c16:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 16,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794266832",
+   "text_sha256": "f7316c84a802b591366f5d1150a2ecc1bef8cd59f5ae3f939ae244f440e81578",
+   "text_chars": 1769
+  },
+  {
+   "_id": "dream_batch_20261109:c16:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 16,
+   "phase": "awakening",
+   "session_id": "dream_1794266832",
+   "text_sha256": "1eabd61492827f3b52d19cbe14955b5e09444298a5e57ddf45162064544cdebf",
+   "text_chars": 769
+  },
+  {
+   "_id": "dream_batch_20261109:c16:insights",
+   "kind": "dream_insights",
+   "cycle_number": 16,
+   "phase": "insights",
+   "session_id": "dream_1794266832",
+   "text_sha256": "279120192efeb66ed99507b73211ab3c1c6c1d873553365b823be1d723af7dce",
+   "text_chars": 761
+  },
+  {
+   "_id": "dream_batch_20261109:c17:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 17,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794267214",
+   "text_sha256": "e29dda07f87dd1284b7ac8c947e14ff83a92ffab54673d2b9177d1b87b4130de",
+   "text_chars": 769
+  },
+  {
+   "_id": "dream_batch_20261109:c17:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 17,
+   "phase": "light_sleep",
+   "session_id": "dream_1794267214",
+   "text_sha256": "94ef49518f36e8e55aa5ad5537e18e944ad77d33c49fc972c93af6753e80dc88",
+   "text_chars": 1061
+  },
+  {
+   "_id": "dream_batch_20261109:c17:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 17,
+   "phase": "deep_dream",
+   "session_id": "dream_1794267214",
+   "text_sha256": "f7b33440783daabad52bf8694f76b998d89076d71abb46f1ddb96b15aa192b6a",
+   "text_chars": 1246
+  },
+  {
+   "_id": "dream_batch_20261109:c17:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 17,
+   "phase": "rem_dream",
+   "session_id": "dream_1794267214",
+   "text_sha256": "293e4f014f29d5252b46fa0868bf7ac5edf3e614d6d942aba53a1fd35eb1ba86",
+   "text_chars": 1350
+  },
+  {
+   "_id": "dream_batch_20261109:c17:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 17,
+   "phase": "nightmare",
+   "session_id": "dream_1794267214",
+   "text_sha256": "48555586a67c29a39bd1c25b6da6538aeadb03430eaceabd2deb677418dece03",
+   "text_chars": 1216
+  },
+  {
+   "_id": "dream_batch_20261109:c17:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 17,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794267214",
+   "text_sha256": "e296408c9d3b48fa6a58e37d1f40c486a9e0db4e4d7ca0853afdf24d29890946",
+   "text_chars": 1620
+  },
+  {
+   "_id": "dream_batch_20261109:c17:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 17,
+   "phase": "awakening",
+   "session_id": "dream_1794267214",
+   "text_sha256": "e52ae52ee8168492e470f29cc9752b33aedf1a6e81d925cd53b24d97a3a0bda7",
+   "text_chars": 593
+  },
+  {
+   "_id": "dream_batch_20261109:c17:insights",
+   "kind": "dream_insights",
+   "cycle_number": 17,
+   "phase": "insights",
+   "session_id": "dream_1794267214",
+   "text_sha256": "0f126e2e5967dab16c538dd3332d44fbe3e959d81f68033929432434a2add1ca",
+   "text_chars": 587
+  },
+  {
+   "_id": "dream_batch_20261109:c18:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 18,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794267757",
+   "text_sha256": "4bc64381b3c3362c6f1533d2be7e2cf7e74841cae2deb1975a40ab08c70b7937",
+   "text_chars": 1182
+  },
+  {
+   "_id": "dream_batch_20261109:c18:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 18,
+   "phase": "light_sleep",
+   "session_id": "dream_1794267757",
+   "text_sha256": "6d341fadcd8b6f14e3f2bb3491d64f9bf0619639618c4e6fd622ee6ff525e3f2",
+   "text_chars": 1143
+  },
+  {
+   "_id": "dream_batch_20261109:c18:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 18,
+   "phase": "deep_dream",
+   "session_id": "dream_1794267757",
+   "text_sha256": "0470d68eea21780c43abd838a58acd9e0fcd609804e5431faa03731c651956c0",
+   "text_chars": 1349
+  },
+  {
+   "_id": "dream_batch_20261109:c18:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 18,
+   "phase": "rem_dream",
+   "session_id": "dream_1794267757",
+   "text_sha256": "00828ff774865782c7768cc58349c42c6ed3ba7ca36ebf78158651b7603cd31b",
+   "text_chars": 1091
+  },
+  {
+   "_id": "dream_batch_20261109:c18:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 18,
+   "phase": "nightmare",
+   "session_id": "dream_1794267757",
+   "text_sha256": "eb0ae13d19b9d8ebaa059de6e5aada7b4406bdc0bbbe0ea76a963c5b126da513",
+   "text_chars": 732
+  },
+  {
+   "_id": "dream_batch_20261109:c18:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 18,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794267757",
+   "text_sha256": "4a05711d32ec972e9f144baa91f9e0a88559c8449877a67d86fde9e1e32a0e8d",
+   "text_chars": 1111
+  },
+  {
+   "_id": "dream_batch_20261109:c18:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 18,
+   "phase": "awakening",
+   "session_id": "dream_1794267757",
+   "text_sha256": "aa91938acdc60351ede054468e241822e7f438d846b230c9e861ca9d43942ddb",
+   "text_chars": 628
+  },
+  {
+   "_id": "dream_batch_20261109:c18:insights",
+   "kind": "dream_insights",
+   "cycle_number": 18,
+   "phase": "insights",
+   "session_id": "dream_1794267757",
+   "text_sha256": "ed11f0b96ad89ab60bffa1f3bece4395309cf8a2d4e36aedf7755f60d733414c",
+   "text_chars": 622
+  },
+  {
+   "_id": "dream_batch_20261109:c19:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 19,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794268242",
+   "text_sha256": "63c10f3bea39c5601d3ae8daea4e9c2beb8dee6ade28d7c6492692fd5fb1106c",
+   "text_chars": 2485
+  },
+  {
+   "_id": "dream_batch_20261109:c19:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 19,
+   "phase": "light_sleep",
+   "session_id": "dream_1794268242",
+   "text_sha256": "bf487051d7b3bad77b375a686bc1bacb0d90e1fc4bdc531e66fb58e862b693a5",
+   "text_chars": 681
+  },
+  {
+   "_id": "dream_batch_20261109:c19:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 19,
+   "phase": "deep_dream",
+   "session_id": "dream_1794268242",
+   "text_sha256": "5135d675f6f39ea2f8764ac90a90575f69fe5c7c79acd8a94accda68dabbda63",
+   "text_chars": 1226
+  },
+  {
+   "_id": "dream_batch_20261109:c19:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 19,
+   "phase": "rem_dream",
+   "session_id": "dream_1794268242",
+   "text_sha256": "81de362934e2c51430392a8a88a4702a532d050f39c82ddede1e3f3728207d45",
+   "text_chars": 1266
+  },
+  {
+   "_id": "dream_batch_20261109:c19:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 19,
+   "phase": "nightmare",
+   "session_id": "dream_1794268242",
+   "text_sha256": "1f3f7e9aa5c656d17bf9cd01a13de42a4608940d108d6cf0ee6cbfb82cdc8252",
+   "text_chars": 956
+  },
+  {
+   "_id": "dream_batch_20261109:c19:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 19,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794268242",
+   "text_sha256": "4d17bd78efb1badd1c47171dcef9243405c4ab6c96a04bbf12a08e89cc5d9004",
+   "text_chars": 1456
+  },
+  {
+   "_id": "dream_batch_20261109:c19:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 19,
+   "phase": "awakening",
+   "session_id": "dream_1794268242",
+   "text_sha256": "ec16b03f00c2d78c01a65a4e93238c66aec6fcedc7fd33890fef9d130ff809f6",
+   "text_chars": 760
+  },
+  {
+   "_id": "dream_batch_20261109:c19:insights",
+   "kind": "dream_insights",
+   "cycle_number": 19,
+   "phase": "insights",
+   "session_id": "dream_1794268242",
+   "text_sha256": "db118334057b7bbcf7fb7b2f4a0347210600e6bebaf79dcaf3e1609418c079d6",
+   "text_chars": 754
+  },
+  {
+   "_id": "dream_batch_20261109:c20:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 20,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794269122",
+   "text_sha256": "6a14fe094f27069877efc1beea197a51d486ba48641d4bb22c42a8b7668dc268",
+   "text_chars": 2284
+  },
+  {
+   "_id": "dream_batch_20261109:c20:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 20,
+   "phase": "light_sleep",
+   "session_id": "dream_1794269122",
+   "text_sha256": "7d54e17eac3942628f46d2ff94682351aec924fad66b024647cf502011c0b556",
+   "text_chars": 935
+  },
+  {
+   "_id": "dream_batch_20261109:c20:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 20,
+   "phase": "deep_dream",
+   "session_id": "dream_1794269122",
+   "text_sha256": "9ab4c917896cece7f398890b7cffb61e4a264cdf80d13fb72d65846d31140fd3",
+   "text_chars": 1581
+  },
+  {
+   "_id": "dream_batch_20261109:c20:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 20,
+   "phase": "rem_dream",
+   "session_id": "dream_1794269122",
+   "text_sha256": "848183054921d46fa002b9d1d06c4e79080fadd020a20e2ccb5876071a768f57",
+   "text_chars": 1083
+  },
+  {
+   "_id": "dream_batch_20261109:c20:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 20,
+   "phase": "nightmare",
+   "session_id": "dream_1794269122",
+   "text_sha256": "32395cbc4f4c0388d220932806c0b4b3ade7510ce5cde405b9328753b9216cbf",
+   "text_chars": 1293
+  },
+  {
+   "_id": "dream_batch_20261109:c20:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 20,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794269122",
+   "text_sha256": "dc59814aa843079dd1238306313979e41ab16f2cdc1bd8eeb392c3ab2651f2c5",
+   "text_chars": 1591
+  },
+  {
+   "_id": "dream_batch_20261109:c20:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 20,
+   "phase": "awakening",
+   "session_id": "dream_1794269122",
+   "text_sha256": "2106c0f2e15ab6109f01ae0e5ed3f9b866e55be1f68dd4a9b0af5366e6354cd3",
+   "text_chars": 745
+  },
+  {
+   "_id": "dream_batch_20261109:c20:insights",
+   "kind": "dream_insights",
+   "cycle_number": 20,
+   "phase": "insights",
+   "session_id": "dream_1794269122",
+   "text_sha256": "7c516c12414cecb78cf8db00380f990456685e488d77a6479f17a5a04edbc560",
+   "text_chars": 739
+  },
+  {
+   "_id": "dream_batch_20261109:c21:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 21,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794269625",
+   "text_sha256": "3e9a71ae6e9fa5a6a340168359328e7262e58772715fe4a2923c48b14f845b19",
+   "text_chars": 2837
+  },
+  {
+   "_id": "dream_batch_20261109:c21:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 21,
+   "phase": "light_sleep",
+   "session_id": "dream_1794269625",
+   "text_sha256": "fa0a1ddccfcbf55cc7d7cc78244cbad3a256741ef62c30ab5fc9202f81584839",
+   "text_chars": 1223
+  },
+  {
+   "_id": "dream_batch_20261109:c21:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 21,
+   "phase": "deep_dream",
+   "session_id": "dream_1794269625",
+   "text_sha256": "65528b7958c9264f4bec9a452a760f22daca0e8dbf8ef25eddc9fa6f19f5951d",
+   "text_chars": 1180
+  },
+  {
+   "_id": "dream_batch_20261109:c21:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 21,
+   "phase": "rem_dream",
+   "session_id": "dream_1794269625",
+   "text_sha256": "a0e9dfb5ff766e28217f4044d096e6601be27fcd40e2b4fe29ef96a9f59810c0",
+   "text_chars": 1170
+  },
+  {
+   "_id": "dream_batch_20261109:c21:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 21,
+   "phase": "nightmare",
+   "session_id": "dream_1794269625",
+   "text_sha256": "e182f67ff2a6e40fbd0e48887f9c3787b852b8f22a855d92f032c58ba1ce4dac",
+   "text_chars": 1491
+  },
+  {
+   "_id": "dream_batch_20261109:c21:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 21,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794269625",
+   "text_sha256": "1564451fbe6158cf0193199b4bee70b6cfdd0082df4068a68a19b53a91c7c709",
+   "text_chars": 1353
+  },
+  {
+   "_id": "dream_batch_20261109:c21:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 21,
+   "phase": "awakening",
+   "session_id": "dream_1794269625",
+   "text_sha256": "28e090a0a2ed93019e5bf34f7818fc91e3a5a15db7fa269839e8f18a8f144e45",
+   "text_chars": 618
+  },
+  {
+   "_id": "dream_batch_20261109:c21:insights",
+   "kind": "dream_insights",
+   "cycle_number": 21,
+   "phase": "insights",
+   "session_id": "dream_1794269625",
+   "text_sha256": "a071d29de7ff595b96b2a29b2ff8b9316b1d211cc68df0a5e19e6efd7df8196c",
+   "text_chars": 612
+  },
+  {
+   "_id": "dream_batch_20261109:c22:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 22,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794270131",
+   "text_sha256": "e89597513faa2ac35f658d6c3182e0cb9e409c9977db370feae4b3a5f2eabe3b",
+   "text_chars": 2860
+  },
+  {
+   "_id": "dream_batch_20261109:c22:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 22,
+   "phase": "light_sleep",
+   "session_id": "dream_1794270131",
+   "text_sha256": "9d0cb57f4e8be99669f1f61ac032218cba4bea4e1d1ecf8b66116197a510bf06",
+   "text_chars": 916
+  },
+  {
+   "_id": "dream_batch_20261109:c22:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 22,
+   "phase": "deep_dream",
+   "session_id": "dream_1794270131",
+   "text_sha256": "db3611b193a6b22f07ca3775f30d89c9a7eb990080d4c1948cfdee5162db1629",
+   "text_chars": 1288
+  },
+  {
+   "_id": "dream_batch_20261109:c22:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 22,
+   "phase": "rem_dream",
+   "session_id": "dream_1794270131",
+   "text_sha256": "3e329512de3cdbbe68a1c6ed5b086e7fc30b6dbde58059b0a44c97a9f2c185dc",
+   "text_chars": 1043
+  },
+  {
+   "_id": "dream_batch_20261109:c22:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 22,
+   "phase": "nightmare",
+   "session_id": "dream_1794270131",
+   "text_sha256": "425f04ee730aa0ef26aa7c3ba1d8b5727b73451e7b26300618939ed49f99e4ec",
+   "text_chars": 1360
+  },
+  {
+   "_id": "dream_batch_20261109:c22:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 22,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794270131",
+   "text_sha256": "d38a54a4af4850e481967ed2bdc5aa6b748ace32a92075fd848ca209c05ecb0f",
+   "text_chars": 1367
+  },
+  {
+   "_id": "dream_batch_20261109:c22:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 22,
+   "phase": "awakening",
+   "session_id": "dream_1794270131",
+   "text_sha256": "fd8f648fd6c07d6798e420734414ab4f0443cbf7dd073617937ad29d92ff58da",
+   "text_chars": 605
+  },
+  {
+   "_id": "dream_batch_20261109:c22:insights",
+   "kind": "dream_insights",
+   "cycle_number": 22,
+   "phase": "insights",
+   "session_id": "dream_1794270131",
+   "text_sha256": "f25213494b6109c6a39a515f513e0f144c752c732dbac48ea09b1e9e73e6423b",
+   "text_chars": 599
+  },
+  {
+   "_id": "dream_batch_20261109:c23:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 23,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794270783",
+   "text_sha256": "53d34b509ff7460ceba1fb4930702996797351700be7a48b3816a7be802dc235",
+   "text_chars": 1145
+  },
+  {
+   "_id": "dream_batch_20261109:c23:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 23,
+   "phase": "light_sleep",
+   "session_id": "dream_1794270783",
+   "text_sha256": "5b9733655cc386e3edf79fe276f1559950d3c25bc294ea2c47f381ce4e348ea1",
+   "text_chars": 1139
+  },
+  {
+   "_id": "dream_batch_20261109:c23:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 23,
+   "phase": "deep_dream",
+   "session_id": "dream_1794270783",
+   "text_sha256": "7ecd8c60dc59dabcbfc68c610b1f26a3a5b11750590cba4669f1f811b673dd59",
+   "text_chars": 1012
+  },
+  {
+   "_id": "dream_batch_20261109:c23:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 23,
+   "phase": "rem_dream",
+   "session_id": "dream_1794270783",
+   "text_sha256": "4fa35c86de2aa346fd53bedabd942e74d0789837e68b973bff9ebac124d8a0c5",
+   "text_chars": 699
+  },
+  {
+   "_id": "dream_batch_20261109:c23:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 23,
+   "phase": "nightmare",
+   "session_id": "dream_1794270783",
+   "text_sha256": "cc8ce2995c65a06529711fbd4353b8b5c97e5131816c41fa83c29b5796fb2146",
+   "text_chars": 1094
+  },
+  {
+   "_id": "dream_batch_20261109:c23:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 23,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794270783",
+   "text_sha256": "a5c006dea98ddf5478651068f17d56369b8813f88470e41dde3822317ba01bed",
+   "text_chars": 1608
+  },
+  {
+   "_id": "dream_batch_20261109:c23:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 23,
+   "phase": "awakening",
+   "session_id": "dream_1794270783",
+   "text_sha256": "05e35179d732925f0f7ee749891498c2d5afce729170a64338372c43b6f98c76",
+   "text_chars": 789
+  },
+  {
+   "_id": "dream_batch_20261109:c23:insights",
+   "kind": "dream_insights",
+   "cycle_number": 23,
+   "phase": "insights",
+   "session_id": "dream_1794270783",
+   "text_sha256": "230e1501162811c0878ad03047917692c7ee7abe3fc10daf58a068578841459a",
+   "text_chars": 783
+  },
+  {
+   "_id": "dream_batch_20261109:c24:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 24,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794271444",
+   "text_sha256": "c8fb358ff3b7ff417b96771f8df38ca729c152070bb8483420d2af7d994b5b58",
+   "text_chars": 2661
+  },
+  {
+   "_id": "dream_batch_20261109:c24:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 24,
+   "phase": "light_sleep",
+   "session_id": "dream_1794271444",
+   "text_sha256": "6bdfe32cf68dbb0e09beaef95167ffe7e98ecdbf7bf74ebe82b4981313db3c08",
+   "text_chars": 1106
+  },
+  {
+   "_id": "dream_batch_20261109:c24:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 24,
+   "phase": "deep_dream",
+   "session_id": "dream_1794271444",
+   "text_sha256": "7ee8ec9b47c005ec443123d37a16529fc9c9c3a2f281589bf49c0312cdefd390",
+   "text_chars": 1446
+  },
+  {
+   "_id": "dream_batch_20261109:c24:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 24,
+   "phase": "rem_dream",
+   "session_id": "dream_1794271444",
+   "text_sha256": "144f387c0e78670cb996d88d17119a2f8dbf7ac34f5a86c8b3b80a1ef1371166",
+   "text_chars": 871
+  },
+  {
+   "_id": "dream_batch_20261109:c24:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 24,
+   "phase": "nightmare",
+   "session_id": "dream_1794271444",
+   "text_sha256": "7881ef61a6d547b617dbeb398eaa29b5431e8ec242d3ecf475ece565f3dea48c",
+   "text_chars": 1126
+  },
+  {
+   "_id": "dream_batch_20261109:c24:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 24,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794271444",
+   "text_sha256": "e2b3d64ee19cecc42c788e26e93f0f7c5a1529709dd22abd49578d03c757bb13",
+   "text_chars": 1661
+  },
+  {
+   "_id": "dream_batch_20261109:c24:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 24,
+   "phase": "awakening",
+   "session_id": "dream_1794271444",
+   "text_sha256": "0fdee094b19a35554726a0a4fecebf3210f5c81de7e90ed327c34158e7fb4a66",
+   "text_chars": 723
+  },
+  {
+   "_id": "dream_batch_20261109:c24:insights",
+   "kind": "dream_insights",
+   "cycle_number": 24,
+   "phase": "insights",
+   "session_id": "dream_1794271444",
+   "text_sha256": "50c871e33f03dff5e42c45069e154d99d76f478ac1f77e8c9926d756326c1755",
+   "text_chars": 717
+  },
+  {
+   "_id": "dream_batch_20261109:c25:p1:hypnagogic",
+   "kind": "dream_phase",
+   "cycle_number": 25,
+   "phase": "hypnagogic",
+   "session_id": "dream_1794272003",
+   "text_sha256": "fc8e54bca73254b7864de42772425a07cfe76f1697fdba28fb2d374ab4d1f63a",
+   "text_chars": 2622
+  },
+  {
+   "_id": "dream_batch_20261109:c25:p2:light_sleep",
+   "kind": "dream_phase",
+   "cycle_number": 25,
+   "phase": "light_sleep",
+   "session_id": "dream_1794272003",
+   "text_sha256": "49b8785daf47a7556c437c667cf3dd3c8754c6c54f033845dd44cffc2615996b",
+   "text_chars": 292
+  },
+  {
+   "_id": "dream_batch_20261109:c25:p3:deep_dream",
+   "kind": "dream_phase",
+   "cycle_number": 25,
+   "phase": "deep_dream",
+   "session_id": "dream_1794272003",
+   "text_sha256": "1ca4932c9fac46729113b7b50f8178cc47fd51d2e67cff1219ed651be9e68f62",
+   "text_chars": 1144
+  },
+  {
+   "_id": "dream_batch_20261109:c25:p4:rem_dream",
+   "kind": "dream_phase",
+   "cycle_number": 25,
+   "phase": "rem_dream",
+   "session_id": "dream_1794272003",
+   "text_sha256": "885c2ed69c554897241a5baee558082a23e45761573ac5691ce2ac77e32e3221",
+   "text_chars": 916
+  },
+  {
+   "_id": "dream_batch_20261109:c25:p5:nightmare",
+   "kind": "dream_phase",
+   "cycle_number": 25,
+   "phase": "nightmare",
+   "session_id": "dream_1794272003",
+   "text_sha256": "83c4e26ec6c53e163b199ac2073035ecf3cab44b87e1c523baeae38a59e80321",
+   "text_chars": 1075
+  },
+  {
+   "_id": "dream_batch_20261109:c25:p6:lucid_dream",
+   "kind": "dream_phase",
+   "cycle_number": 25,
+   "phase": "lucid_dream",
+   "session_id": "dream_1794272003",
+   "text_sha256": "035cdd705907fcda5ec255cfdfb450b9102215cf424748071569b1919a54c28e",
+   "text_chars": 1453
+  },
+  {
+   "_id": "dream_batch_20261109:c25:p7:awakening",
+   "kind": "dream_phase",
+   "cycle_number": 25,
+   "phase": "awakening",
+   "session_id": "dream_1794272003",
+   "text_sha256": "0a0b39afeaa6b10db3a1e60d62cba8cab7bc0aaa0716a339e119e6530be8f417",
+   "text_chars": 657
+  },
+  {
+   "_id": "dream_batch_20261109:c25:insights",
+   "kind": "dream_insights",
+   "cycle_number": 25,
+   "phase": "insights",
+   "session_id": "dream_1794272003",
+   "text_sha256": "b248a277d9ebb622f0757b35e3f224de70a9ee6dbb4f2af19fa10beb7c5f28a7",
+   "text_chars": 651
+  }
+ ]
+}

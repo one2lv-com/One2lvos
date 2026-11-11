@@ -141,3 +141,8 @@ webdav_root/*
 
 # One2lvOS bridge: hashed app access keys (never commit)
 data/bridge_app_keys.json
+
+# Local runtime state (never commit: tokens, dbs, logs)
+data/
+dream_memory/*.db
+dream_memory/*.log
