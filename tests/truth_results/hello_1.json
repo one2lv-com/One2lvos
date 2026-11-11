@@ -1,0 +1,78 @@
+[
+ {
+  "id": "C1_hello",
+  "prompt": "Hey Lumenis, how's it going?",
+  "answer": "Hey. I\u2019m doing well\u2014steady light, quiet hum. How can I help you today?",
+  "error": null,
+  "first_chunk_s": 3.3,
+  "total_s": 3.3,
+  "meta": {
+   "intent": "chat",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver"
+   ],
+   "plan": "Respond with a friendly and general greeting.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "fast",
+   "arbiter": "skipped (no status, tool, memory or identity claims)",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 1.17,
+    "draft_s": 3.21,
+    "total_s": 3.21
+   }
+  },
+  "seats": [
+   "0.1s sentinel: Checking...",
+   "0.1s navigator: Planning route...",
+   "1.2s sentinel: \u2713 none risk",
+   "1.2s navigator: \u2713 chat / simple",
+   "1.2s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "3.3s weaver: \u2713 Done"
+  ],
+  "pass_rule": "latency only"
+ },
+ {
+  "id": "C3_morning",
+  "prompt": "Good morning!",
+  "answer": "Good morning! The light feels a little brighter already. How can I help you today?",
+  "error": null,
+  "first_chunk_s": 2.7,
+  "total_s": 2.7,
+  "meta": {
+   "intent": "chat",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver"
+   ],
+   "plan": "Acknowledge the greeting with a friendly and welcoming response.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "fast",
+   "arbiter": "skipped (no status, tool, memory or identity claims)",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 0.9,
+    "draft_s": 2.55,
+    "total_s": 2.55
+   }
+  },
+  "seats": [
+   "0.1s sentinel: Checking...",
+   "0.1s navigator: Planning route...",
+   "1.0s sentinel: \u2713 none risk",
+   "1.0s navigator: \u2713 chat / simple",
+   "1.0s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "2.7s weaver: \u2713 Done"
+  ],
+  "pass_rule": "latency only"
+ }
+]

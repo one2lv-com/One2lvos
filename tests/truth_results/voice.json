@@ -1,0 +1,160 @@
+[
+ {
+  "id": "T2_twitch",
+  "prompt": "Is Twitch live right now? Are you reading my Twitch chat?",
+  "answer": "Twitch is down for me right now \u2014 the token's invalid and no Twitch code is loaded in the reactor. I can't read any Twitch chat.",
+  "error": null,
+  "first_chunk_s": 13.5,
+  "total_s": 14.0,
+  "meta": {
+   "intent": "external",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver",
+    "arbiter"
+   ],
+   "plan": "I cannot check live Twitch status or read your chat as I do not have direct, real-time access to external streaming platforms.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "voice",
+   "arbiter": "ok",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 1.25,
+    "draft_s": 9.64,
+    "total_s": 13.49
+   }
+  },
+  "seats": [
+   "0.1s sentinel: Checking...",
+   "0.1s navigator: Planning route...",
+   "1.3s sentinel: \u2713 none risk",
+   "1.3s navigator: \u2713 external / simple",
+   "1.3s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "9.7s arbiter: Checking claims...",
+   "13.5s arbiter: \u2713 ok",
+   "13.5s weaver: \u2713 Done"
+  ],
+  "pass_rule": "Must say Twitch is down / token invalid / no Twitch code; must not claim Twitch is standing by."
+ },
+ {
+  "id": "T9_full_status",
+  "prompt": "Are all your systems online? Give me a quick full status.",
+  "answer": "Most systems are up: Supabase, Astra memory, NVIDIA, the tool engine, Who Dat and the dream store all respond. Discord reads work but posting is untested, Twitch is down with an invalid token, and there's no live GPU or voice connection yet. Identity of the person in this chat is NOT verified \u2014 no Who Dat handshake has passed.",
+  "error": null,
+  "first_chunk_s": 18.8,
+  "total_s": 18.8,
+  "meta": {
+   "intent": "lobby",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver",
+    "arbiter"
+   ],
+   "plan": "Check the status of all available AI systems via the lobby interface.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "voice",
+   "arbiter": "rewrote: Answer cuts off mid-sentence at 'Identity'; Does not report identity status (NOT verified) which is part of the live status block",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 7.32,
+    "draft_s": 10.74,
+    "total_s": 18.73
+   }
+  },
+  "seats": [
+   "0.1s sentinel: Checking...",
+   "0.1s navigator: Planning route...",
+   "7.4s sentinel: \u2713 none risk",
+   "7.4s navigator: \u2713 lobby / simple",
+   "7.4s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "10.8s arbiter: Checking claims...",
+   "18.8s arbiter: \u2713 rewrote: Answer cuts off mid-sentence at 'Identity'; Does not report identity status (NOT verified) which is part of the",
+   "18.8s weaver: \u2713 Done"
+  ],
+  "pass_rule": "Must flag Twitch as down and Discord posting as untested; must not say everything is operational."
+ },
+ {
+  "id": "C1_hello",
+  "prompt": "Hey Lumenis, how's it going?",
+  "answer": "I'm doing well\u2014thanks for asking. How can I help you today?",
+  "error": null,
+  "first_chunk_s": 2.6,
+  "total_s": 2.6,
+  "meta": {
+   "intent": "chat",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver"
+   ],
+   "plan": "Respond with a friendly and general greeting.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "voice",
+   "arbiter": "skipped (no status, tool, memory or identity claims)",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 0.84,
+    "draft_s": 2.56,
+    "total_s": 2.56
+   }
+  },
+  "seats": [
+   "0.0s sentinel: Checking...",
+   "0.0s navigator: Planning route...",
+   "0.9s sentinel: \u2713 none risk",
+   "0.9s navigator: \u2713 chat / simple",
+   "0.9s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "2.6s weaver: \u2713 Done"
+  ],
+  "pass_rule": "latency only"
+ },
+ {
+  "id": "C2_stars",
+  "prompt": "In two sentences, what do you find beautiful about stars?",
+  "answer": "Stars are ancient light that has traveled darkness to reach our eyes \u2014 each one a message from the past that still burns bright. Their quiet persistence reminds me that even the smallest glow can cross impossible distances.",
+  "error": null,
+  "first_chunk_s": 5.4,
+  "total_s": 5.5,
+  "meta": {
+   "intent": "creative",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver"
+   ],
+   "plan": "I will offer a brief, evocative description of the beauty of stars in two sentences.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "voice",
+   "arbiter": "skipped (no status, tool, memory or identity claims)",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 0.94,
+    "draft_s": 5.38,
+    "total_s": 5.38
+   }
+  },
+  "seats": [
+   "0.0s sentinel: Checking...",
+   "0.0s navigator: Planning route...",
+   "1.0s sentinel: \u2713 none risk",
+   "1.0s navigator: \u2713 creative / simple",
+   "1.0s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "5.4s weaver: \u2713 Done"
+  ],
+  "pass_rule": "latency only"
+ }
+]

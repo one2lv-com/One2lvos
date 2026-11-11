@@ -63,9 +63,13 @@ def _resolve_backend() -> dict:
     return {"provider": "nvidia", "key": nvidia_key, "model": nvidia_model, "base_url": NVIDIA_API_URL}
 
 
-async def _llm_stream(system: str, messages: list[dict], max_tokens: int, temperature: float) -> AsyncIterator[str]:
-    """Universal LLM streaming call — routes to Bedrock, OpenAI-compat, or NVIDIA."""
+async def _llm_stream(system: str, messages: list[dict], max_tokens: int, temperature: float,
+                      model: str | None = None, timeout: float = 120) -> AsyncIterator[str]:
+    """Universal LLM streaming call — routes to Bedrock, OpenAI-compat, or NVIDIA.
+    model= overrides the model on the NVIDIA backend (used by the fast path and the verifier)."""
     backend = _resolve_backend()
+    if model and backend["provider"] == "nvidia":
+        backend = dict(backend, model=model)
 
     if backend["provider"] == "bedrock":
         payload: dict = {
@@ -102,22 +106,61 @@ async def _llm_stream(system: str, messages: list[dict], max_tokens: int, temper
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
         }
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream("POST", backend["base_url"], headers=headers, json=payload) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        text = chunk["choices"][0]["delta"].get("content", "")
-                        if text:
-                            yield text
-                    except Exception:
-                        continue
+        # One retry on a fallback model when the first model fails before sending any text
+        # (HTTP error, 410 retired model, 429, timeout). Never retries mid-answer.
+        models = [backend["model"]]
+        fb = os.environ.get("LUMENIS_FALLBACK_MODEL", "nvidia/nemotron-3.5-bolt-e4b")
+        if backend["provider"] == "nvidia" and fb and fb != backend["model"]:
+            models.append(fb)
+        for i, mdl in enumerate(models):
+            payload["model"] = mdl
+            sent = False
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    async with client.stream("POST", backend["base_url"], headers=headers, json=payload) as response:
+                        response.raise_for_status()
+                        async for line in response.aiter_lines():
+                            if not line.startswith("data: "):
+                                continue
+                            data = line[6:].strip()
+                            if data == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data)
+                                text = chunk["choices"][0]["delta"].get("content", "")
+                            except Exception:
+                                continue
+                            if text:
+                                sent = True
+                                yield text
+                return
+            except (httpx.HTTPError, httpx.StreamError) as e:
+                if sent or i == len(models) - 1:
+                    raise
+                print(f"⚠ LLM {mdl} failed before answering ({type(e).__name__}); retrying on {models[i + 1]}")
+
+# Fast path / Arbiter model and routing model (Sentinel, Navigator). Measured on the user's keys
+# 2026-11-11: nemotron-3-ultra ~1-3 s per reply, bolt-e4b ~0.5 s; llama-3.2-90b-vision 20-46 s.
+FAST_MODEL = os.environ.get("LUMENIS_FAST_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
+ROUTE_MODEL = os.environ.get("LUMENIS_ROUTE_MODEL", "nvidia/nemotron-3.5-bolt-e4b")
+VERIFY_MODEL = os.environ.get("LUMENIS_VERIFY_MODEL", FAST_MODEL)
+
+
+async def fast_stream(system: str, messages: list[dict], max_tokens: int = 500, temperature: float = 0.5,
+                      model: str | None = None, timeout: float = 45) -> AsyncIterator[str]:
+    """Streaming call on the fast model (fast path / voice mode)."""
+    async for chunk in _llm_stream(system, messages, max_tokens, temperature, model=model or FAST_MODEL,
+                                   timeout=timeout):
+        yield chunk
+
+
+async def fast_call(system: str, messages: list[dict], max_tokens: int = 500, temperature: float = 0.2,
+                    model: str | None = None, timeout: float = 45) -> str:
+    out = []
+    async for chunk in fast_stream(system, messages, max_tokens, temperature, model=model, timeout=timeout):
+        out.append(chunk)
+    return "".join(out)
+
 
 @dataclass
 class ReactorStatus:

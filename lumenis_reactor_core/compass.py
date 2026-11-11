@@ -68,11 +68,46 @@ class FluxCompass:
                     created_at  REAL NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS objectives (
+                    id          TEXT PRIMARY KEY,
+                    title       TEXT NOT NULL,
+                    description TEXT,
+                    status      TEXT NOT NULL DEFAULT 'active',
+                    priority    INTEGER NOT NULL DEFAULT 5,
+                    created_at  REAL NOT NULL,
+                    updated_at  REAL NOT NULL
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_messages_session
                     ON messages(session_id, created_at);
                 CREATE INDEX IF NOT EXISTS idx_facts_key
                     ON facts(key);
             """)
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(facts)")}
+            if "confidence" not in cols:
+                conn.execute("ALTER TABLE facts ADD COLUMN confidence REAL")
+            if "verification" not in cols:
+                conn.execute("ALTER TABLE facts ADD COLUMN verification TEXT")
+            # Older rows: label by source so nothing old reads as verified.
+            for src, (ver, conf) in self._SOURCE_VERIFICATION.items():
+                conn.execute("UPDATE facts SET verification=?, confidence=? WHERE verification IS NULL AND source=?",
+                             (ver, conf, src))
+            conn.execute("UPDATE facts SET verification='unverified', confidence=0.5 WHERE verification IS NULL")
+
+    def relabel_old_auto_facts(self) -> dict:
+        """One-off cleanup: older auto-learned rows that are really dreams or plans/promises get
+        verification 'dream' or 'plan', which keeps them out of recall_facts (nothing is deleted)."""
+        out = {"dream": 0, "plan": 0}
+        with self._connect() as conn:
+            rows = conn.execute("SELECT id, key, value FROM facts WHERE source IN ('auto_learn','auto_insight') "
+                                "AND verification='unverified'").fetchall()
+            for r in rows:
+                tag = "dream" if (self._DREAM_RE.search(r["value"]) or self._DREAM_RE.search(r["key"])) else (
+                    "plan" if self._PLAN_RE.search(r["value"]) else None)
+                if tag:
+                    conn.execute("UPDATE facts SET verification=?, confidence=0.1 WHERE id=?", (tag, r["id"]))
+                    out[tag] += 1
+        return out
 
     # ── Sessions ──────────────────────────────────────────────────────────────
 
@@ -147,27 +182,55 @@ class FluxCompass:
 
     # ── Facts (long-term memory) ──────────────────────────────────────────────
 
+    # Verification status for every stored fact (Lumenis priority 1: facts carry
+    # source, confidence, timestamp and verification status).
+    #   tool_verified - written by a real check/tool result
+    #   user_stated   - the user said it (true as a statement, not independently checked)
+    #   unverified    - Lumenis's own words; never treat as confirmed
+    _SOURCE_VERIFICATION = {
+        "trigger_engine": ("tool_verified", 0.9), "tool_engine": ("tool_verified", 0.9),
+        "user_stated": ("user_stated", 0.7), "api_facts": ("user_stated", 0.6),
+        "ws_store_fact": ("user_stated", 0.6), "lumenis_tool": ("unverified", 0.5),
+        "auto_learn": ("unverified", 0.3), "auto_insight": ("unverified", 0.3),
+    }
+
     def store_fact(
         self,
         key: str,
         value: str,
         session_id: Optional[str] = None,
         source: Optional[str] = None,
+        confidence: Optional[float] = None,
+        verification: Optional[str] = None,
     ) -> str:
         fid = str(uuid.uuid4())
+        dv, dc = self._SOURCE_VERIFICATION.get(source or "", ("unverified", 0.5))
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO facts VALUES (?,?,?,?,?,?)",
-                (fid, session_id, key, value, source, time.time()),
+                "INSERT INTO facts (id, session_id, key, value, source, created_at, confidence, verification) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (fid, session_id, key, value, source, time.time(),
+                 dc if confidence is None else float(confidence), verification or dv),
             )
         return fid
+
+    def add_objective(self, title: str, description: str = "", status: str = "proposed", priority: int = 5) -> str:
+        """Plans, promises and intentions go here, never into facts."""
+        oid = f"obj_{int(time.time() * 1000)}_{uuid.uuid4().hex[:4]}"
+        now = time.time()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO objectives (id,title,description,status,priority,created_at,updated_at) "
+                "VALUES (?,?,?,?,?,?,?)", (oid, title[:200], description[:1000], status, priority, now, now))
+        return oid
 
     def recall_facts(self, query: str, limit: int = 5) -> list[dict]:
         """Simple keyword recall from the fact store."""
         with self._connect() as conn:
             rows = conn.execute(
-                """SELECT key, value, source, created_at FROM facts
-                   WHERE key LIKE ? OR value LIKE ?
+                """SELECT key, value, source, created_at, confidence, verification FROM facts
+                   WHERE (key LIKE ? OR value LIKE ?)
+                     AND COALESCE(verification,'') NOT IN ('plan', 'dream')
                    ORDER BY created_at DESC LIMIT ?""",
                 (f"%{query}%", f"%{query}%", limit),
             ).fetchall()
@@ -199,14 +262,40 @@ class FluxCompass:
         }
 
     # ── Frontier #4: Autonomous Learning Loop ────────────────────────────────
+    # Plans, promises and intentions: these go to objectives, never to facts.
+    _PLAN_RE = __import__("re").compile(
+        r"\b(i will|i'll|we will|we'll|i am going to|i'm going to|going to|will (?:now |soon )?(?:begin|start|run|"
+        r"implement|audit|fix|build|deploy|create|add|review|investigate|monitor|track)|i plan|we plan|plan to|planned|"
+        r"promise|commit to|intend|next step|todo|to-do|should|must|recommend|priority|roadmap|let's|let us|"
+        r"i can (?:begin|start)|ready to)\b", __import__("re").I)
+    # Dream material stays in the dream store only.
+    _DREAM_RE = __import__("re").compile(
+        r"\b(dream|dreamt|dreamed|dreaming|astral|vision i had|in the dream|reverie|clockwork bird)", __import__("re").I)
+
+    def _route_learned(self, key: str, text: str, session_id) -> str:
+        """Store one learned item in the right place. Returns 'fact', 'objective' or 'skipped'."""
+        if self._DREAM_RE.search(text) or self._DREAM_RE.search(key):
+            return "skipped"
+        if self._PLAN_RE.search(text):
+            self.add_objective(title=text[:120], status="proposed",
+                               description=f"Auto-captured from Lumenis's reply (session {session_id}). "
+                                           f"A plan or promise, NOT done or verified: {text[:600]}")
+            return "objective"
+        self.store_fact(key, text, session_id=session_id, source="auto_learn",
+                        confidence=0.3, verification="unverified")
+        return "fact"
+
     def auto_learn(self, response_text: str, session_id=None) -> int:
         """
-        Extract insights from council responses and store as facts.
-        Returns number of facts stored.
+        Extract insights from council responses.
+        - plans / promises / intentions  -> objectives (status 'proposed')
+        - dream material                 -> not stored here (dream store only)
+        - everything else                -> facts with source 'auto_learn', confidence 0.3,
+                                            verification 'unverified' (it is Lumenis's own words)
+        Returns the number of items stored.
         """
         import re
         learned = 0
-        # Extract numbered recommendations / bullet points as discrete facts
         patterns = [
             r'\*\*([^*]+)\*\*[:\s—–-]+([^\n]{20,200})',   # **Title**: description
             r'^\d+\.\s+\*\*([^*]+)\*\*[:\s—–-]+([^\n]{20,150})',  # 1. **Title**: desc
@@ -215,21 +304,16 @@ class FluxCompass:
             for m in re.finditer(pat, response_text, re.MULTILINE):
                 key = 'learn.' + re.sub(r'\s+', '_', m.group(1).strip().lower())[:40]
                 val = m.group(2).strip()[:250]
-                # Only store if not already stored recently
-                existing = self.recall_facts(key)
-                if not existing:
-                    self.store_fact(key, val, session_id=session_id, source='auto_learn')
-                    learned += 1
-        # Also store high-confidence sentences containing key action words
+                if not self.recall_facts(key):
+                    if self._route_learned(key, val, session_id) != "skipped":
+                        learned += 1
         action_words = ['must', 'should', 'critical', 'essential', 'recommend', 'next step', 'frontier']
-        sentences = re.split(r'[.!?]\s+', response_text)
-        for sent in sentences:
+        for sent in re.split(r'[.!?]\s+', response_text):
             if len(sent) > 40 and any(w in sent.lower() for w in action_words):
                 key = 'insight.' + str(int(time.time()))[-6:]
-                existing = self.recall_facts(sent[:30])
-                if not existing:
-                    self.store_fact(key, sent.strip()[:250], session_id=session_id, source='auto_insight')
-                    learned += 1
+                if not self.recall_facts(sent[:30]):
+                    if self._route_learned(key, sent.strip()[:250], session_id) != "skipped":
+                        learned += 1
                     if learned >= 5:  # cap per response
                         break
         return learned

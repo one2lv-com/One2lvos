@@ -184,6 +184,13 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_trigger_auto_checkpoint())
     asyncio.create_task(_trigger_service_watch())
     asyncio.create_task(_trigger_self_heal())
+    # Live status snapshot for the council (real read-only checks, cached ~60 s)
+    from lumenis_reactor_core import live_status as _live_status
+    asyncio.create_task(_live_status.background_loop())
+    try:
+        print("✓ Old auto-learned dreams/plans relabelled:", compass.relabel_old_auto_facts())
+    except Exception as _e:
+        print("⚠ relabel_old_auto_facts failed:", type(_e).__name__)
     print("✦ Sovereign Core online — Thermal Baseline 0.18°C | Trigger Engine active")
     yield
     await reactor.stop()
@@ -353,6 +360,20 @@ async def handle_chat(ws: WebSocket, msg: dict):
     user_text = msg.get("message", "").strip()
     session_id = msg.get("session_id")
     guest = msg.get("guest") is True
+    # mode="voice" → always the fast path (future Discord voice / Magpie TTS).
+    mode = "voice" if str(msg.get("mode", "")).lower() == "voice" else ""
+    learn = msg.get("no_learn") is not True
+    # Identity: typed claims never count. The only signals are the channel's own:
+    #  - Discord listener: owner vs guest decided by Discord user ID (not a Who Dat check)
+    #  - guest flag from the public bridge / listener
+    if guest:
+        identity, identity_verified = "a guest (decided by the channel, not by what they type)", False
+    elif msg.get("identity") == "discord_owner":
+        identity, identity_verified = ("the Discord owner account, matched by Discord user ID by the Discord "
+                                       "listener. That is this channel's identity signal; it is NOT a Who Dat "
+                                       "check."), True
+    else:
+        identity, identity_verified = "", False   # council fills in the NOT-verified line
 
     if not user_text:
         return
@@ -387,6 +408,10 @@ async def handle_chat(ws: WebSocket, msg: dict):
             session_id=session_id,
             stream_cb=stream_cb,
             guest=guest,
+            identity=identity,
+            identity_verified=identity_verified,
+            mode=mode,
+            learn=learn,
         )
 
     node = await node_pool.run("council.process", council_task())
@@ -430,11 +455,21 @@ async def handle_chat(ws: WebSocket, msg: dict):
                 "risk_level": decision.risk_level,
                 "external_data": bool(decision.external_data),
                 "guest_mode": guest,
+                "path": decision.path,
+                "arbiter": decision.arbiter,
+                "timings": decision.timings,
             },
         }
     )
     except (RuntimeError, Exception):
         pass  # Client disconnected before completion could be sent
+
+
+@app.get("/api/live_status")
+async def live_status_api():
+    """The live status snapshot the council sees each turn (read-only checks, no secrets)."""
+    from lumenis_reactor_core import live_status as _live_status
+    return await _live_status.snapshot()
 
 
 @app.get("/api/guest_mode")

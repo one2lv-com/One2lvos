@@ -154,6 +154,22 @@ def _save_sessions(d):
     os.replace(tmp, SESSIONS_FILE)
 
 
+# ── Listener state for the reactor's live status (no secrets) ────────────────
+STATE_FILE = Path(__file__).resolve().parent / "data" / "discord_listener_state.json"
+
+
+def _write_state(**kv):
+    try:
+        st = json.loads(STATE_FILE.read_text()) if STATE_FILE.exists() else {}
+        st.update(kv)
+        STATE_FILE.parent.mkdir(exist_ok=True)
+        tmp = STATE_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(st, indent=1))
+        tmp.replace(STATE_FILE)
+    except Exception as e:
+        log.warning("could not write listener state: %s", type(e).__name__)
+
+
 # ── The reactor call (shared by the live listener and --dry-run) ─────────────
 async def ask_lumenis(user_id: int, name: str, text: str, guest: bool, on_chunk=None, key_prefix: str = ""):
     """Send one message through the reactor's council chat socket. Returns (reply, meta).
@@ -165,6 +181,9 @@ async def ask_lumenis(user_id: int, name: str, text: str, guest: bool, on_chunk=
     if guest:
         out["guest"] = True
         out["guest_name"] = f"discord:{name}"[:40]
+    else:
+        # The owner is decided by Discord user ID (DISCORD_OWNER_ID): the channel's identity signal.
+        out["identity"] = "discord_owner"
     chunks, meta = [], {}
     try:
         async with websockets.connect(REACTOR_WS, max_size=None, ping_interval=None, open_timeout=15) as ws:
@@ -265,6 +284,7 @@ def run_bot():
 
     @client.event
     async def on_ready():
+        _write_state(connected_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()))
         log.info("connected as %s (%s); watching channel %s; owner %s",
                  client.user, client.user.id, CHANNEL_ID, OWNER_ID or "none")
 
@@ -312,6 +332,7 @@ def run_bot():
                         await send_reply(message, f"Lumenis couldn't answer this time: {e}.")
                         return
             n = await send_reply(message, reply)
+            _write_state(last_post_ok_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()))
             log.info("replied to %s in %.0f s (%d chars, %d message%s, seats=%s, guest_mode=%s)",
                      who, time.time() - started, len(reply), n, "" if n == 1 else "s",
                      meta.get("seats_activated"), meta.get("guest_mode"))

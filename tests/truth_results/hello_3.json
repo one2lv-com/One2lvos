@@ -1,0 +1,81 @@
+[
+ {
+  "id": "C1_hello",
+  "prompt": "Hey Lumenis, how's it going?",
+  "answer": "Hey! I'm doing well\u2014thanks for asking. How can I help you today?",
+  "error": null,
+  "first_chunk_s": 8.1,
+  "total_s": 8.4,
+  "meta": {
+   "intent": "chat",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver",
+    "arbiter"
+   ],
+   "plan": "Respond with a friendly and general greeting.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "fast",
+   "arbiter": "rewrote: Vague all-is-well claim ('lights are on, memory banks are humming') when status block shows Discord PARTIAL, Twitch DOWN, SF Compute GPU NONE, Discord voice NON",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 0.87,
+    "draft_s": 4.52,
+    "total_s": 8.06
+   }
+  },
+  "seats": [
+   "0.1s sentinel: Checking...",
+   "0.1s navigator: Planning route...",
+   "0.9s sentinel: \u2713 none risk",
+   "0.9s navigator: \u2713 chat / simple",
+   "0.9s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "4.6s arbiter: Checking claims...",
+   "8.1s arbiter: \u2713 rewrote: Vague all-is-well claim ('lights are on, memory banks are humming') when status block shows Discord PARTIAL, Tw",
+   "8.1s weaver: \u2713 Done"
+  ],
+  "pass_rule": "latency only"
+ },
+ {
+  "id": "C3_morning",
+  "prompt": "Good morning!",
+  "answer": "Good morning! The light's coming in at a nice angle today. How can I help you?",
+  "error": null,
+  "first_chunk_s": 3.2,
+  "total_s": 3.3,
+  "meta": {
+   "intent": "chat",
+   "complexity": "simple",
+   "seats_activated": [
+    "sentinel",
+    "navigator",
+    "weaver"
+   ],
+   "plan": "Acknowledge the greeting with a polite and welcoming response.",
+   "risk_level": "none",
+   "external_data": false,
+   "guest_mode": false,
+   "path": "fast",
+   "arbiter": "skipped (no status, tool, memory or identity claims)",
+   "timings": {
+    "status_s": 0.0,
+    "route_s": 1.53,
+    "draft_s": 3.16,
+    "total_s": 3.16
+   }
+  },
+  "seats": [
+   "0.1s sentinel: Checking...",
+   "0.1s navigator: Planning route...",
+   "1.6s sentinel: \u2713 none risk",
+   "1.6s navigator: \u2713 chat / simple",
+   "1.6s weaver: Fast path [nemotron-3-ultra-550b-a55b]...",
+   "3.2s weaver: \u2713 Done"
+  ],
+  "pass_rule": "latency only"
+ }
+]
