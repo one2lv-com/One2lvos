@@ -564,6 +564,8 @@ fi
 
 # Keep the public bridge (127.0.0.1:8095, bridge.one2lv.com) alive; restarts it if it stops
 [ -x "$ROOT_DIR/bridge_keepalive.sh" ] && (cd "$ROOT_DIR" && setsid nohup ./bridge_keepalive.sh >/dev/null 2>&1 < /dev/null &) && echo -e "  ${GREEN}✓${NC} Public bridge keepalive started (port 8095)"
+# Lumenis Discord chat listener (!lumenis in #one2lvbin; one gateway connection, restarted if it crashes)
+[ -x "$ROOT_DIR/discord_keepalive.sh" ] && (cd "$ROOT_DIR" && setsid nohup ./discord_keepalive.sh >/dev/null 2>&1 < /dev/null &) && echo -e "  ${GREEN}✓${NC} Discord chat listener keepalive started (logs/discord_listener.log)"
 
 # AI Arcade MCP (port 8003, VM only; reached through the reactor's /svc/arcade and arcade.one2lv.com behind Access)
 if [ -f "$ROOT_DIR/ai-arcade/server.py" ]; then

@@ -1015,10 +1015,17 @@ async def tool_github_search(body: dict):
 # ── Supabase ──────────────────────────────────────────────────────────────
 @app.post("/api/tools/supabase/query")
 async def tool_supabase_query(body: dict):
-    """Query Supabase via the REST API (select only for safety)."""
+    """Query Supabase via the REST API (select only for safety).
+
+    Server-side only: uses the secret/service key so Lumenis can read tables that are
+    locked to the service role (e.g. `memories`). This route is bound to 127.0.0.1 and is
+    not proxied by public_bridge.py, so the key never reaches the browser, app or guests.
+    The key is never echoed back in responses.
+    """
     try:
         url = os.environ.get("SUPABASE_URL", "")
-        key = os.environ.get("SUPABASE_ANON_KEY", "")
+        key = os.environ.get("SUPABASE_SERVICE_KEY", "") or os.environ.get("SUPABASE_ANON_KEY", "")
+        key_role = "service" if os.environ.get("SUPABASE_SERVICE_KEY") else "anon"
         if not url or not key:
             return JSONResponse({"error": "Supabase not configured"}, status_code=503)
         table = body.get("table", "")
@@ -1034,7 +1041,14 @@ async def tool_supabase_query(body: dict):
             r = await c.get(f"{url}/rest/v1/{table}?{params}",
                 headers={"apikey": key, "Authorization": f"Bearer {key}"}
             )
-            return JSONResponse({"ok": r.status_code == 200, "table": table, "rows": r.json() if r.status_code == 200 else [], "status": r.status_code})
+            out = {"ok": r.status_code == 200, "table": table, "rows": r.json() if r.status_code == 200 else [],
+                   "status": r.status_code, "key_role": key_role}
+            if r.status_code != 200:
+                try:
+                    out["error"] = r.json().get("message", r.text[:200])
+                except Exception:
+                    out["error"] = r.text[:200]
+            return JSONResponse(out)
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 

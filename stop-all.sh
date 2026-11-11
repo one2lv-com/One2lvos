@@ -28,6 +28,8 @@ done
 pkill -f "webdav_keepalive.sh" 2>/dev/null || true
 pkill -f "bridge_keepalive.sh" 2>/dev/null || true
 pkill -f "public_bridge.py" 2>/dev/null || true
+pkill -f "discord_keepalive.sh" 2>/dev/null || true
+pkill -f "discord_listener.py" 2>/dev/null || true
 pkill -f "webdav_server.py" 2>/dev/null || true
 pkill -f "network-api.js" 2>/dev/null || true
 pkill -f "minimax.*index.js" 2>/dev/null || true

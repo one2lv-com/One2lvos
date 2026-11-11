@@ -83,3 +83,4 @@ rich>=13.7.0
 cassandra-driver>=3.30
 WsgiDAV>=4.3
 cheroot>=10
+discord.py>=2.7.1  # discord_listener.py (Lumenis Discord chat)
