@@ -539,6 +539,18 @@ if [ -f "$ROOT_DIR/webdav_server.py" ]; then
     fi
 fi
 
+# FTP file server (desktop Integrations Hub -> Files), localhost only, password from FTP_PASS in .env
+if [ -f "$ROOT_DIR/ftp_server.py" ]; then
+    if ss -ltn 2>/dev/null | grep -q '127.0.0.1:2121 '; then
+        echo -e "  ${GREEN}✓${NC} FTP already running"
+    else
+        PY_BIN="$ROOT_DIR/.venv/bin/python3"; [ -x "$PY_BIN" ] || PY_BIN=python3
+        (cd "$ROOT_DIR" && setsid nohup "$PY_BIN" "$ROOT_DIR/ftp_server.py" >> "$ROOT_DIR/logs/ftp.log" 2>&1 < /dev/null &)
+        sleep 2
+        ss -ltn 2>/dev/null | grep -q '127.0.0.1:2121 ' && echo -e "  ${GREEN}✓${NC} FTP ONLINE (127.0.0.1:2121)" || echo -e "  ${YELLOW}⚠${NC} FTP starting (see logs/ftp.log)"
+    fi
+fi
+
 # Network Service
 if [ -f "$ROOT_DIR/server/network-api.js" ] && [ "$HAS_NODE" = true ]; then
     echo -e "  ${BLUE}→${NC} Starting Network Service (port 3003)..."

@@ -95,7 +95,8 @@ _ENGINE_ON = _os.getenv("ONE2LVOS_TOOL_ENGINE", "1") != "0"
 _ENGINE_RE = re.compile(
     r"(tool[\s_-]?engine|sfcompute|sf\s*compute|\bengine\.(learn|status|describe|list|validate)\b|"
     r"\blocal\.[a-z_]+\b|\b(open|finish|get|list)_missions?\b|\bpost_update\b|\bquery_(logs|metrics)\b|"
-    r"\bsearch_traces\b|\blist_audit_events\b|\btool catalog\b)",
+    r"\bsearch_traces\b|\blist_audit_events\b|\btool catalog\b|"
+    r"\bnimlab\b|nvidia\s+(lab|laboratory|suite|test\s*lab)|\blab\s+suite\b)",
     re.I,
 )
 
@@ -188,7 +189,16 @@ Tool engine (internal tool, app id "tool_engine"): Lumenis' own engine for the s
     query_metrics, search_traces, get_trace, list_audit_events
     sfcompute.<name>: SF Compute's read-only tools (get_*, list_*, query_*, search_*) via the bridge, e.g.
     sfcompute.list_nodes, sfcompute.get_billing. Tools that start, change, delete or pay for compute are refused (403).
-  Use it whenever the user mentions the tool engine, sfcompute, missions, tool architecture, or these tool names.
+    nimlab.<name>: One2lv's NVIDIA lab suite. From disk, nothing sent: status | capabilities | list_models
+    {{"list": "verified|discovered|failed|untested|endpoints", "q", "limit"}} | route {{"model", "kind"}} |
+    fleet {{"type"}} | benchmark_report | leaderboard | voices. One NVIDIA request each (rate limited):
+    key_models {{"q"}} | probe {{"model", "kind": "chat|embedding"}} | chat {{"model", "prompt", "max_tokens"}} |
+    embed {{"model", "texts": [...]}} | vision {{"model", "image_path", "prompt"}} | ocr {{"model", "image_path"}} |
+    rerank {{"model", "query", "passages": [...]}} | tts {{"text", "voice"}}. Bounded batch: rank {{"type":
+    "chat|deep_reasoning|coding|vision|ocr|embeddings|compactor", "models": [1-3 ids]}}. Refused (403): sweep,
+    discover, image_gen, voice_clone, judge_apply, mcp_bridge.
+  Use it whenever the user mentions the tool engine, sfcompute, missions, tool architecture, nimlab, the NVIDIA
+  lab suite, or these tool names.
 
 Available external services (via Maton API Gateway):
 {manifest}

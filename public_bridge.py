@@ -573,6 +573,95 @@ async def _safe_send(ws, m):
         pass
 
 
+# ── Owner: OpenAI-compatible endpoint (for KAI 9000 and other OpenAI-style clients) ───────────
+# Base URL: https://bridge.one2lv.com/openai/v1     Model: lumenis-council
+# Every message goes through the real reactor /ws chat (council, session history, memory recall,
+# Arbiter), exactly like /v1/council. It is NOT a raw NVIDIA passthrough.
+# Auth: Authorization: Bearer <owner API key>  (stored here only as a SHA-256 hash in
+# data/bridge_owner_api_keys.json; revoke with "revoked": true) or an owner token from /v1/login.
+# Guest app keys/tokens are refused here.
+OWNER_KEYS_FILE = os.path.join(ROOT, "data", "bridge_owner_api_keys.json")
+_oa_sessions = {}   # key id -> reactor session id (continues the conversation)
+
+
+def _owner_api_auth(req: Request):
+    import hashlib
+    h = req.headers.get("authorization", "")
+    tok = h[7:].strip() if h.lower().startswith("bearer ") else ""
+    info = _tokens.get(tok) if tok else None
+    if info and info["exp"] >= time.time():
+        if info.get("scope", "admin") != "admin":
+            raise HTTPException(403, "guest tokens cannot use the OpenAI endpoint")
+        return "tok:" + hashlib.sha256(tok.encode()).hexdigest()[:16]
+    ip = _ip(req)
+    now = time.time()
+    q = _fails[ip]
+    _trim(q, 600, now)
+    if len(q) >= 5:
+        raise HTTPException(429, "too many failed sign-ins, wait 10 minutes")
+    kid = hashlib.sha256(tok.encode()).hexdigest() if tok else ""
+    try:
+        with open(OWNER_KEYS_FILE) as f:
+            entry = json.load(f).get(kid)
+    except Exception:
+        entry = None
+    if not entry or entry.get("revoked"):
+        q.append(now)
+        raise HTTPException(401, "invalid API key")
+    return "key:" + kid[:16]
+
+
+def _oa_text(content):
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "\n".join(p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") in ("text", "input_text"))
+    return ""
+
+
+@app.get("/openai/v1/models")
+async def oa_models(req: Request):
+    _owner_api_auth(req)
+    return {"object": "list", "data": [{"id": "lumenis-council", "object": "model", "created": 0, "owned_by": "one2lv"}]}
+
+
+@app.post("/openai/v1/chat/completions")
+async def oa_chat(req: Request):
+    from fastapi.responses import StreamingResponse
+    kid = _owner_api_auth(req)
+    try:
+        body = await req.json()
+    except Exception:
+        raise HTTPException(400, "body must be JSON")
+    msgs = [m for m in (body.get("messages") or []) if isinstance(m, dict)]
+    users = [m for m in msgs if m.get("role") == "user"]
+    if not users:
+        raise HTTPException(400, "no user message")
+    text = _oa_text(users[-1].get("content")).strip()
+    # one user turn in the request = a new conversation; otherwise continue this key's session
+    sess_key = kid + ":" + str(body.get("user") or "")
+    session = _oa_sessions.get(sess_key) if len(users) > 1 else None
+    res = await _council_run(kid, {"query": text, "session_id": session})
+    if res.get("session_id"):
+        _oa_sessions[sess_key] = res["session_id"]
+    if not res.get("ok"):
+        return JSONResponse({"error": {"message": "Lumenis reactor: " + str(res.get("error")), "type": "upstream_error"}}, status_code=502)
+    reply = res.get("reply", "")
+    cid = "chatcmpl-" + secrets.token_hex(12)
+    created = int(time.time())
+    if body.get("stream"):
+        async def gen():
+            base = {"id": cid, "object": "chat.completion.chunk", "created": created, "model": "lumenis-council"}
+            yield "data: " + json.dumps({**base, "choices": [{"index": 0, "delta": {"role": "assistant", "content": reply}, "finish_reason": None}]}) + "\n\n"
+            yield "data: " + json.dumps({**base, "choices": [{"index": 0, "delta": {}, "finish_reason": "stop"}]}) + "\n\n"
+            yield "data: [DONE]\n\n"
+        return StreamingResponse(gen(), media_type="text/event-stream")
+    return {"id": cid, "object": "chat.completion", "created": created, "model": "lumenis-council",
+            "choices": [{"index": 0, "message": {"role": "assistant", "content": reply}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "lumenis": {"session_id": res.get("session_id"), "source": res.get("source"), "warning": res.get("warning")}}
+
+
 @app.get("/")
 async def root():
     return {"service": "One2lvOS public bridge", "health": "/v1/health"}

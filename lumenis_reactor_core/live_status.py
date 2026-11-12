@@ -62,6 +62,26 @@ async def _discord(c: httpx.AsyncClient) -> dict:
     return _ok(state, f"read channel: {read}; post: {post}; {listener}")
 
 
+async def _discord_voice(c: httpx.AsyncClient) -> dict:
+    """Discord voice (discord_voice.py): what the listener reports, never more."""
+    try:
+        st = json.loads(LISTENER_STATE.read_text())
+    except Exception:
+        return _ok("unknown", "no listener state file")
+    if not st.get("voice_available"):
+        return _ok("down", "voice code not loaded in the running listener")
+    where = (f"in voice channel '{st.get('voice_channel')}', "
+             f"{'listening to the owner only' if st.get('voice_listening') else 'not listening (deafened)'}"
+             if st.get("voice_connected") else "not in a voice channel (owner types '!lumenis join')")
+    spoke = (f"last spoke in Discord at {st['voice_last_spoke_at']}" if st.get("voice_last_spoke_at")
+             else "speaking in Discord UNTESTED (never done yet)")
+    heard = (f"last heard the owner at {st['voice_last_heard_at']}" if st.get("voice_last_heard_at")
+             else "hearing in Discord UNTESTED (never done yet)")
+    state = "up" if st.get("voice_last_spoke_at") and st.get("voice_last_heard_at") else "partial"
+    return _ok(state, f"installed (Magpie TTS + Parakeet ASR tested locally, owner-only, on command); {where}; "
+                      f"{spoke}; {heard}")
+
+
 async def _supabase(c: httpx.AsyncClient) -> dict:
     url, key = _env("SUPABASE_URL").rstrip("/"), _env("SUPABASE_SERVICE_KEY")
     if not url or not key:
@@ -170,13 +190,12 @@ async def _dreams(c: httpx.AsyncClient) -> dict:
 
 
 CHECKS = {
-    "Discord": _discord, "Supabase": _supabase, "Astra memory": _astra, "Twitch": _twitch,
+    "Discord": _discord, "Discord voice": _discord_voice, "Supabase": _supabase, "Astra memory": _astra, "Twitch": _twitch,
     "NVIDIA": _nvidia, "Tool engine": _tool_engine, "Who Dat": _whodat, "Dream store": _dreams,
 }
 STATIC = {
     "SF Compute GPU": _ok("none", "not checked in this block; no GPU job has been started from here. The tool engine "
                               "can list SF Compute nodes (read-only) when asked"),
-    "Discord voice": _ok("none", "not built yet"),
 }
 
 

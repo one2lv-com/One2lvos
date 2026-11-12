@@ -1,0 +1,117 @@
+{
+  "version": "2026.1",
+  "gateways": {
+    "integrate": "https://integrate.api.nvidia.com/v1",
+    "ai_api": "https://ai.api.nvidia.com/v1",
+    "nvcf_functions": "https://api.nvcf.nvidia.com/v2/nvcf/functions",
+    "nvcf_grpc": "grpc.nvcf.nvidia.com:443"
+  },
+  "static_routes": {
+    "chat": {
+      "gateway": "integrate",
+      "path": "/chat/completions",
+      "method": "POST"
+    },
+    "chat_stream": {
+      "gateway": "integrate",
+      "path": "/chat/completions",
+      "method": "POST"
+    },
+    "vision": {
+      "gateway": "integrate",
+      "path": "/chat/completions",
+      "method": "POST"
+    },
+    "completions": {
+      "gateway": "integrate",
+      "path": "/completions",
+      "method": "POST"
+    },
+    "embeddings": {
+      "gateway": "integrate",
+      "path": "/embeddings",
+      "method": "POST"
+    },
+    "embeddings_typed": {
+      "gateway": "integrate",
+      "path": "/embeddings",
+      "method": "POST"
+    },
+    "ranking": {
+      "gateway": "integrate",
+      "path": "/ranking",
+      "method": "POST"
+    },
+    "responses": {
+      "gateway": "integrate",
+      "path": "/responses",
+      "method": "POST"
+    },
+    "models": {
+      "gateway": "integrate",
+      "path": "/models",
+      "method": "GET"
+    },
+    "rerank_classic": {
+      "gateway": "ai_api",
+      "path": "/retrieval/nvidia/reranking",
+      "method": "POST"
+    },
+    "embeddings_retrieval": {
+      "gateway": "ai_api",
+      "path": "/retrieval/nvidia/embeddings",
+      "method": "POST"
+    }
+  },
+  "explicit_model_overrides": {
+    "nvidia/magpie-tts-zeroshot": {
+      "gateway": "ai_api",
+      "path": "/cv/nvidia/magpie-tts-zeroshot",
+      "method": "POST",
+      "kind": "audio_tts"
+    },
+    "nvidia/magpie-tts-multilingual": {
+      "gateway": "ai_api",
+      "path": "/cv/nvidia/magpie-tts-multilingual",
+      "method": "POST",
+      "kind": "audio_tts"
+    }
+  },
+  "dynamic_prefix_rules": [
+    {
+      "pattern": "cosmos",
+      "gateway": "ai_api",
+      "prefix": "/cosmos",
+      "kind": "video"
+    },
+    {
+      "pattern": "genai",
+      "gateway": "ai_api",
+      "prefix": "/genai",
+      "kind": "image_gen",
+      "keywords": ["flux", "stable-diffusion", "sdxl", "imagen", "sana"]
+    },
+    {
+      "pattern": "retrieval",
+      "gateway": "ai_api",
+      "prefix": "/retrieval",
+      "kind": "document",
+      "keywords": ["docling", "parse", "ocr", "nemoretriever"]
+    },
+    {
+      "pattern": "cv",
+      "gateway": "ai_api",
+      "prefix": "/cv",
+      "kind": "vision_task",
+      "keywords": ["segment", "detect", "depth", "pose"]
+    }
+  ],
+  "nvcf_fallbacks": [
+    "parakeet",
+    "canary",
+    "riva",
+    "fastpitch",
+    "hifigan",
+    "chatterbox"
+  ]
+}

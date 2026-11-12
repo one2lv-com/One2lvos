@@ -221,6 +221,13 @@ try:
 except Exception as _vision_err:  # never let vision break the reactor boot
     print(f"⚠ live vision not loaded: {_vision_err}")
 
+# ── Desktop Integrations Hub: honest integration states, Discord feed, FTP files (owner only) ──
+try:
+    from lumenis_reactor_core.desktop_hub import router as desktop_hub_router
+    app.include_router(desktop_hub_router)
+except Exception as _hub_err:  # never let the hub break the reactor boot
+    print(f"⚠ desktop hub not loaded: {_hub_err}")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():

@@ -1,0 +1,84 @@
+{
+  "description": "Master REST endpoint candidate matrix for NVIDIA NIM and AI API probing",
+  "version": "2026.1",
+  "candidate_routes": [
+    {
+      "name": "integrate_chat_completions",
+      "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+      "kind": "chat",
+      "method": "POST"
+    },
+    {
+      "name": "integrate_vision_chat",
+      "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+      "kind": "vision",
+      "method": "POST"
+    },
+    {
+      "name": "integrate_embeddings",
+      "url": "https://integrate.api.nvidia.com/v1/embeddings",
+      "kind": "embeddings",
+      "method": "POST"
+    },
+    {
+      "name": "integrate_embeddings_typed",
+      "url": "https://integrate.api.nvidia.com/v1/embeddings",
+      "kind": "embeddings_typed",
+      "method": "POST"
+    },
+    {
+      "name": "integrate_ranking",
+      "url": "https://integrate.api.nvidia.com/v1/ranking",
+      "kind": "ranking",
+      "method": "POST"
+    },
+    {
+      "name": "integrate_completions",
+      "url": "https://integrate.api.nvidia.com/v1/completions",
+      "kind": "completions",
+      "method": "POST"
+    },
+    {
+      "name": "integrate_responses",
+      "url": "https://integrate.api.nvidia.com/v1/responses",
+      "kind": "responses",
+      "method": "POST"
+    },
+    {
+      "name": "ai_api_retrieval_reranking",
+      "url": "https://ai.api.nvidia.com/v1/retrieval/nvidia/reranking",
+      "kind": "rerank",
+      "method": "POST"
+    },
+    {
+      "name": "ai_api_retrieval_embeddings",
+      "url": "https://ai.api.nvidia.com/v1/retrieval/nvidia/embeddings",
+      "kind": "embeddings_retrieval",
+      "method": "POST"
+    },
+    {
+      "name": "ai_api_cv_model_path",
+      "template": "https://ai.api.nvidia.com/v1/cv/{publisher}/{name}",
+      "kind": "audio_tts",
+      "method": "POST"
+    },
+    {
+      "name": "ai_api_genai_model_path",
+      "template": "https://ai.api.nvidia.com/v1/genai/{publisher}/{name}",
+      "kind": "image_gen",
+      "method": "POST"
+    },
+    {
+      "name": "ai_api_cosmos_model_path",
+      "template": "https://ai.api.nvidia.com/v1/cosmos/{publisher}/{name}",
+      "kind": "video",
+      "method": "POST"
+    },
+    {
+      "name": "ai_api_retrieval_model_path",
+      "template": "https://ai.api.nvidia.com/v1/retrieval/{publisher}/{name}",
+      "kind": "document",
+      "method": "POST"
+    }
+  ]
+}

@@ -12,6 +12,11 @@ Tool names
   sfcompute.<name>   SF Compute's tool: read-only ones go through the bridge (validated,
                      cached, rate limited); paid / changing ones are refused unless One2lv
                      names them in SFCOMPUTE_MCP_ALLOW_TOOLS
+  nimlab.<name>      One2lv's NVIDIA lab suite (vendor/nimlab_suite) via nimlab_tools.py:
+                     local reads of its stores; single NVIDIA calls and bounded ranking
+                     (nvidia.com only, rate limited, key from env); sweeps, discovery,
+                     image generation, voice cloning and role changes refused.
+                     Off switch: NIMLAB_TOOLS=0
 
 Permission levels: local_read, local_write, remote_read are open; remote_write is refused
 (spends money or changes paid machines). No shell: there is no local run_command.
@@ -46,6 +51,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from . import sfcompute_mcp as _sfc
+from . import nimlab_tools as _nim
 
 ROOT = Path(__file__).resolve().parent.parent
 ENGINE_DIR = Path(os.getenv("TOOL_ENGINE_DIR", str(ROOT / "data" / "tool_engine")))
@@ -295,6 +301,22 @@ def validate(schema: Dict[str, Any], value: Any, root: Optional[Dict[str, Any]] 
                 errs.append(f"{path}.{k}: not a parameter of this tool")
             elif isinstance(schema.get("additionalProperties"), dict):
                 errs += validate(schema["additionalProperties"], v, root, f"{path}.{k}")
+    if isinstance(value, str):
+        if "minLength" in schema and len(value) < schema["minLength"]:
+            errs.append(f"{path}: shorter than {schema['minLength']} characters")
+        if "maxLength" in schema and len(value) > schema["maxLength"]:
+            errs.append(f"{path}: longer than {schema['maxLength']} characters")
+        if "pattern" in schema:
+            try:
+                if not re.search(schema["pattern"], value):
+                    errs.append(f"{path}: does not match the allowed pattern")
+            except re.error:
+                pass
+    if isinstance(value, list):
+        if "minItems" in schema and len(value) < schema["minItems"]:
+            errs.append(f"{path}: needs at least {schema['minItems']} items")
+        if "maxItems" in schema and len(value) > schema["maxItems"]:
+            errs.append(f"{path}: at most {schema['maxItems']} items")
     if isinstance(value, list) and isinstance(schema.get("items"), dict):
         for i, v in enumerate(value):
             errs += validate(schema["items"], v, root, f"{path}[{i}]")
@@ -466,6 +488,22 @@ def l_get_artifact(a):
     return r
 
 
+def store_artifact(src: Path, note: str = "", mission_id: Optional[str] = None) -> Dict[str, Any]:
+    """Copy a file a tool produced (e.g. a nimlab.tts WAV) into the artifact store."""
+    aid = "a_" + uuid.uuid4().hex[:10]
+    ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
+    stored = f"{aid}_{src.name}"
+    shutil.copyfile(src, ARTIFACT_DIR / stored)
+    raw = (ARTIFACT_DIR / stored).read_bytes()
+    sha = hashlib.sha256(raw).hexdigest()
+    _exec("INSERT INTO artifacts (id,mission_id,source_path,stored_name,size,sha256,note,created_at) VALUES (?,?,?,?,?,?,?,?)",
+          (aid, mission_id, str(src), stored, len(raw), sha, note[:500], _now()))
+    return {"artifact_id": aid, "size": len(raw), "download": f"/engine/artifacts/{aid}/download"}
+
+
+_nim.set_artifact_sink(store_artifact)
+
+
 def redact(text: str) -> str:
     return REDACT_RE.sub("[redacted]", text)
 
@@ -612,8 +650,11 @@ def status() -> Dict[str, Any]:
             "rate_limit": {"server_calls_per_min": RATE_PER_MIN, "used_last_min": recent},
             "cache_ttl_s": CACHE_TTL, "allow_list": sorted(_sfc._allow_list()),
             "permissions": {"local_read": "open", "local_write": "open", "remote_read": "open",
-                            "remote_write": "refused unless named in SFCOMPUTE_MCP_ALLOW_TOOLS"},
-            "shell": "none (no local run_command)"}
+                            "remote_write": "refused unless named in SFCOMPUTE_MCP_ALLOW_TOOLS",
+                            "nimlab": "local_read open; nvidia_call/nvidia_batch rate limited, nvidia.com only; "
+                                      "sweeps, discovery, image generation, voice cloning, role changes refused"},
+            "shell": "none (no local run_command)",
+            "nimlab": _nim.summary()}
 
 
 def list_tools(kind: Optional[str] = None, q: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -621,6 +662,7 @@ def list_tools(kind: Optional[str] = None, q: Optional[str] = None) -> List[Dict
     for name, (_, level, _, desc) in LOCAL_TOOLS.items():
         rows.append({"name": f"local.{name}", "kind": "local", "level": level, "description": desc,
                      "mirrors": f"sfcompute.{name}" if name in _tool_map() else None})
+    rows += _nim.list_rows()
     for name, t in sorted(_tool_map().items()):
         lvl = remote_level(name, t)
         rows.append({"name": f"sfcompute.{name}", "kind": "remote_read" if lvl == "remote_read" else "refused",
@@ -643,6 +685,8 @@ def describe(name: str) -> Dict[str, Any]:
         _, level, schema, desc = LOCAL_TOOLS[bare]
         return {"name": f"local.{bare}", "kind": "local", "level": level, "description": desc, "inputSchema": schema,
                 "runs": "on this machine; never calls the server"}
+    if ns == "nimlab":
+        return _nim.describe(bare)
     t = _tool_map().get(bare)
     if not t:
         raise KeyError(f"no tool {bare!r} in the learned catalog" + ("" if load_catalog() else " (catalog not pulled yet: engine.learn)"))
@@ -714,6 +758,27 @@ async def dispatch(name: str, args: Optional[Dict[str, Any]] = None, fresh: bool
                 code = 422
                 raise ValueError("invalid arguments: " + "; ".join(errs))
             result = await asyncio.to_thread(fn, args)
+        elif ns == "nimlab":
+            kind = "nimlab"
+            if bare not in _nim.TOOLS:
+                code = 404
+                raise KeyError(f"no nimlab tool {bare!r}")
+            fn, level, schema, _ = _nim.TOOLS[bare]
+            if level == "refused":
+                kind = "refused"
+            if not _nim.enabled():
+                code = 503
+                raise RuntimeError("nimlab tools are switched off (NIMLAB_TOOLS=0)")
+            errs = validate(schema, args)
+            if errs:
+                code = 422
+                raise ValueError("invalid arguments: " + "; ".join(errs))
+            source = "local" if level in ("local_read", "refused") else "remote"
+            try:
+                result = await asyncio.wait_for(asyncio.to_thread(fn, args), timeout=_nim.TIMEOUTS[level])
+            except asyncio.TimeoutError:
+                code = 504
+                raise RuntimeError(f"nimlab.{bare} took longer than {_nim.TIMEOUTS[level]}s")
         elif ns == "sfcompute":
             tool = _tool_map().get(bare)
             if not tool:
@@ -751,7 +816,7 @@ async def dispatch(name: str, args: Optional[Dict[str, Any]] = None, fresh: bool
                       (key, bare, json.dumps(result, default=str), time.time()))
         else:
             code = 404
-            raise KeyError(f"unknown namespace {ns!r}; use engine., local. or sfcompute.")
+            raise KeyError(f"unknown namespace {ns!r}; use engine., local., nimlab. or sfcompute.")
         tid = _trace(name, kind, level, source, True, 200, args, None, t0, caller)
         return {"ok": True, "tool": name, "kind": kind, "level": level, "source": source, "status": 200,
                 "result": result, "trace_id": tid}
@@ -759,6 +824,8 @@ async def dispatch(name: str, args: Optional[Dict[str, Any]] = None, fresh: bool
         if isinstance(e, RateLimited):
             code = 429
         elif isinstance(e, _sfc.MCPError):
+            code = e.status
+        elif isinstance(e, _nim.NimlabError):
             code = e.status
         elif isinstance(e, PermissionError) and code == 200:
             code = 403
@@ -775,6 +842,8 @@ async def dispatch(name: str, args: Optional[Dict[str, Any]] = None, fresh: bool
                "error": msg, "trace_id": tid}
         if isinstance(e, RateLimited):
             out["retry_after_s"] = round(e.wait)
+        if isinstance(e, _nim.NimlabError) and e.extra.get("retry_after_s") is not None:
+            out["retry_after_s"] = e.extra["retry_after_s"]
         return out
 
 

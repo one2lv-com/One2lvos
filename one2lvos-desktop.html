@@ -1006,6 +1006,79 @@
                     </div>
                 `
             },
+            'integrations-hub': {
+                name: 'Integrations',
+                icon: 'fas fa-plug',
+                color: 'text-emerald-400',
+                width: 1040,
+                height: 720,
+                onOpen: () => setTimeout(() => ihInit(), 100),
+                content: `
+                    <div id="ih-root" class="h-full flex flex-col" style="background:#07030f;font-family:'Segoe UI',system-ui,sans-serif;color:#ccd6f6">
+                        <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:#0e0620;border-bottom:1px solid rgba(0,240,255,.13);flex-shrink:0">
+                            <span style="font-size:.85rem;font-weight:700;color:#00f0ff;letter-spacing:2px">INTEGRATIONS</span>
+                            <span id="ih-checked" style="font-size:.62rem;color:#5a6a88"></span>
+                            <div style="margin-left:auto;display:flex;gap:4px" id="ih-tabs">
+                                <button class="ih-tab" data-tab="status">Status</button>
+                                <button class="ih-tab" data-tab="feeds">Live feeds</button>
+                                <button class="ih-tab" data-tab="files">Files</button>
+                                <button class="ih-tab" data-tab="access">Access</button>
+                                <button onclick="ihRefresh()" class="ih-tab" title="Re-check everything">&#x21BA;</button>
+                            </div>
+                        </div>
+                        <div id="ih-body" style="flex:1;overflow:auto;padding:12px 14px">
+                            <div class="ih-pane" data-pane="status"><div id="ih-status" style="font-size:.8rem;color:#5a6a88">Checking the reactor...</div></div>
+                            <div class="ih-pane" data-pane="feeds" style="display:none">
+                                <div style="display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;height:100%">
+                                    <div style="display:flex;flex-direction:column;min-height:0">
+                                        <div class="ih-h">Twitch <span id="ih-tw-chan" style="color:#5a6a88;font-weight:400"></span> <a id="ih-tw-open" target="_blank" rel="noopener" class="ih-link">open on Twitch</a></div>
+                                        <div id="ih-tw" style="flex:1;min-height:260px;background:#000;border:1px solid rgba(0,240,255,.13);border-radius:8px;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#5a6a88;font-size:.75rem">Loading the player...</div>
+                                        <div class="ih-h" style="margin-top:10px">Live vision <a id="ih-vis-open" class="ih-link" target="_blank" rel="noopener"></a></div>
+                                        <div id="ih-vis" style="font-size:.72rem;color:#5a6a88">Checking...</div>
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;min-height:0">
+                                        <div class="ih-h">Discord <span id="ih-dc-chan" style="color:#5a6a88;font-weight:400"></span> <a id="ih-dc-open" target="_blank" rel="noopener" class="ih-link"></a></div>
+                                        <div id="ih-dc" style="flex:1;min-height:260px;overflow:auto;background:rgba(0,0,0,.35);border:1px solid rgba(0,240,255,.13);border-radius:8px;padding:8px;font-size:.74rem">Loading the channel...</div>
+                                        <div style="font-size:.62rem;color:#5a6a88;margin-top:4px">Read only, refreshes every 15 seconds. Talk to Lumenis there by typing <code>!lumenis</code> in Discord.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ih-pane" data-pane="files" style="display:none">
+                                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+                                    <button class="ih-tab" data-proto="webdav">WebDAV :8090</button>
+                                    <button class="ih-tab" data-proto="ftp">FTP :2121</button>
+                                    <span id="ih-f-path" style="font-family:monospace;font-size:.75rem;color:#00f0ff;margin-left:8px">/</span>
+                                    <span style="margin-left:auto;display:flex;gap:4px">
+                                        <button class="ih-tab" onclick="ihFilesUp()">Up</button>
+                                        <button class="ih-tab" onclick="ihFilesMkdir()">New folder</button>
+                                        <label class="ih-tab" style="cursor:pointer">Upload<input type="file" id="ih-f-upload" style="display:none" onchange="ihFilesUpload(this)"></label>
+                                    </span>
+                                </div>
+                                <div id="ih-f-note" style="font-size:.65rem;color:#5a6a88;margin-bottom:6px"></div>
+                                <div id="ih-f-list" style="font-size:.78rem"></div>
+                            </div>
+                            <div class="ih-pane" data-pane="access" style="display:none"><div id="ih-access" style="font-size:.78rem"></div></div>
+                        </div>
+                        <style>
+                            #ih-root .ih-tab{background:rgba(255,255,255,.05);border:1px solid rgba(0,240,255,.18);color:#8fa3c8;border-radius:6px;padding:3px 10px;font-size:.68rem;cursor:pointer}
+                            #ih-root .ih-tab.on{background:rgba(0,240,255,.14);color:#00f0ff;border-color:rgba(0,240,255,.45)}
+                            #ih-root .ih-h{font-size:.75rem;font-weight:700;color:#ccd6f6;margin-bottom:6px}
+                            #ih-root .ih-link{font-size:.65rem;color:#00c4cc;font-weight:400;margin-left:6px;text-decoration:underline}
+                            #ih-root .ih-card{border:1px solid rgba(0,240,255,.12);background:rgba(255,255,255,.02);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+                            #ih-root .ih-pill{display:inline-block;font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-radius:9px;padding:1px 8px;margin-right:6px}
+                            #ih-root .s-up{background:rgba(16,185,129,.15);color:#34d399}
+                            #ih-root .s-partial{background:rgba(234,179,8,.15);color:#facc15}
+                            #ih-root .s-untested{background:rgba(59,130,246,.15);color:#60a5fa}
+                            #ih-root .s-pending{background:rgba(168,85,247,.15);color:#c084fc}
+                            #ih-root .s-down{background:rgba(239,68,68,.15);color:#f87171}
+                            #ih-root .s-unknown{background:rgba(148,163,184,.15);color:#94a3b8}
+                            #ih-root code{background:rgba(0,240,255,.08);color:#7dd3fc;border-radius:4px;padding:0 4px;font-size:.68rem}
+                            #ih-root .ih-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-bottom:1px solid rgba(255,255,255,.04)}
+                            #ih-root .ih-row:hover{background:rgba(0,240,255,.05)}
+                        </style>
+                    </div>
+                `
+            },
             'lumenis-space': {
                 name: 'Lumenis Space Agent',
                 icon: 'fas fa-rocket',
@@ -1027,6 +1100,159 @@
                 `
             }
         };
+
+        // ── Integrations Hub ── every state shown here comes from the reactor's own checks
+        // (/api/desktop/integrations, /api/live_status). Nothing is assumed to work.
+        const IH = { tab: 'status', proto: 'webdav', path: '/', data: null, timers: [] };
+        const ihEsc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const IH_LABELS = { discord_text: 'Discord text (listener)', discord_voice: 'Discord voice', twitch: 'Twitch', webdav: 'WebDAV files', ftp: 'FTP files',
+            vision: 'Live video vision', nimlab: 'NVIDIA lab tools', nvidia: 'NVIDIA models', speech: 'Speech (Magpie TTS / Parakeet ASR)' };
+        async function ihJson(url, opts) {
+            const r = await fetch(url, Object.assign({ credentials: 'same-origin' }, opts || {}));
+            let body = null; try { body = await r.json(); } catch (e) {}
+            if (!r.ok) throw new Error((body && (body.detail || body.error || (body.error && body.error.message))) || ('HTTP ' + r.status));
+            return body;
+        }
+        function ihInit() {
+            const root = document.getElementById('ih-root'); if (!root) return;
+            root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => ihShow(b.dataset.tab));
+            root.querySelectorAll('[data-proto]').forEach(b => b.onclick = () => { IH.proto = b.dataset.proto; IH.path = '/'; ihFiles(); });
+            ihShow(IH.tab);
+            ihRefresh();
+            IH.timers.forEach(clearInterval); IH.timers = [
+                setInterval(() => { if (!document.getElementById('ih-root')) { IH.timers.forEach(clearInterval); return; } if (IH.tab === 'feeds') ihDiscord(); }, 15000),
+                setInterval(() => { if (document.getElementById('ih-root') && IH.tab === 'status') ihRefresh(); }, 60000)
+            ];
+        }
+        function ihShow(tab) {
+            IH.tab = tab;
+            document.querySelectorAll('#ih-root .ih-pane').forEach(p => p.style.display = p.dataset.pane === tab ? '' : 'none');
+            document.querySelectorAll('#ih-root [data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+            if (tab === 'feeds') { ihTwitch(); ihDiscord(); ihVision(); }
+            if (tab === 'files') ihFiles();
+            if (tab === 'access') ihAccess();
+        }
+        async function ihRefresh() {
+            const el = document.getElementById('ih-status'); if (!el) return;
+            try {
+                const d = await ihJson('/api/desktop/integrations');
+                IH.data = d;
+                document.getElementById('ih-checked').textContent = 'checked ' + new Date(d.checked_at).toLocaleTimeString();
+                el.innerHTML = Object.entries(d.integrations).map(([k, v]) => `
+                    <div class="ih-card">
+                        <div><span class="ih-pill s-${ihEsc(v.state)}">${ihEsc(v.state)}</span><b style="font-size:.8rem">${ihEsc(IH_LABELS[k] || k)}</b></div>
+                        <div style="font-size:.7rem;color:#8fa3c8;margin-top:3px">${ihEsc(v.detail)}</div>
+                        ${v.commands ? `<div style="margin-top:4px">${v.commands.map(c => `<code>${ihEsc(c)}</code>`).join(' ')}</div>` : ''}
+                        ${v.note ? `<div style="font-size:.62rem;color:#5a6a88;margin-top:3px">${ihEsc(v.note)}</div>` : ''}
+                        ${v.tools && v.tools.length ? `<details style="margin-top:4px"><summary style="font-size:.65rem;color:#00c4cc;cursor:pointer">${v.tools.length} tools</summary><div style="font-size:.65rem;color:#8fa3c8">${v.tools.map(ihEsc).join(', ')}</div></details>` : ''}
+                    </div>`).join('') +
+                    `<div style="font-size:.62rem;color:#5a6a88">States: <b>up</b> = verified working now; <b>partial</b> = part works; <b>untested</b> = installed, never used for real; <b>pending</b> = built but not loaded; <b>down</b> = not working.</div>`;
+            } catch (e) {
+                el.innerHTML = `<div class="ih-card"><span class="ih-pill s-down">error</span>Could not reach the reactor hub: ${ihEsc(e.message)}</div>`;
+            }
+        }
+        function ihTwitch() {
+            const box = document.getElementById('ih-tw'); if (!box) return;
+            const tw = IH.data && IH.data.integrations.twitch;
+            const chan = tw && tw.channel;
+            if (!chan) { box.textContent = IH.data ? 'No Twitch channel is set (TWITCH_CHANNEL in .env).' : 'Waiting for the status check...'; if (!IH.data) setTimeout(ihTwitch, 1500); return; }
+            document.getElementById('ih-tw-chan').textContent = chan;
+            const open = document.getElementById('ih-tw-open'); open.href = 'https://www.twitch.tv/' + encodeURIComponent(chan);
+            if (box.dataset.chan === chan) return;
+            box.dataset.chan = chan;
+            const parent = encodeURIComponent(location.hostname);
+            box.innerHTML = `<iframe src="https://player.twitch.tv/?channel=${encodeURIComponent(chan)}&parent=${parent}&muted=true" allowfullscreen style="width:100%;height:100%;border:0" title="Twitch ${ihEsc(chan)}"></iframe>`;
+        }
+        async function ihDiscord() {
+            const box = document.getElementById('ih-dc'); if (!box) return;
+            try {
+                const d = await ihJson('/api/desktop/discord/feed?limit=30');
+                document.getElementById('ih-dc-chan').textContent = d.channel ? '#' + d.channel : '';
+                const a = document.getElementById('ih-dc-open'); if (d.open_url) { a.href = d.open_url; a.textContent = 'open in Discord'; }
+                const msgs = (d.messages || []).slice().reverse();
+                box.innerHTML = msgs.length ? msgs.map(m => `
+                    <div style="margin-bottom:6px">
+                        <span style="color:${m.bot ? '#00f0ff' : '#facc15'};font-weight:600">${ihEsc(m.author)}</span>
+                        <span style="color:#5a6a88;font-size:.6rem">${ihEsc(new Date(m.at).toLocaleString())}</span>
+                        <div style="white-space:pre-wrap;color:#ccd6f6">${ihEsc(m.content) || (m.attachments.length ? '[attachment: ' + ihEsc(m.attachments.join(', ')) + ']' : m.embeds ? '[embed]' : '')}</div>
+                    </div>`).join('') : '<span style="color:#5a6a88">No messages in this channel yet.</span>';
+                box.scrollTop = box.scrollHeight;
+            } catch (e) { box.innerHTML = `<span style="color:#f87171">Discord feed unavailable: ${ihEsc(e.message)}</span>`; }
+        }
+        async function ihVision() {
+            const el = document.getElementById('ih-vis'); if (!el) return;
+            try {
+                const v = await ihJson('/api/vision/status');
+                const s = v.session || {};
+                const a = document.getElementById('ih-vis-open'); a.href = '/vision'; a.textContent = 'open the vision page';
+                el.innerHTML = (s.active ? `<span class="ih-pill s-up">active</span>session ${ihEsc(s.label)}` : `<span class="ih-pill s-partial">idle</span>no live session`) +
+                    ` &middot; model <code>${ihEsc(v.model)}</code>` + (s.analyzed != null ? ` &middot; ${ihEsc(s.analyzed)} frames analysed in the last session` : '') +
+                    `<div style="font-size:.62rem;margin-top:3px">Share a screen or window on the vision page to start a session.</div>`;
+            } catch (e) { el.innerHTML = `<span class="ih-pill s-pending">pending</span>Vision is not loaded in the running reactor (${ihEsc(e.message)}).`; }
+        }
+        // Files: WebDAV goes through the Network Manager API, FTP through the reactor. Same listing shape.
+        function ihFilesBase() { return IH.proto === 'ftp' ? '/api/desktop/ftp' : NET_API + '/connections/one2lv-files/webdav'; }
+        async function ihFiles() {
+            const list = document.getElementById('ih-f-list'); if (!list) return;
+            document.querySelectorAll('#ih-root [data-proto]').forEach(b => b.classList.toggle('on', b.dataset.proto === IH.proto));
+            document.getElementById('ih-f-path').textContent = IH.path;
+            document.getElementById('ih-f-note').textContent = IH.proto === 'ftp'
+                ? 'FTP server on 127.0.0.1:2121 (localhost only). The reactor signs in with FTP_USER / FTP_PASS from .env; the password never reaches this page.'
+                : 'WebDAV server on 127.0.0.1:8090 through the Network Manager connection "One2lvOS Files".';
+            list.innerHTML = '<span style="color:#5a6a88">Loading...</span>';
+            try {
+                const items = await ihJson(ihFilesBase() + '/list?path=' + encodeURIComponent(IH.path));
+                list.innerHTML = items.length ? items.map(it => {
+                    const p = it.path.replace(/^\/+/, '/');
+                    return `<div class="ih-row">
+                        <i class="fas ${it.isDir ? 'fa-folder text-yellow-400' : 'fa-file text-gray-400'}"></i>
+                        <span style="flex:1;cursor:${it.isDir ? 'pointer' : 'default'}" ${it.isDir ? `onclick="ihFilesOpen(decodeURIComponent('${encodeURIComponent(p)}'))"` : ''}>${ihEsc(it.name)}</span>
+                        <span style="color:#5a6a88;font-size:.65rem;width:70px;text-align:right">${it.isDir ? '' : ihEsc((it.size / 1024).toFixed(1) + ' KB')}</span>
+                        ${it.isDir ? '' : `<a class="ih-link" href="${ihFilesBase()}/get?path=${encodeURIComponent(p)}" download>download</a>`}
+                        <button class="ih-tab" onclick="ihFilesDelete(decodeURIComponent('${encodeURIComponent(p)}'))">delete</button>
+                    </div>`; }).join('') : '<span style="color:#5a6a88">Empty folder.</span>';
+            } catch (e) { list.innerHTML = `<span style="color:#f87171">${ihEsc(IH.proto.toUpperCase())} unavailable: ${ihEsc(e.message)}</span>`; }
+        }
+        function ihFilesOpen(p) { IH.path = p; ihFiles(); }
+        function ihFilesUp() { IH.path = IH.path.replace(/\/[^\/]+\/?$/, '') || '/'; ihFiles(); }
+        async function ihFilesMkdir() {
+            const n = prompt('New folder name'); if (!n || /[\/\\]/.test(n)) return;
+            try { await ihJson(ihFilesBase() + '/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: (IH.path.replace(/\/$/, '') + '/' + n) }) }); } catch (e) { alert('Could not create the folder: ' + e.message); }
+            ihFiles();
+        }
+        async function ihFilesDelete(p) {
+            if (!confirm('Delete ' + p + ' from ' + IH.proto.toUpperCase() + '? This cannot be undone.')) return;
+            try { await ihJson(ihFilesBase() + '/delete?path=' + encodeURIComponent(p), { method: 'DELETE' }); } catch (e) { alert('Delete failed: ' + e.message); }
+            ihFiles();
+        }
+        async function ihFilesUpload(inp) {
+            const f = inp.files && inp.files[0]; if (!f) return;
+            const p = IH.path.replace(/\/$/, '') + '/' + f.name;
+            try { await ihJson(ihFilesBase() + '/put?path=' + encodeURIComponent(p), { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: f }); } catch (e) { alert('Upload failed: ' + e.message); }
+            inp.value = ''; ihFiles();
+        }
+        async function ihAccess() {
+            const el = document.getElementById('ih-access'); if (!el) return;
+            const a = (IH.data && IH.data.integrations.access) || {};
+            let kai = null; try { kai = await ihJson('/api/desktop/kai_access'); } catch (e) {}
+            el.innerHTML = `
+                <div class="ih-card"><b>Desktop</b> <a class="ih-link" href="${ihEsc(a.desktop || '/desktop')}" target="_blank" rel="noopener">${ihEsc(a.desktop || '/desktop')}</a>
+                    <div style="font-size:.68rem;color:#8fa3c8">Owner sign-in: ${ihEsc(a.gate || 'Cloudflare Access')}. Works from your phone or any browser.</div></div>
+                <div class="ih-card"><b>Lumenis chat page</b> <a class="ih-link" href="${ihEsc(a.chat || '/lumenis-chat')}" target="_blank" rel="noopener">${ihEsc(a.chat || '/lumenis-chat')}</a>
+                    <div style="font-size:.68rem;color:#8fa3c8">Same reactor, full council and memory. The "Lumenis Chat" window on this desktop is the same chat.</div></div>
+                <div class="ih-card"><b>Council page</b> <a class="ih-link" href="${ihEsc(a.council_page || '/')}" target="_blank" rel="noopener">${ihEsc(a.council_page || '/')}</a></div>
+                <div class="ih-card"><b>KAI 9000 / OpenAI-compatible apps</b>
+                    ${kai ? `<div style="font-size:.7rem;color:#8fa3c8;margin-top:3px">Base URL <code>${ihEsc(kai.base_url)}</code> &middot; model <code>${ihEsc(kai.model)}</code></div>
+                    <div style="font-size:.65rem;color:#5a6a88">${ihEsc(kai.note)}</div>
+                    <div style="margin-top:4px">${kai.key_present ? `<button class="ih-tab" onclick="ihRevealKey(this)">Show API key</button> <code id="ih-kai-key" style="user-select:all"></code>` : '<span style="color:#f87171;font-size:.7rem">No API key has been created yet.</span>'}</div>`
+                    : '<div style="font-size:.7rem;color:#f87171">Could not read the KAI access details from the reactor.</div>'}
+                </div>
+                <div class="ih-card"><b>Guest app bridge</b> <span style="font-size:.7rem;color:#8fa3c8">${ihEsc(a.guest_bridge || '')}</span></div>`;
+        }
+        async function ihRevealKey(btn) {
+            try { const k = await ihJson('/api/desktop/kai_access?reveal=1'); document.getElementById('ih-kai-key').textContent = k.api_key || ''; btn.remove(); }
+            catch (e) { alert('Could not read the key: ' + e.message); }
+        }
 
         // One2lvOS Terminal Commands
         async function handleOne2lvTerminal(e) {

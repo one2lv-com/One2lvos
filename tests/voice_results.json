@@ -1,0 +1,37 @@
+{
+ "at": "2026-11-11 23:34:42 UTC",
+ "results": {
+  "deps": {
+   "ok": true,
+   "detail": "discord.py 2.7.1, PyNaCl 1.5.0, libopus loaded, davey (DAVE v1), voice_recv ok"
+  },
+  "tts": {
+   "ok": true,
+   "detail": "0.67 s to synthesize, 5.30 s of audio -> 266 Discord 20 ms frames (all 3840 bytes: True); voice Magpie-Multilingual.EN-US.Jason; key NVIDIA_API_KEY"
+  },
+  "opus_roundtrip": {
+   "ok": true,
+   "detail": "266 frames -> 77155 bytes of Opus -> 266 decoded frames"
+  },
+  "segmenter": {
+   "ok": true,
+   "detail": "one sentence -> 1 utterance (6.34 s); two sentences 2 s apart -> 2 utterances"
+  },
+  "asr": {
+   "ok": true,
+   "detail": "0.88 s, heard 'Hey Lumenis, the quick brown fox, jumps over the lazy dog near the riverbank.' (100% letter similarity to 'Hey Lumenis, the quick brown fox jumps over the lazy dog near the river bank')"
+  },
+  "receive_patch": {
+   "ok": true,
+   "detail": "owner passthrough True, others silenced True, unknown silenced True, DAVE decrypt used for owner True, others never DAVE-decrypted True, failed decrypt -> silence True, real davey session not ready -> passthrough True (ready=False), AudioReader patched True"
+  },
+  "reactor_voice_mode": {
+   "ok": true,
+   "detail": "6.0 s, seats=['sentinel', 'navigator', 'weaver'], reply 'Hi there \u2014 good to hear you.'"
+  },
+  "reply_to_speech": {
+   "ok": true,
+   "detail": "0.57 s, 1.6 s of audio (truncated=False)"
+  }
+ }
+}

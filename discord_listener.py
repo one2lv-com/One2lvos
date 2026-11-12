@@ -15,6 +15,9 @@ chat uses) and replies in the channel with his answer.
     @here, roles or other users; only the author of the triggering message is
     reply-pinged.
   * It posts nothing unprompted.
+  * Voice (discord_voice.py), owner only: "!lumenis join | listen | stop | say <text> | voice | leave".
+    He joins only the owner's voice channel when asked, joins deafened, hears only the owner
+    after "!lumenis listen", and echoes every heard sentence in the text channel.
 
 Secrets come from .env (DISCORD_BOT_TOKEN); none are in this file.
 
@@ -171,13 +174,16 @@ def _write_state(**kv):
 
 
 # ── The reactor call (shared by the live listener and --dry-run) ─────────────
-async def ask_lumenis(user_id: int, name: str, text: str, guest: bool, on_chunk=None, key_prefix: str = ""):
+async def ask_lumenis(user_id: int, name: str, text: str, guest: bool, on_chunk=None, key_prefix: str = "",
+                      mode: str = ""):
     """Send one message through the reactor's council chat socket. Returns (reply, meta).
     Raises RuntimeError with a short reason on failure."""
     sessions = _load_sessions()
     key = key_prefix + (("guest:" if guest else "owner:") + str(user_id))
     session_id = sessions.get(key)
     out = {"action": "chat", "message": text, "session_id": session_id}
+    if mode:
+        out["mode"] = mode   # "voice" -> the reactor's fast path (short spoken answers)
     if guest:
         out["guest"] = True
         out["guest_name"] = f"discord:{name}"[:40]
@@ -282,6 +288,91 @@ def run_bot():
                 await message.channel.send(p, allowed_mentions=no_pings)
         return len(parts)
 
+    # ── Voice (owner only; nothing happens until the owner types a voice command) ──
+    voice = None
+    try:
+        import discord_voice
+        if not discord.opus.is_loaded():
+            discord.opus._load_default()
+
+        async def post_to_channel(text):
+            ch = client.get_channel(CHANNEL_ID)
+            if ch is None:
+                return
+            for p in split_reply(text):
+                await ch.send(p, allowed_mentions=no_pings)
+
+        async def ask_voice(text):
+            async with parallel:
+                reply, meta = await ask_lumenis(OWNER_ID, "owner-voice", text, False, mode="voice")
+            log.info("voice reply (%d chars, seats=%s)", len(reply), meta.get("seats_activated"))
+            return reply
+
+        if OWNER_ID:
+            voice = discord_voice.VoiceManager(client, OWNER_ID, ask_voice, post_to_channel, _write_state)
+            _write_state(voice_available=True, voice_connected=False, voice_listening=False)
+        else:
+            log.warning("voice disabled: DISCORD_OWNER_ID not set")
+    except Exception as e:
+        log.warning("voice disabled: %s: %s", type(e).__name__, e)
+        _write_state(voice_available=False, voice_connected=False, voice_listening=False)
+
+    VOICE_CMDS = {"join", "leave", "listen", "stop", "stop listening", "voice", "voice status"}
+
+    async def handle_voice_command(message, text):
+        """Return True if text was a voice command (handled here)."""
+        low = text.strip().lower().rstrip(".!")
+        is_say = low.startswith("say ")
+        if low not in VOICE_CMDS and not is_say:
+            return False
+        if message.author.id != OWNER_ID:
+            await send_reply(message, "Voice commands are owner-only for now.")
+            return True
+        if voice is None:
+            await send_reply(message, "Voice isn't available on this listener (see its log).")
+            return True
+        log.info("voice command from owner: %r", low[:80])
+        try:
+            if low == "join":
+                msg = await voice.join(message.author)
+            elif low == "leave":
+                msg = await voice.leave()
+            elif low == "listen":
+                msg = await voice.listen()
+            elif low in ("stop", "stop listening"):
+                msg = await voice.stop_listening()
+            elif low in ("voice", "voice status"):
+                msg = voice.status_text()
+            else:
+                say_text = text.strip()[4:].strip()
+                if not voice.connected():
+                    msg = "I'm not in a voice channel. Type `!lumenis join` first."
+                elif not say_text:
+                    msg = "Give me something to say: `!lumenis say hello`."
+                else:
+                    ok = await voice.say(say_text)
+                    msg = None if ok else f"Couldn't speak that. {voice.last_error or ''}".strip()
+        except Exception as e:
+            log.exception("voice command failed")
+            msg = f"Voice command failed: {type(e).__name__}: {str(e)[:200]}"
+            voice.last_error = msg
+        if msg:
+            await send_reply(message, msg)
+        else:
+            try:
+                await message.add_reaction("\u2705")
+            except discord.HTTPException:
+                pass
+        return True
+
+    @client.event
+    async def on_voice_state_update(member, before, after):
+        if voice is not None:
+            try:
+                await voice.on_voice_state_update(member, before, after)
+            except Exception:
+                log.exception("voice state handler failed")
+
     @client.event
     async def on_ready():
         _write_state(connected_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()))
@@ -302,6 +393,8 @@ def run_bot():
         who = f"{message.author} ({uid}, {'guest' if guest else 'owner'})"
         if not text:
             await send_reply(message, "Say something after `!lumenis`, like `!lumenis what's up?`")
+            return
+        if await handle_voice_command(message, text):
             return
         if uid in in_flight:
             await send_reply(message, "Lumenis is still answering your last message, give him a moment.")
@@ -336,6 +429,8 @@ def run_bot():
             log.info("replied to %s in %.0f s (%d chars, %d message%s, seats=%s, guest_mode=%s)",
                      who, time.time() - started, len(reply), n, "" if n == 1 else "s",
                      meta.get("seats_activated"), meta.get("guest_mode"))
+            if not guest and voice is not None and voice.connected():
+                asyncio.create_task(voice.say(reply))   # also speak the owner's replies while in voice
         except Exception:
             log.exception("handler failed for %s", who)
         finally:

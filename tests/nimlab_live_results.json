@@ -1,0 +1,255 @@
+{
+ "at": "2026-11-12T00:04:12+0000",
+ "port": 8011,
+ "results": [
+  {
+   "call": "GET /engine/tools?kind=nimlab",
+   "http": 200,
+   "seconds": 0.02,
+   "ok": true,
+   "secret_in_reply": false,
+   "count": 17,
+   "tools": [
+    "nimlab.status",
+    "nimlab.capabilities",
+    "nimlab.list_models",
+    "nimlab.route",
+    "nimlab.fleet",
+    "nimlab.benchmark_report",
+    "nimlab.leaderboard",
+    "nimlab.voices",
+    "nimlab.key_models",
+    "nimlab.probe",
+    "nimlab.chat",
+    "nimlab.embed",
+    "nimlab.vision",
+    "nimlab.ocr",
+    "nimlab.rerank",
+    "nimlab.tts",
+    "nimlab.rank"
+   ]
+  },
+  {
+   "call": "GET /engine/tools/nimlab.rank",
+   "http": 200,
+   "seconds": 2.08,
+   "ok": true,
+   "secret_in_reply": false,
+   "level": "nvidia_batch"
+  },
+  {
+   "call": "POST /engine/call/nimlab.status",
+   "http": 200,
+   "seconds": 0.27,
+   "ok": true,
+   "secret_in_reply": false,
+   "key": {
+    "variable": "NVIDIA_API_KEY",
+    "present": true
+   },
+   "stores": {
+    "endpoints": 81,
+    "discovered": 243,
+    "verified": 21,
+    "failed": 63,
+    "untested": 159
+   }
+  },
+  {
+   "call": "POST /engine/call/nimlab.list_models",
+   "http": 200,
+   "seconds": 0.08,
+   "ok": true,
+   "secret_in_reply": false,
+   "count": 21
+  },
+  {
+   "call": "POST /engine/call/nimlab.route",
+   "http": 200,
+   "seconds": 0.04,
+   "ok": true,
+   "secret_in_reply": false,
+   "route": {
+    "url": "https://integrate.api.nvidia.com/v1/chat/completions",
+    "method": "POST",
+    "kind": "chat",
+    "is_nvcf": false
+   },
+   "verified": false
+  },
+  {
+   "call": "POST /engine/call/nimlab.key_models",
+   "http": 200,
+   "seconds": 0.13,
+   "ok": true,
+   "secret_in_reply": false,
+   "count": 20,
+   "status": 200,
+   "latency_s": 0.091,
+   "http_requests": 1,
+   "hosts": [
+    "integrate.api.nvidia.com"
+   ],
+   "models": [
+    "nvidia/llama-3.1-nemotron-51b-instruct",
+    "nvidia/llama-3.1-nemotron-70b-instruct",
+    "nvidia/llama-3.1-nemotron-safety-guard-8b-v3",
+    "nvidia/llama-3.1-nemotron-ultra-253b-v1",
+    "nvidia/llama-nemotron-embed-vl-1b-v2"
+   ]
+  },
+  {
+   "call": "POST /engine/call/nimlab.probe",
+   "http": 200,
+   "seconds": 0.12,
+   "ok": true,
+   "secret_in_reply": false,
+   "status": 410,
+   "latency_s": 0.07,
+   "http_requests": 1,
+   "hosts": [
+    "integrate.api.nvidia.com"
+   ],
+   "answered": false,
+   "error": "HTTP 410: {\"type\":\"about:blank\",\"title\":\"Gone\",\"status\":410,\"detail\":\"The model 'meta/llama-3.1-8b-instruct' has reached its end of life on 2026-08-26T09:00:00Z and is no longer available.\"}\n"
+  },
+  {
+   "call": "POST /engine/call/nimlab.chat",
+   "http": 410,
+   "seconds": 3.35,
+   "ok": false,
+   "secret_in_reply": false,
+   "status": 410,
+   "error": "NVIDIA answered 410: HTTP 410: {\"type\":\"about:blank\",\"title\":\"Gone\",\"status\":410,\"detail\":\"The model 'meta/llama-3.1-8b-instruct' has reached its end of life on 2026-08-26T09:00:00Z and is no longer available.\"}\n",
+   "level": "nvidia_call"
+  },
+  {
+   "call": "POST /engine/call/nimlab.embed",
+   "http": 410,
+   "seconds": 0.14,
+   "ok": false,
+   "secret_in_reply": false,
+   "status": 410,
+   "error": "NVIDIA answered 410: HTTP 410: {\"type\":\"about:blank\",\"title\":\"Gone\",\"status\":410,\"detail\":\"The model 'nvidia/nv-embedqa-e5-v5' has reached its end of life on 2026-08-25T09:00:00Z and is no longer available.\"}\n",
+   "level": "nvidia_call"
+  },
+  {
+   "call": "POST /engine/call/nimlab.tts",
+   "http": 200,
+   "seconds": 2.03,
+   "ok": true,
+   "secret_in_reply": false,
+   "status": 200,
+   "latency_s": 0.575,
+   "http_requests": 1,
+   "hosts": [
+    "877104f7-e885-42b9-8de8-f6e4c6303969.invocation.api.nvcf.nvidia.com"
+   ],
+   "bytes": 51244,
+   "duration_s": 1.16,
+   "file": "data/nimlab/output/tts_20261112_000410_aria.wav",
+   "artifact": {
+    "artifact_id": "a_165ac7915b",
+    "size": 51244,
+    "download": "/engine/artifacts/a_165ac7915b/download"
+   }
+  },
+  {
+   "call": "POST /engine/call/nimlab.sweep",
+   "http": 403,
+   "seconds": 0.33,
+   "ok": false,
+   "secret_in_reply": false,
+   "status": 403,
+   "error": "sweeps probe hundreds of models; One2lv runs them himself with ./start.sh sweep200",
+   "level": "refused"
+  },
+  {
+   "call": "POST /engine/call/nimlab.chat",
+   "http": 422,
+   "seconds": 0.04,
+   "ok": false,
+   "secret_in_reply": false,
+   "status": 422,
+   "error": "invalid arguments: $.prompt: required",
+   "level": "nvidia_call"
+  }
+ ],
+ "second_pass": [
+  {
+   "tool": "nimlab.probe",
+   "ok": true,
+   "status": 200,
+   "ms": null,
+   "leak": false,
+   "text": "OK",
+   "answered": true,
+   "http_requests": 1,
+   "hosts": [
+    "integrate.api.nvidia.com"
+   ],
+   "latency_s": 0.272
+  },
+  {
+   "tool": "nimlab.chat",
+   "ok": true,
+   "status": 200,
+   "ms": null,
+   "leak": false,
+   "text": "A reactor core is the central part of a nuclear reactor where nuclear fission reactions occur to generate heat.",
+   "http_requests": 1,
+   "hosts": [
+    "integrate.api.nvidia.com"
+   ],
+   "latency_s": 0.45
+  },
+  {
+   "tool": "nimlab.embed",
+   "ok": true,
+   "status": 200,
+   "ms": null,
+   "leak": false,
+   "count": 2,
+   "dims": 2048,
+   "http_requests": 1,
+   "hosts": [
+    "integrate.api.nvidia.com"
+   ],
+   "latency_s": 0.104
+  },
+  {
+   "tool": "nimlab.vision",
+   "ok": true,
+   "status": 200,
+   "ms": null,
+   "leak": false,
+   "text": "The user wants a one-sentence description of the image.\n\n1.  **Identify key elements:**\n    *   Top row: Three red squares.\n    *   Bottom left: A blue circle.\n    *   Bottom right: A green triangle.\n    *   Bottom center: The number \"42\".\n\n2.  **Synthesize into a single sentence:**\n    *   Draft",
+   "http_requests": 1,
+   "hosts": [
+    "integrate.api.nvidia.com"
+   ],
+   "latency_s": 1.055
+  },
+  {
+   "tool": "nimlab.ocr",
+   "ok": true,
+   "status": 200,
+   "ms": null,
+   "leak": false,
+   "text": "NVIDIA TEST LAB 2026\nQUILL READS SEVEN LINES\nCER CHECK: A1 B2 C3\nFOX-42 JUMPS.",
+   "http_requests": 1,
+   "hosts": [
+    "integrate.api.nvidia.com"
+   ],
+   "latency_s": 4.056
+  },
+  {
+   "tool": "nimlab.vision",
+   "ok": false,
+   "status": 403,
+   "ms": null,
+   "leak": false,
+   "error": "images are read only from the suite's assets/, data/inbox, data/nimlab/output, data/vision or the WebDAV share"
+  }
+ ]
+}
