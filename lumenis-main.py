@@ -214,6 +214,13 @@ try:
 except Exception as _voice_err:  # never let voice break the reactor boot
     print(f"⚠ voice proxy not loaded: {_voice_err}")
 
+# ── Live vision: owner-started screen share / stream -> sampled frames -> NVIDIA hosted VLM (/vision) ──
+try:
+    from lumenis_reactor_core.vision import router as vision_router
+    app.include_router(vision_router)
+except Exception as _vision_err:  # never let vision break the reactor boot
+    print(f"⚠ live vision not loaded: {_vision_err}")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():

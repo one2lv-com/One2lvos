@@ -84,3 +84,4 @@ cassandra-driver>=3.30
 WsgiDAV>=4.3
 cheroot>=10
 discord.py>=2.7.1  # discord_listener.py (Lumenis Discord chat)
+imageio-ffmpeg>=0.5.0  # live vision: bundled ffmpeg for stream intake when system ffmpeg is absent

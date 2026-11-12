@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lumenis Vision</title>
+<style>
+  body{font-family:system-ui,sans-serif;background:#0b0f17;color:#dfe6f3;margin:0;padding:16px;max-width:980px}
+  h1{font-size:20px;margin:0 0 4px} .muted{color:#8a97ad;font-size:13px}
+  fieldset{border:1px solid #243049;border-radius:8px;margin:12px 0;padding:10px}
+  label{display:inline-block;margin:4px 12px 4px 0;font-size:14px}
+  input,select{background:#121a28;color:#dfe6f3;border:1px solid #2c3a57;border-radius:4px;padding:4px}
+  button{background:#2d5bd7;color:#fff;border:0;border-radius:6px;padding:8px 14px;margin:4px 6px 4px 0;cursor:pointer}
+  button.stop{background:#b33a3a} button:disabled{opacity:.4}
+  video{max-width:100%;max-height:260px;background:#000;border-radius:6px}
+  #obs div{border-left:3px solid #2d5bd7;padding:6px 10px;margin:8px 0;background:#121a28;font-size:14px}
+  #obs .low{border-color:#8a6d1f} #obs .high{border-color:#2e9b5b}
+  .callout{font-weight:600;color:#ffd479}
+  #state{font-size:13px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>Lumenis Vision</h1>
+<div class="muted">Lumenis sees only what you share here, one still frame every few seconds. He reads pixels: he cannot see
+hitboxes, cooldowns, frame data, inputs or anything off-screen. Readings are a vision model's guesses, labelled with age and
+confidence. Frames are not saved; only the text readings are.</div>
+
+<fieldset>
+  <legend>Share a screen or window from this browser</legend>
+  <label>Label <input id="label" value="Brawlhalla" maxlength="60"></label>
+  <label>Game hint <input id="game" value="Brawlhalla" maxlength="40"></label>
+  <label>Every <select id="interval"><option>2</option><option selected>3</option><option>5</option><option>10</option></select> s</label>
+  <label>Stop after <select id="minutes"><option>15</option><option selected>60</option><option>120</option></select> min</label><br>
+  <button id="start">Start sharing</button><button id="stop" class="stop" disabled>Stop</button>
+  <div><video id="preview" autoplay muted playsinline></video></div>
+</fieldset>
+
+<fieldset>
+  <legend>Or pull a stream (OBS RTMP/RTSP/SRT server, HLS URL)</legend>
+  <label>URL <input id="url" size="50" placeholder="rtsp://... or https://.../index.m3u8"></label>
+  <button id="startStream">Start stream</button>
+  <div class="muted">Local/private addresses are blocked unless the reactor sets LUMENIS_VISION_ALLOW_LOCAL=1.</div>
+</fieldset>
+
+<div id="state" class="muted">No session.</div>
+<div id="obs"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let session = null, stream = null, timer = null, inflight = false, since = 0, poll = null;
+const canvas = document.createElement('canvas');
+
+async function api(path, opts={}) {
+  const r = await fetch(path, opts);
+  const t = await r.text(); let j; try { j = JSON.parse(t) } catch { j = {detail: t} }
+  if (!r.ok) throw new Error(j.detail || ('HTTP ' + r.status));
+  return j;
+}
+
+async function start(source) {
+  const body = {source, label: $('label').value, game: $('game').value,
+                interval_s: +$('interval').value, max_minutes: +$('minutes').value};
+  if (source === 'stream') body.url = $('url').value;
+  const j = await api('/api/vision/session/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  session = j.session; $('stop').disabled = false; startPolling();
+  return session;
+}
+
+$('start').onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({video: {frameRate: 5}, audio: false});
+  } catch (e) { $('state').textContent = 'Screen share was not started: ' + e.message; return; }
+  $('preview').srcObject = stream;
+  stream.getVideoTracks()[0].addEventListener('ended', stop);   // browser's own "Stop sharing" button
+  try { await start('browser'); } catch (e) { $('state').textContent = 'Could not start: ' + e.message; stopTracks(); return; }
+  $('start').disabled = true;
+  timer = setInterval(sendFrame, (+$('interval').value) * 1000);
+  sendFrame();
+};
+
+$('startStream').onclick = async () => {
+  try { await start('stream'); } catch (e) { $('state').textContent = 'Could not start stream: ' + e.message; }
+};
+
+async function sendFrame() {
+  if (!session || !stream || inflight) return;          // never queue uploads: skip if the last one is still going
+  const v = $('preview'); if (!v.videoWidth) return;
+  const scale = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight));
+  canvas.width = Math.round(v.videoWidth * scale); canvas.height = Math.round(v.videoHeight * scale);
+  canvas.getContext('2d').drawImage(v, 0, 0, canvas.width, canvas.height);
+  const captured = Date.now();
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8));
+  inflight = true;
+  try {
+    await api('/api/vision/frame', {method:'POST', body: blob,
+      headers: {'Content-Type':'image/jpeg', 'X-Vision-Session': session.id, 'X-Captured-At': String(captured)}});
+  } catch (e) {
+    $('state').textContent = 'Frame not accepted: ' + e.message;
+    if (/no active vision session/.test(e.message)) stop();
+  } finally { inflight = false; }
+}
+
+function stopTracks() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; $('preview').srcObject = null; }
+
+async function stop() {
+  clearInterval(timer); timer = null; stopTracks();
+  try { await api('/api/vision/session/stop', {method:'POST'}); } catch (e) {}
+  session = null; $('start').disabled = false; $('stop').disabled = true;
+}
+$('stop').onclick = stop;
+
+function startPolling() {
+  clearInterval(poll);
+  poll = setInterval(async () => {
+    try {
+      const s = await api('/api/vision/status');
+      const ss = s.session;
+      $('state').textContent = ss ? `${ss.active ? 'ON' : 'OFF'} · ${ss.source} · frames in ${ss.frames_in}, analysed ${ss.analyzed}, ` +
+        `skipped as stale ${ss.frames_dropped}, errors ${ss.errors}${ss.last_error ? ' (' + ss.last_error + ')' : ''}` +
+        `${ss.end_reason ? ' · ended: ' + ss.end_reason : ''} · model ${s.model}` : 'No session.';
+      if (ss && !ss.active && session) { session = null; $('start').disabled = false; $('stop').disabled = true; stopTracks(); clearInterval(timer); }
+      const j = await api('/api/vision/latest?since=' + since);
+      for (const o of j.observations) {
+        since = Math.max(since, o.id);
+        const d = document.createElement('div'); d.className = o.confidence;
+        const hud = Object.entries(o.hud).filter(([k,v]) => v).map(([k,v]) => `${k}: ${v}`).join(', ');
+        d.innerHTML = `<div class="muted">#${o.id} · ${o.scene} · ${o.confidence} confidence · ${o.end_to_end_s}s capture→reading · ${o.model.split('/')[1]}</div>`;
+        const p = document.createElement('div'); p.textContent = o.summary + (hud ? '  HUD: ' + hud : ''); d.appendChild(p);
+        if (o.callout) { const c = document.createElement('div'); c.className = 'callout'; c.textContent = '→ ' + o.callout; d.appendChild(c); }
+        if (o.cannot_tell.length) { const u = document.createElement('div'); u.className = 'muted'; u.textContent = 'Could not tell: ' + o.cannot_tell.join('; '); d.appendChild(u); }
+        $('obs').prepend(d);
+        while ($('obs').children.length > 30) $('obs').lastChild.remove();
+      }
+    } catch (e) {}
+  }, 1500);
+}
+startPolling();
+</script>
+</body>
+</html>

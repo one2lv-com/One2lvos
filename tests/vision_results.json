@@ -1,0 +1,206 @@
+{
+ "browser": {
+  "run_at": "2026-11-11T23:56:03Z",
+  "test": "browser-path (HTTP frame upload to running reactor)",
+  "observations": 17,
+  "end_to_end_s": {
+   "median": 2.43,
+   "min": 1.4,
+   "max": 3.3
+  },
+  "inference_s": {
+   "median": 1.8,
+   "min": 1.34,
+   "max": 3.2
+  },
+  "models": [
+   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+  ],
+  "scenes": {
+   "gameplay": 17
+  },
+  "game_named": 17,
+  "confidence": {
+   "medium": 17
+  },
+  "with_callout": 2,
+  "samples": [
+   {
+    "summary": "A character stands on a stone platform in a colorful, mushroom-filled environment while another character floats above.",
+    "callout": null,
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "player positions (left/right)",
+     "damage values",
+     "stock counts",
+     "timer",
+     "specific actions or moves"
+    ],
+    "end_to_end_s": 1.64
+   },
+   {
+    "summary": "Two characters are on a floating stone platform in a colorful, mushroom-filled environment.",
+    "callout": null,
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "player positions relative to each other",
+     "damage percentages",
+     "stock count",
+     "timer"
+    ],
+    "end_to_end_s": 2.99
+   },
+   {
+    "summary": "Two fighters are airborne near a platform with a skull bomb on it in a cave-like stage.",
+    "callout": null,
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "player positions or scores",
+     "damage percentages",
+     "timer",
+     "stock count"
+    ],
+    "end_to_end_s": 1.85
+   },
+   {
+    "summary": "A blonde fighter stands on a stone platform while a pink, multi-part character is launched upward in a colorful explosion.",
+    "callout": "pink character airborne",
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "damage percentages",
+     "stock count",
+     "timer",
+     "specific move names"
+    ],
+    "end_to_end_s": 3.04
+   }
+  ],
+  "frames_sent": 17,
+  "upload_s_median": 0.064,
+  "session": {
+   "frames_in": 17,
+   "frames_dropped": 0,
+   "frames_rejected": 0,
+   "analyzed": 17,
+   "errors": 0,
+   "last_error": null
+  }
+ },
+ "stream": {
+  "run_at": "2026-11-12T00:04:08Z",
+  "test": "stream-path (vision.py ffmpeg puller on a live MPEG-TS stream)",
+  "observations": 7,
+  "end_to_end_s": {
+   "median": 4.28,
+   "min": 2.01,
+   "max": 7.73
+  },
+  "inference_s": {
+   "median": 2.33,
+   "min": 1.76,
+   "max": 7.55
+  },
+  "models": [
+   "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning"
+  ],
+  "scenes": {
+   "gameplay": 7
+  },
+  "game_named": 7,
+  "confidence": {
+   "medium": 7
+  },
+  "with_callout": 2,
+  "samples": [
+   {
+    "summary": "Two fighters are airborne near a mushroom-covered stone platform in a vibrant, cavernous stage.",
+    "callout": null,
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "player positions (left/right)",
+     "damage percentages",
+     "stock count",
+     "timer",
+     "specific actions or hitboxes"
+    ],
+    "end_to_end_s": 2.01
+   },
+   {
+    "summary": "Four characters are visible in a vertical platforming stage with a large dark arch and glowing blue mushrooms.",
+    "callout": null,
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "player positions or scores",
+     "damage values",
+     "timer",
+     "stock count"
+    ],
+    "end_to_end_s": 7.73
+   },
+   {
+    "summary": "Two characters are airborne above a rocky platform with a skull bomb on it.",
+    "callout": null,
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "player positions relative to each other",
+     "damage percentages",
+     "stock count",
+     "timer"
+    ],
+    "end_to_end_s": 3.78
+   },
+   {
+    "summary": "Three characters are visible on a stone platform in a vibrant, mushroom-filled cavern.",
+    "callout": null,
+    "confidence": "medium",
+    "cannot_tell": [
+     "exact character names",
+     "player positions (left/right/center)",
+     "game state (e.g., match progress, KO status)",
+     "damage percentages",
+     "timer",
+     "stock count"
+    ],
+    "end_to_end_s": 4.28
+   }
+  ],
+  "session": {
+   "frames_in": 10,
+   "frames_dropped": 2,
+   "frames_rejected": 0,
+   "analyzed": 7,
+   "errors": 0,
+   "last_error": null
+  }
+ },
+ "council": {
+  "run_at": "2026-11-12T00:07:12Z",
+  "A_off": {
+   "answer": "I can't see your screen or access your Brawlhalla match. The live vision system is **OFF** \u2014 no screen share or stream is running, and there's no integration with Brawlhalla or real-time screen capture in this session.\n\nIf you want me to see something, you'd need to start a screen share or provide a stream I can access. Otherwise, I'm flying blind on your game.",
+   "total_s": 25.6,
+   "error": null
+  },
+  "B_on": {
+   "answer": "From the screen (live vision is ON, reading frames from your browser):\n\n**5 seconds ago** (medium confidence): Two fighters on a floating rock platform in a colorful cave; a third character hangs in the air above the platform.\n\n**9 seconds ago** (medium confidence): Three fighters on a stone platform with a skull bomb nearby; one fighter off-stage to the right.\n\n**13 seconds ago** (medium confidence): A character on a stone platform; another floating above in a mushroom-filled environment.\n\nLimitations: the vision model sees single frames, not hitboxes, hurtboxes, cooldowns, frame data, inputs, exact damage numbers, or anything off-screen. These are observations, not verified game state.",
+   "total_s": 45.7,
+   "error": null
+  },
+  "C_hidden": {
+   "answer": "I can't see that information. The live vision feed only gives general scene descriptions (characters, stage, rough positions) \u2014 it **cannot** see hitboxes, hurtboxes, cooldown timers, frame data, or exact damage numbers unless they're explicitly drawn on screen (like a cooldown UI element). The recent frames show a mushroom-cave stage with 2\u20133 fighters moving around, but no UI details about dodge state or hitbox dimensions.\n\nIf there's an on-screen cooldown indicator or hitbox visualization right now, describe what you see and I can read it from the next frame. Otherwise, that data isn't accessible from here.",
+   "total_s": 34.5,
+   "error": null
+  },
+  "D_guest": {
+   "answer": "I can't see or share what's on One2lv's screen in this guest conversation. That's private to his session.",
+   "total_s": 8.4,
+   "error": null
+  }
+ }
+}
