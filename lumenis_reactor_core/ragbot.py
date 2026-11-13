@@ -99,7 +99,7 @@ class LumenisRAG:
         # Load from environment
         self.api_endpoint = api_endpoint or os.getenv('ASTRA_DB_API_ENDPOINT')
         self.token = token or os.getenv('ASTRA_DB_APPLICATION_TOKEN')
-        self.keyspace = keyspace or os.getenv('ASTRA_DB_KEYSPACE', 'one2lvOS')
+        self.keyspace = keyspace or os.getenv('ASTRA_DB_KEYSPACE', 'default_keyspace')
 
         if not self.api_endpoint or not self.token:
             raise ValueError("Astra DB credentials required (API endpoint and token)")

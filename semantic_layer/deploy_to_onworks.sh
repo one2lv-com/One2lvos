@@ -98,7 +98,7 @@ if [ ! -f "$ENV_FILE" ]; then
 # ---------------------------------------------------------------------------
 ASTRA_DB_API_ENDPOINT=https://YOUR-DB-ID.apps.astra.datastax.com
 ASTRA_DB_APPLICATION_TOKEN=AstraCS:YOUR_TOKEN_HERE
-ASTRA_DB_KEYSPACE=one2lvOS
+ASTRA_DB_KEYSPACE=default_keyspace
 COLLECTION_NAME=aria_memory
 VECTOR_DIM=1024
 

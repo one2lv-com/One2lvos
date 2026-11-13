@@ -95,7 +95,7 @@ async def main():
 - Council: 9 seats (ITT architecture)
 
 **Your Architecture:**
-1. **L1 Memory**: Astra DB vector memory (keyspace: one2lvOS, collection: aria_memory)
+1. **L1 Memory**: Astra DB vector memory (keyspace: default_keyspace, collection: aria_memory)
 2. **L2 Skills**: NVIDIA AI (Nemotron 90B model, embeddings via nv-embedqa-e5-v5)
 3. **Intergalactic System**: L0 (Local) → L1 (Planetary) → L2 (Interplanetary) → L3 (Intergalactic)
 

@@ -83,7 +83,7 @@ LLM_MODEL="nvidia/llama-3.3-nemotron-super-49b-v1"
 # ASTRA DB L1 MEMORY PIPELINE (Modules 301-600)
 ASTRA_DB_API_ENDPOINT="your-astra-db-endpoint-here"
 ASTRA_DB_APPLICATION_TOKEN="your-astra-db-token-here"
-ASTRA_DB_KEYSPACE="one2lvOS"
+ASTRA_DB_KEYSPACE="default_keyspace"
 COLLECTION_NAME="aria_memory_v2"
 VECTOR_DIM=2048
 
@@ -343,7 +343,7 @@ echo -e "${GREEN}📍 Lumenis Reactor Core:${NC}   http://localhost:8000"
 echo -e "${GREEN}📍 One2lvOS Interface:${NC}     http://localhost:4000/os"
 echo -e "${YELLOW}💾 ∆Gemini_Root∆:${NC}         $ROOT_DIR"
 echo -e "${YELLOW}💾 ∆Gemini_Memory∆:${NC}       $MEM_DIR"
-echo -e "${MAGENTA}🌐 L1 Memory Network:${NC}      Astra DB (one2lvOS : aria_memory)"
+echo -e "${MAGENTA}🌐 L1 Memory Network:${NC}      Astra DB (default_keyspace : aria_memory)"
 echo -e "${CYAN}🤖 L2 Skills LLM Engine:${NC}   Llama-3.3-Nemotron-Super (NVIDIA)"
 echo ""
 echo -e "${YELLOW}PIDs:${NC} Core=$CORE_PID | UI=$UI_PID"

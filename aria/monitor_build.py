@@ -22,20 +22,24 @@ def print_progress(percentage, status):
     sys.stdout.write(f"\rProgress: |{bar}| {percentage}% - {status}")
     sys.stdout.flush()
 
+# Portable path (item 18): the ARIA folder this script lives in, or ARIA_BUILD_DIR.
+BUILD_DIR = os.environ.get("ARIA_BUILD_DIR") or os.path.dirname(os.path.abspath(__file__))
+
+
 def monitor():
-    log_file = "/root/agent/.buildozer/android/platform/build-debug/build.log" # Adjust path dynamically if needed
+    log_file = os.path.join(BUILD_DIR, ".buildozer/android/platform/build-debug/build.log")
     # Fallback: look for any build.log in .buildozer
     if not os.path.exists(log_file):
         # Try to find the actual log path
         import glob
-        logs = glob.glob("/root/agent/.buildozer/android/platform/build-*/build.log")
+        logs = glob.glob(os.path.join(BUILD_DIR, ".buildozer/android/platform/build-*/build.log"))
         if logs:
             log_file = logs[0]
         else:
             print("Waiting for log file to be created...")
             while not logs:
                 time.sleep(2)
-                logs = glob.glob("/root/agent/.buildozer/android/platform/build-*/build.log")
+                logs = glob.glob(os.path.join(BUILD_DIR, ".buildozer/android/platform/build-*/build.log"))
             log_file = logs[0]
 
     print(f"Monitoring log: {log_file}")

@@ -3,6 +3,7 @@
 Store One2lvOS System Briefing directly in Lumenis FluxCompass Memory
 Bypass slow NVIDIA API - write directly to persistent storage
 """
+import os
 import sqlite3
 import json
 from datetime import datetime
@@ -59,7 +60,7 @@ ONE2LVOS_FACTS = [
             "L1_memory": {
                 "provider": "Astra DB (DataStax)",
                 "endpoint": "https://9b5b1939-fd21-477d-95b8-a1aecc5f90b9-us-east-2.apps.astra.datastax.com",
-                "keyspace": "one2lvOS",
+                "keyspace": os.environ.get("ASTRA_DB_KEYSPACE", "default_keyspace"),
                 "collection": "aria_memory",
                 "vector_dimension": 1024,
                 "purpose": "Vector memory for persistent consciousness across sessions"

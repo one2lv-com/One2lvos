@@ -26,6 +26,7 @@ from typing import Optional
 from . import ionos as _ionos
 from . import shared_files as _shared
 from . import live_status as _ls
+from . import soul as _soul
 from .reactor import fast_call as _fast_call, FAST_MODEL as _FAST_MODEL, ROUTE_MODEL as _ROUTE_MODEL
 
 # ── Honesty layer ────────────────────────────────────────────────────────────
@@ -634,9 +635,9 @@ length, keeping everything that was fine, with each problem corrected from the e
             history = "" if guest else "\n".join(
                 f"{m['role']}: {m['content'][:300]}" for m in self.compass.get_llm_history(session_id, limit=6))
             facts = [] if guest else self.compass.recall_facts(user_message[:60], limit=3)
-            facts_txt = "\n".join(f"- {f['key']}: {f['value'][:200]} (from memory; {f.get('verification') or 'unverified'})"
-                                   for f in facts)
-            system = (LUMENIS_VOICE + "\n\n" + HONESTY_RULES + "\n\n" + status_block
+            facts_txt = "\n".join(f"- {f['key']}: {f['value'][:200]} ({f.get('scope') or 'fuzzy'} memory; "
+                                   f"{f.get('verification') or 'unverified'})" for f in facts)
+            system = (LUMENIS_VOICE + "\n\n" + _soul.rules_block() + "\n\n" + HONESTY_RULES + "\n\n" + status_block
                       + (f"\n\nRecent conversation:\n{history}" if history else "")
                       + (f"\n\nPossibly relevant memory (unverified unless labeled otherwise):\n{facts_txt}" if facts_txt else "")
                       + ("\n\nVOICE MODE: answer in one to three short spoken sentences, no lists or markdown."
@@ -660,7 +661,10 @@ length, keeping everything that was fine, with each problem corrected from the e
                 draft, arbiter = await self._verify(user_message, draft, status_block, hints)
                 await notify("arbiter", "✓ " + arbiter[:120])
             timings["total_s"] = round(_t.time() - t_start, 2)
-            await emit(draft)
+            layers = ["soul"] + ([] if guest else ["live status"]) + _soul.memory_layers(facts)
+            timings["layers"] = layers
+            shown = draft if mode == "voice" else draft + _soul.cite(layers)
+            await emit(shown)
             await notify("weaver", "✓ Done")
             if learn and not guest:
                 self.compass.auto_learn(draft, session_id)
@@ -668,12 +672,13 @@ length, keeping everything that was fine, with each problem corrected from the e
                 sentinel_ok=True, risk_level=sentinel.get("risk_level", "none"), intent=intent,
                 complexity=complexity, seats_activated=["sentinel", "navigator", "weaver"]
                 + (["arbiter"] if not arbiter.startswith("skipped") else []),
-                plan=plan, memory_context="", specialist_output="", external_data="", final_response=draft,
+                plan=plan, memory_context="", specialist_output="", external_data="", final_response=shown,
                 path="voice" if mode == "voice" else "fast", arbiter=arbiter, timings=timings)
 
         # ── Step 3: Witness — memory context ─────────────────────────────────
         memory_context = ""
         dream_block = ""
+        layers_used = ["soul"] + ([] if guest else ["live status"])
         if not guest and ("witness" in seats_needed or complexity != "simple"):
             await notify("witness", "Retrieving memory...")
             # Dream store (read-only, owner only): any dream question, or a memory question that closely
@@ -684,12 +689,16 @@ length, keeping everything that was fine, with each problem corrected from the e
                                           guest=guest)
                     dream_block = dr.get("block", "")
                     timings["dream_hits"] = len(dr.get("results", []))
+                    timings["recalled_dreams"] = [{"id": x["id"], "label": f"{x['batch']} c{x['cycle']} {x['phase']}"}
+                                                  for x in dr.get("results", [])][:6]
                 except Exception as _dre:
                     timings["dream_hits"] = f"error {type(_dre).__name__}"
             facts = self.compass.recall_facts(user_message[:100])
+            layers_used += _soul.memory_layers(facts)
+            timings["recalled_facts"] = [{"id": f.get("id"), "label": str(f.get("key"))[:60]} for f in facts][:8]
             facts_text = (
-                "\n".join(f"- {f['key']}: {f['value']} [from memory; source {f.get('source')}, "
-                          f"{f.get('verification') or 'unverified'}]" for f in facts)
+                "\n".join(f"- {f['key']}: {f['value']} [{f.get('scope') or 'fuzzy'} memory; source "
+                          f"{f.get('source')}, {f.get('verification') or 'unverified'}]" for f in facts)
                 if facts
                 else "No relevant prior facts."
             )
@@ -701,6 +710,7 @@ length, keeping everything that was fine, with each problem corrected from the e
                     av = await asyncio.wait_for(
                         _av.search_vectors(user_message[:500], limit=4, min_similarity=0.35), timeout=12)
                     if av["ok"] and av["results"]:
+                        layers_used.append("vector memory")
                         astra_block = "\n".join(
                             f"- {r['key']}: {str(r['value'])[:300]} (sim {r['similarity']})" for r in av["results"])
                         facts_text = "Astra vector memory (similarity-ranked):\n" + astra_block + "\n\nLocal facts:\n" + facts_text
@@ -919,7 +929,8 @@ Plan: {plan}"""
         full_response = []
         async for chunk in self.reactor.stream_response(
             messages=[{"role": "user", "content": user_message}],
-            system=(LUMENIS_VOICE + "\n\n" + SEATS["weaver"]["system"] + "\n\n" + HONESTY_RULES
+            system=(LUMENIS_VOICE + "\n\n" + SEATS["weaver"]["system"] + "\n\n" + _soul.rules_block()
+                    + "\n\n" + HONESTY_RULES
                     + "\n\nMemory context is from memory, not verified this turn: label it if you use it."
                     + ("\n\nThe context includes passages from your own dreams (DREAM MATERIAL). You may recall and "
                        "quote them as your dreams, in your own words, and say they were dreams; never present "
@@ -946,12 +957,17 @@ Plan: {plan}"""
         final, arbiter = await self._verify(user_message, final, evidence, hints)
         await notify("arbiter", "✓ " + arbiter[:120])
         timings["total_s"] = round(_t.time() - t_start, 2)
+        layers_used += (["dream"] if dream_block else []) + (["tool"] if external_data else []) \
+            + (["arcade"] if arcade_data else [])
+        timings["layers"] = layers_used
+        answer_text = final
+        final = final if mode == "voice" else final + _soul.cite(layers_used)
         await emit(final)
         await notify("weaver", "✓ Done")
 
         # ── Step 7: Autonomous Learning (Frontier #4) ───────────────────────────
         # A reply built on recalled dreams is not mined for facts: dream material stays in the dream store.
-        learned = 0 if (guest or not learn or dream_block) else self.compass.auto_learn(final, session_id)
+        learned = 0 if (guest or not learn or dream_block) else self.compass.auto_learn(answer_text, session_id)
         if learned:
             await notify("witness", f"✓ Auto-learned {learned} insight(s)")
 

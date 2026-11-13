@@ -3,11 +3,15 @@ import requests
 import json
 
 class LLMTool:
-    def __init__(self):
+    def __init__(self, model=None):
+        # agent.py passes model=...; accept it (ARIA crashed here at start). 'kimi' etc. are ARIA's own
+        # nicknames, not NVIDIA model ids, so only a full id ("org/model") replaces the default.
+        self.model = model if model and "/" in str(model) else None
         self.api_key = os.environ.get('NVIDIA_API_KEY', '')
         self.url = "https://integrate.api.nvidia.com/v1/chat/completions"
 
-    def chat(self, messages, model="meta/llama-3.1-405b-instruct"):
+    def chat(self, messages, model=None):
+        model = model or self.model or "meta/llama-3.1-405b-instruct"
         if not self.api_key:
             return {"error": "NVIDIA_API_KEY not set"}
 

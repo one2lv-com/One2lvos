@@ -33,7 +33,7 @@ ENVIRONMENT CONFIGURATION:
 L1 Memory (Astra DB):
 - Database: one2lvOS (9b5b1939-fd21-477d-95b8-a1aecc5f90b9)
 - Region: AWS us-east-2
-- Keyspace: one2lvOS
+- Keyspace: default_keyspace
 - Collection: aria_memory (1024-dim vectors)
 - Status: ACTIVE
 

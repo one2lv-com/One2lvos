@@ -98,7 +98,7 @@ python3 talk_to_lumenis.py "Use Maton to connect to OnWorks, then deploy the sem
 
 ASTRA_DB_API_ENDPOINT=https://9b5b1939-fd21-477d-95b8-a1aecc5f90b9-us-east-2.apps.astra.datastax.com
 ASTRA_DB_APPLICATION_TOKEN=<your token, from .env>
-ASTRA_DB_KEYSPACE=one2lvOS
+ASTRA_DB_KEYSPACE=default_keyspace
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

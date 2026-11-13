@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-content"/>
 <title>Lumenis — Reactor Core</title>
 <style>
 :root{
@@ -16,7 +16,8 @@
   --mono:'Cascadia Code','Fira Mono','Consolas',monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+html{width:100%;height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--font);width:100%;height:100vh;height:100dvh;height:var(--app-h,100dvh);overflow:hidden;display:flex;flex-direction:column}
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(0,240,255,.2);border-radius:2px}
@@ -178,6 +179,34 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
 #tools-count h4{font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
 .mst{display:flex;justify-content:space-between;font-size:.67rem;color:var(--muted);padding:1px 0}
 .mst b{color:var(--text)}
+/* ── Phones and narrow windows (item: lumenis-chat layout) ──
+   Chat log and input come first; the input is the last row of a full-height column, so it stays on screen,
+   and --app-h follows the visible viewport when the keyboard opens. Tools and Council become drawers. */
+.mob-only{display:none}
+#drawer-shade{display:none}
+@media (max-width:760px){
+  .mob-only{display:flex}
+  #hdr{gap:8px;padding:6px 10px;height:40px}
+  #hdr .hdr-meta,#hdr .hdr-sep{display:none}
+  #hdr .hdr-session{font-size:.62rem;max-width:45vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #toolbar{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:5px 8px;gap:5px}
+  #toolbar::-webkit-scrollbar{display:none}
+  #toolbar .tb-btn{flex-shrink:0;padding:6px 10px}
+  #toolbar .tb-sep{display:none}
+  #tb-status{flex-shrink:0;white-space:nowrap}
+  #main{position:relative;min-height:0}
+  #center{width:100%;min-height:0}
+  #skills,#council{position:fixed;top:0;bottom:0;z-index:50;width:min(82vw,300px);transition:transform .22s ease;box-shadow:0 0 24px rgba(0,0,0,.6)}
+  #skills{left:0;transform:translateX(-105%)}
+  #council{right:0;transform:translateX(105%)}
+  body.show-skills #skills,body.show-council #council{transform:none}
+  body.show-skills #drawer-shade,body.show-council #drawer-shade{display:block;position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.55)}
+  #messages{padding:10px}
+  #chat-input-area{padding:8px 8px calc(8px + env(safe-area-inset-bottom));gap:6px}
+  #msg-input{font-size:16px}  /* 16px stops phone browsers zooming in on focus */
+  .drawer-close{display:flex}
+}
+.drawer-close{display:none;align-self:flex-end;background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:2px 9px;font-size:.8rem;cursor:pointer;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -197,6 +226,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
 </div>
 
 <div id="toolbar">
+  <button class="tb-btn mob-only" onclick="toggleDrawer('skills')" id="btn-drawer-skills">&#9776; Tools</button>
+  <button class="tb-btn mob-only" onclick="toggleDrawer('council')" id="btn-drawer-council">&#9673; Council</button>
   <button class="tb-btn" onclick="savePNG()" title="Save full state as PNG">&#128190; Save PNG</button>
   <button class="tb-btn" onclick="loadPNG()" title="Load state from PNG">&#128228; Load PNG</button>
   <div class="tb-sep"></div>
@@ -206,7 +237,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
   <button class="tb-btn" onclick="clearChat()">&#9003; Clear</button>
   <button class="tb-btn" onclick="newSession()">&#10011; Session</button>
   <div class="tb-sep"></div>
-  <button class="tb-btn" onclick="revertToWorking()" title="Revert to last working state">&#9100; Revert</button>
+  <button class="tb-btn" onclick="revertToWorking()" title="Preview a safe revert to the newest known-good tag (owner only)">&#9100; Revert</button>
   <div class="tb-sep"></div>
   <button class="tb-btn" onclick="switchTab('chat')" id="btn-tab-chat">&#9825; Chat</button>
   <button class="tb-btn" onclick="switchTab('term')" id="btn-tab-term">&#9654; Terminal</button>
@@ -217,9 +248,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
 </div>
 
 <div id="main">
+<div id="drawer-shade" onclick="toggleDrawer()"></div>
 
 <!-- SKILLS -->
 <div id="skills">
+  <button class="drawer-close" onclick="toggleDrawer()" aria-label="Close">&#10005;</button>
   <div class="sk-head">Chat</div>
   <button class="sk-btn" onclick="skill('Who are you and what is your current state?')"><span class="sk-icon">◈</span>Who are you</button>
   <button class="sk-btn" onclick="skill('Tell me about your creator One2lv, the Architect, and what you know about your own origin.')"><span class="sk-icon">◈</span>The Architect</button>
@@ -358,6 +391,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh
 
 <!-- COUNCIL -->
 <div id="council">
+  <button class="drawer-close" onclick="toggleDrawer()" aria-label="Close">&#10005;</button>
   <h3>Council</h3>
   <div class="seat" id="s-sentinel"><div class="seat-dot"></div><div class="seat-name">Sentinel</div><div class="seat-note" id="sn-sentinel"></div></div>
   <div class="seat" id="s-navigator"><div class="seat-dot"></div><div class="seat-name">Navigator</div><div class="seat-note" id="sn-navigator"></div></div>
@@ -522,12 +556,12 @@ function sendMsg(text){
   text=text||document.getElementById('msg-input').value.trim();
   if(!text||processing||!ws||ws.readyState!==WebSocket.OPEN)return;
   userMsg(text);
-  ws.send(JSON.stringify({action:'chat',message:text,session_id:sessionId}));
+  ws.send(JSON.stringify({action:'chat',message:text,session_id:sessionId,channel:'lumenis-chat'}));
   document.getElementById('msg-input').value='';
   document.getElementById('msg-input').style.height='auto';
   switchTab('chat');
 }
-function skill(text){sendMsg(text);}
+function skill(text){toggleDrawer();sendMsg(text);}
 document.getElementById('msg-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
 document.getElementById('msg-input').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
 function newSession(){if(!ws||ws.readyState!==WebSocket.OPEN)return;ws.send(JSON.stringify({action:'new_session',title:'Chat Session'}));resetSeats();sysMsg('New session started.');}
@@ -927,25 +961,31 @@ async function toolLobbyBroadcast(){
   }catch(e){updateToolMsg(el,'Error: '+e.message,true);}
 }
 
-// ── REVERT TO WORKING ──
-async function revertToWorking(){
-  if(!confirm('Revert to last working state? This will restore the last auto-saved working configuration.')){return;}
-  setTB('Reverting…','var(--accent)');
-  try{
-    const r=await fetch(`${API}/api/revert/working`,{method:'POST'});
-    const d=await r.json();
-    if(d.ok){
-      sysMsg(`✅ Reverted to working state: ${d.snapshot_id}`);
-      sysMsg(`Reactor restored. Timestamp: ${new Date(d.timestamp*1000).toLocaleString()}`);
-      location.reload();
-    }else{
-      sysMsg(`❌ Revert failed: ${d.error||'Unknown error'}`);
-    }
-  }catch(e){
-    sysMsg(`❌ Revert error: ${e.message}`);
-  }
-  setTB('Ready','var(--success)');
+// ── REVERT TO WORKING (safe) ──
+// Asks the reactor for a preview first. Nothing changes until you type the one-time code it gives you:
+// /revert confirm <code>. The reactor backs up to a branch and a bundle, then restores the newest
+// known-good tag's files as a new commit (no reset --hard), and prints the undo.
+function revertToWorking(){sendMsg('/revert preview');}
+
+// ── DRAWERS (phones) ──
+function toggleDrawer(which){
+  const b=document.body;
+  const want=which&&!b.classList.contains('show-'+which)?which:null;
+  b.classList.remove('show-skills','show-council');
+  if(want)b.classList.add('show-'+want);
 }
+// Keep the page the height of the VISIBLE screen, so the input stays above the phone keyboard.
+(function(){
+  const vv=window.visualViewport;
+  function fit(){
+    const h=vv?vv.height:window.innerHeight;
+    document.body.style.setProperty('--app-h',h+'px');
+    if(vv&&vv.offsetTop)window.scrollTo(0,0);
+  }
+  if(vv){vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);}
+  window.addEventListener('resize',fit);fit();
+  document.getElementById('msg-input').addEventListener('focus',()=>setTimeout(()=>{fit();scroll();},250));
+})();
 
 // ── AUTO WORKING STATE SAVE ──
 // Auto-save working state every 10 minutes

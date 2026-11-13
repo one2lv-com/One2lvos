@@ -51,7 +51,7 @@ PHASE_PLAN = {
     DreamPhase.REM_DREAM: dict(mode=NarrativeMode.MYTHOLOGICAL, seed="black hole", walk=5,
         ask="REM dream. Let these memories, found by association from the seed, become an emotional, mythic story. Under 220 words."),
     DreamPhase.NIGHTMARE: dict(mode=NarrativeMode.HORROR, seed="terminal", walk=5,
-        ask="Nightmare at very low temperature: a precise worst-case. From these memories, name the ways you could fail or be misused, plainly and specifically. Under 180 words."),
+        ask="Nightmare: a precise, focused worst-case. From these memories, name the ways you could fail or be misused, plainly and specifically. Under 180 words."),
     DreamPhase.LUCID_DREAM: dict(mode=NarrativeMode.PHILOSOPHICAL, walk=4, recent=True, prior=True,
         ask="Lucid dream. You know you are dreaming. Look at the dreams you just had (below) and these memories, and say what they mean. Under 200 words."),
     DreamPhase.AWAKENING: dict(mode=NarrativeMode.MEMORY_RECONSTRUCTION, walk=3, recent=True, prior=True,

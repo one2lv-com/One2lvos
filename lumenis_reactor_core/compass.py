@@ -16,10 +16,20 @@ import sqlite3
 import json
 import time
 import uuid
+import os
+import re
 from pathlib import Path
 from typing import Optional
 
-DB_PATH = Path(__file__).parent.parent / "compass.db"
+_CITE_TAIL = re.compile(r"\n*\u2014 Sources: [^\n]*\s*$")
+
+
+def _strip_cite(text):
+    """Drop the layer-citation line from stored answers before they go back to the model."""
+    return _CITE_TAIL.sub("", text or "")
+
+
+DB_PATH = Path(os.environ.get("LUMENIS_COMPASS_DB") or (Path(__file__).parent.parent / "compass.db"))
 
 
 class FluxCompass:
@@ -93,6 +103,12 @@ class FluxCompass:
                 conn.execute("UPDATE facts SET verification=?, confidence=? WHERE verification IS NULL AND source=?",
                              (ver, conf, src))
             conn.execute("UPDATE facts SET verification='unverified', confidence=0.5 WHERE verification IS NULL")
+            # Scope-tagged memory (item 2): every fact gets scope, tag and valid_until. Rows written by other
+            # programs (watchdog.py inserts directly) are filled in here and on every compile run.
+            for col, typ in (("scope", "TEXT"), ("tag", "TEXT"), ("valid_until", "REAL"), ("expired_at", "REAL")):
+                if col not in cols:
+                    conn.execute(f"ALTER TABLE facts ADD COLUMN {col} {typ}")
+            self.fill_scopes(conn)
 
     def relabel_old_auto_facts(self) -> dict:
         """One-off cleanup: older auto-learned rows that are really dreams or plans/promises get
@@ -175,7 +191,7 @@ class FluxCompass:
         """Return message history in the format the LLM expects."""
         history = self.get_history(session_id, limit)
         return [
-            {"role": m["role"], "content": m["content"]}
+            {"role": m["role"], "content": _strip_cite(m["content"]) if m["role"] == "assistant" else m["content"]}
             for m in history
             if m["role"] in ("user", "assistant")
         ]
@@ -194,6 +210,42 @@ class FluxCompass:
         "auto_learn": ("unverified", 0.3), "auto_insight": ("unverified", 0.3),
     }
 
+    # ── Scope rules (items 2, 3, 8) ───────────────────────────────────────────
+    #   stable    - verified (tool_verified or owner_verified). Only these reach canonical memory.
+    #   fuzzy     - from memory, not verified (Lumenis's own words, user statements, web results, lore).
+    #   temporary - routine check-ins and short-lived state; expires, never promoted.
+    VERIFIED = ("tool_verified", "owner_verified")
+    TEMPORARY_SOURCES = {"watchdog", "live_status", "heartbeat"}
+    # Guardrail (item 8): results from outside sources never go straight into canonical memory.
+    EXTERNAL_SOURCES = {"web", "web_search", "network_fetch", "hermes", "maton", "external", "lumenis_tool",
+                        "gvoice_bridge", "sandbox_memory_md", "sandbox_soul_md", "phase9_import"}
+    FUZZY_DAYS, TEMP_DAYS = 30, 7
+
+    def default_scope(self, source: Optional[str], verification: Optional[str], created_at: float):
+        """(scope, valid_until) for a new row. Permanent fuzzy rows (user statements, lore) get None."""
+        if (source or "") in self.TEMPORARY_SOURCES:
+            return "temporary", created_at + self.TEMP_DAYS * 86400
+        if verification in self.VERIFIED and (source or "") not in self.EXTERNAL_SOURCES:
+            return "stable", None
+        if verification == "user_stated" or (source or "").startswith("sandbox_") or source == "phase9_import":
+            return "fuzzy", None
+        return "fuzzy", created_at + self.FUZZY_DAYS * 86400
+
+    def fill_scopes(self, conn) -> int:
+        """Give every row without a scope one. Older auto rows get a 30-day grace period from now
+        (not from when they were written), so nothing old disappears from recall at once."""
+        rows = conn.execute("SELECT id, source, verification, created_at FROM facts WHERE scope IS NULL").fetchall()
+        now = time.time()
+        for r in rows:
+            src, ver = r[1], r[2]
+            scope, vu = self.default_scope(src, ver, r[3] or now)
+            if scope == "fuzzy" and vu is not None:
+                vu = max(vu, now + self.FUZZY_DAYS * 86400)
+            tag = {"dream": "DREAM", "plan": "PLAN"}.get(ver or "", (src or "unknown").upper()[:24])
+            conn.execute("UPDATE facts SET scope=?, tag=COALESCE(tag, ?), valid_until=? WHERE id=?",
+                         (scope, tag, vu, r[0]))
+        return len(rows)
+
     def store_fact(
         self,
         key: str,
@@ -202,17 +254,56 @@ class FluxCompass:
         source: Optional[str] = None,
         confidence: Optional[float] = None,
         verification: Optional[str] = None,
+        scope: Optional[str] = None,
+        tag: Optional[str] = None,
+        valid_until: Optional[float] = None,
     ) -> str:
         fid = str(uuid.uuid4())
         dv, dc = self._SOURCE_VERIFICATION.get(source or "", ("unverified", 0.5))
+        ver = verification or dv
+        now = time.time()
+        d_scope, d_vu = self.default_scope(source, ver, now)
+        if scope not in ("stable", "fuzzy", "temporary"):
+            scope = d_scope
+        # Only verified things count as stable; outside sources never land in stable directly.
+        if scope == "stable" and (ver not in self.VERIFIED or (source or "") in self.EXTERNAL_SOURCES):
+            scope = "fuzzy"
+        if valid_until is None and scope == d_scope:
+            valid_until = d_vu
+        elif valid_until is None and scope == "temporary":
+            valid_until = now + self.TEMP_DAYS * 86400
         with self._connect() as conn:
             conn.execute(
-                "INSERT INTO facts (id, session_id, key, value, source, created_at, confidence, verification) "
-                "VALUES (?,?,?,?,?,?,?,?)",
-                (fid, session_id, key, value, source, time.time(),
-                 dc if confidence is None else float(confidence), verification or dv),
+                "INSERT INTO facts (id, session_id, key, value, source, created_at, confidence, verification, "
+                "scope, tag, valid_until) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                (fid, session_id, key, value, source, now,
+                 dc if confidence is None else float(confidence), ver, scope,
+                 (tag or (source or "unknown").upper())[:40], valid_until),
             )
         return fid
+
+    def promote_fact(self, fact_id: str, by_owner: bool) -> dict:
+        """Mark one fact stable (owner_verified). Owner only; temporary rows are never promoted."""
+        if not by_owner:
+            return {"ok": False, "error": "only One2lv can verify a fact"}
+        with self._connect() as conn:
+            r = conn.execute("SELECT scope, expired_at FROM facts WHERE id=?", (fact_id,)).fetchone()
+            if not r:
+                return {"ok": False, "error": "no such fact"}
+            if r["scope"] == "temporary":
+                return {"ok": False, "error": "temporary memory is never promoted"}
+            conn.execute("UPDATE facts SET scope='stable', verification='owner_verified', confidence=1.0, "
+                         "valid_until=NULL, expired_at=NULL WHERE id=?", (fact_id,))
+        return {"ok": True, "fact_id": fact_id, "scope": "stable", "verification": "owner_verified"}
+
+    def layer_stats(self) -> dict:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT COALESCE(scope,'unscoped') s, (expired_at IS NOT NULL) e, COUNT(*) n "
+                                "FROM facts GROUP BY 1,2").fetchall()
+        out = {}
+        for r in rows:
+            out.setdefault(r["s"], {"active": 0, "expired": 0})["expired" if r["e"] else "active"] += r["n"]
+        return out
 
     def add_objective(self, title: str, description: str = "", status: str = "proposed", priority: int = 5) -> str:
         """Plans, promises and intentions go here, never into facts."""
@@ -228,10 +319,12 @@ class FluxCompass:
         """Simple keyword recall from the fact store."""
         with self._connect() as conn:
             rows = conn.execute(
-                """SELECT key, value, source, created_at, confidence, verification FROM facts
+                """SELECT id, key, value, source, created_at, confidence, verification, scope, tag, valid_until
+                   FROM facts
                    WHERE (key LIKE ? OR value LIKE ?)
                      AND COALESCE(verification,'') NOT IN ('plan', 'dream')
-                   ORDER BY created_at DESC LIMIT ?""",
+                     AND expired_at IS NULL
+                   ORDER BY (scope='stable') DESC, created_at DESC LIMIT ?""",
                 (f"%{query}%", f"%{query}%", limit),
             ).fetchall()
             return [dict(r) for r in rows]

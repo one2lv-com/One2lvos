@@ -130,7 +130,11 @@ class ToolDispatcher:
         self.learn = LearnTool()
         self.voice = VoiceTool()
         self.vision = VisionTool()
-        self.maton = MatonTool()
+        try:
+            self.maton = MatonTool()
+        except ValueError as e:   # no MATON_API_KEY: ARIA starts without the Maton tool instead of crashing
+            self.maton = None
+            print(f"[ARIA] Maton tool off: {e}")
         self.swarm_coord = SwarmCoordinator()
         
         # Initialize Build Lobby for this session
@@ -206,6 +210,8 @@ class ToolDispatcher:
                 return json.dumps(r)
 
             elif tool == "maton":
+                if self.maton is None:
+                    return "Maton tool is off: MATON_API_KEY is not set."
                 return maton_tool_dispatch(action, args)
             elif tool == "lobby":
                 return self._dispatch_lobby(action, args)

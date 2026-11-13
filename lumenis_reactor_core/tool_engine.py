@@ -47,7 +47,7 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from . import sfcompute_mcp as _sfc
@@ -109,6 +109,10 @@ CREATE TABLE IF NOT EXISTS traces (id TEXT PRIMARY KEY, tool TEXT, kind TEXT, le
   status INTEGER, args TEXT, error TEXT, duration_ms INTEGER, caller TEXT, created_at REAL);
 CREATE TABLE IF NOT EXISTS cache (key TEXT PRIMARY KEY, tool TEXT, result TEXT, saved_at REAL);
 CREATE TABLE IF NOT EXISTS metrics (id INTEGER PRIMARY KEY AUTOINCREMENT, sample TEXT, created_at REAL);
+CREATE TABLE IF NOT EXISTS intents (id TEXT PRIMARY KEY, tool TEXT, tier TEXT, caller TEXT, args TEXT, decision TEXT,
+  created_at REAL);
+CREATE TABLE IF NOT EXISTS approvals (id TEXT PRIMARY KEY, tool TEXT, args TEXT, tier TEXT, caller TEXT, reason TEXT,
+  status TEXT, confirm_code TEXT, result TEXT, created_at REAL, decided_at REAL);
 """
 
 
@@ -628,7 +632,28 @@ LOCAL_TOOLS: Dict[str, tuple] = {
     "get_trace": (l_get_trace, "local_read", _obj({"trace_id": _S}, ["trace_id"]), "One engine call by trace id."),
     "list_audit_events": (l_list_audit_events, "local_read", _obj({"limit": _I}),
                           "Engine calls that changed something or were refused."),
+    # Phase 9 delta engine (item 25), ported into the reactor: see phase9.py for what each op really does.
+    "delta_state": (lambda a: _p9().t_state(a), "local_read", _obj({"limit": _I}),
+                    "Phase 9 state: the 3D vector, the ∆⁹ layers (max 9) and recent operations."),
+    "delta_amplify": (lambda a: _p9().t_amplify(a), "local_write", _obj({"factor": {"type": "number"}, "apply": _B}),
+                      "++ amplify the vector magnitude (factor 1.0-2.0, default 1.2, result capped at 1.0)."),
+    "delta_attenuate": (lambda a: _p9().t_attenuate(a), "local_write", _obj({"factor": {"type": "number"}, "apply": _B}),
+                        "-- attenuate the vector magnitude (factor 0.1-1.0, default 0.8)."),
+    "delta_add_layer": (lambda a: _p9().t_add_layer(a), "local_write", _obj({"name": _S, "weight": {"type": "number"}}, ["name"]),
+                        "∆⁹ add a layer (weight 0.1-5); a 10th layer drops the oldest."),
+    "delta_propagate": (lambda a: _p9().t_propagate(a), "local_write", _obj({"target": {"type": "number"}}, ["target"]),
+                        "∆ move each layer toward a target (-10..10) with momentum 0.9 and a 1% step."),
+    "delta_set_vector": (lambda a: _p9().t_set_vector(a), "local_write",
+                         _obj({"theta": {"type": "number"}, "phi": {"type": "number"}, "magnitude": {"type": "number"}}),
+                         "³ set the 3D vector from angles and a magnitude (0-100)."),
+    "delta_reset": (lambda a: _p9().t_reset(a), "local_write", _obj({}),
+                    "Clear the Phase 9 layers and history (backs up first)."),
 }
+
+
+def _p9():
+    from . import phase9
+    return phase9
 
 
 # ── Dispatcher ─────────────────────────────────────────────────────────────────────────────
@@ -654,6 +679,11 @@ def status() -> Dict[str, Any]:
                             "nimlab": "local_read open; nvidia_call/nvidia_batch rate limited, nvidia.com only; "
                                       "sweeps, discovery, image generation, voice cloning, role changes refused"},
             "shell": "none (no local run_command)",
+            "risk_tiers": {"L0": "read-only on this machine: runs", "L1": "limited outside reading or the engine's own "
+                           "store: runs, with rate and cost limits", "L2": "outside writing, running code or spending "
+                           "money: held for One2lv's approval when Lumenis asks", "L3": "destructive: held, and needs "
+                           "a second confirmation code"},
+            "pending_approvals": len(list_approvals("pending", 100)),
             "nimlab": _nim.summary()}
 
 
@@ -669,8 +699,10 @@ def list_tools(kind: Optional[str] = None, q: Optional[str] = None) -> List[Dict
                      "level": lvl, "description": (t.get("description") or "")[:240],
                      "local_equivalent": f"local.{name}" if name in LOCAL_TOOLS else None,
                      "why_remote": why_remote(name)})
+    for r in rows:
+        r["tier"] = f"L{tier_of(r['name'])}"
     if kind:
-        rows = [r for r in rows if r["kind"] == kind or r["level"] == kind]
+        rows = [r for r in rows if r["kind"] == kind or r["level"] == kind or r["tier"] == kind]
     if q:
         rows = [r for r in rows if q.lower() in (r["name"] + " " + r["description"]).lower()]
     return rows
@@ -716,8 +748,127 @@ def _trace(tool, kind, level, source, ok, status_code, args, error, t0, caller) 
     return tid
 
 
+# ── Risk tiers (item 7) ─────────────────────────────────────────────────────────────────────
+#   L0 read-only on this machine          -> runs
+#   L1 limited outside reading, or writes to the engine's own store (missions, charts, artifacts, catalog)
+#                                          -> runs (outside reads keep their rate and cost limits)
+#   L2 outside writing, running code, or spending money (nvidia_batch)
+#                                          -> held for One2lv's approval when Lumenis (caller "council") asks
+#   L3 destructive (deletes, or a refused paid/secret tool)
+#                                          -> held, and approval needs a second confirmation code
+# In-process owner code (caller "api") is trusted; HTTP callers need ?confirm=yes for L3.
+TIER_BY_LEVEL = {"engine_read": 0, "local_read": 0, "remote_read": 1, "nvidia_call": 1, "engine_write": 1,
+                 "local_write": 1, "nvidia_batch": 2, "remote_write": 3, "refused": 3}
+TIER_OVERRIDES = {"local.delete_chart": 3, "engine.rollback_catalog": 1, "engine.learn": 1,
+                  "local.delta_reset": 2}
+APPROVAL_TTL = 24 * 3600
+
+
+def tier_of(name: str) -> int:
+    """Risk tier of a tool by name, without running it. Unknown tools count as L3."""
+    name = name.strip()
+    if name in TIER_OVERRIDES:
+        return TIER_OVERRIDES[name]
+    ns, _, bare = name.rpartition(".")
+    ns = ns or "sfcompute"
+    try:
+        if ns == "engine":
+            return 0
+        if ns == "local":
+            return TIER_BY_LEVEL[LOCAL_TOOLS[bare][1]]
+        if ns == "nimlab":
+            return TIER_BY_LEVEL[_nim.TOOLS[bare][1]]
+        if ns == "sfcompute":
+            t = _tool_map().get(bare)
+            return TIER_BY_LEVEL[remote_level(bare, t)] if t else 3
+    except KeyError:
+        return 3
+    return 3
+
+
+def _intent(name: str, tier: int, caller: str, args: Dict[str, Any], decision: str) -> str:
+    """Soul rule 5: every tool call is logged here BEFORE it runs (or is held)."""
+    iid = "i_" + uuid.uuid4().hex[:12]
+    try:
+        _exec("INSERT INTO intents (id,tool,tier,caller,args,decision,created_at) VALUES (?,?,?,?,?,?,?)",
+              (iid, name, f"L{tier}", caller, _safe_args(args), decision, time.time()))
+        _exec("DELETE FROM intents WHERE id NOT IN (SELECT id FROM intents ORDER BY created_at DESC LIMIT 20000)")
+    except Exception:
+        pass
+    return iid
+
+
+def _hold(name: str, args: Dict[str, Any], tier: int, caller: str, reason: str) -> Dict[str, Any]:
+    aid = "a_" + uuid.uuid4().hex[:10]
+    _exec("INSERT INTO approvals (id,tool,args,tier,caller,reason,status,created_at) VALUES (?,?,?,?,?,?,?,?)",
+          (aid, name, json.dumps(args, default=str), f"L{tier}", caller, reason, "pending", time.time()))
+    return {"ok": False, "tool": name, "kind": "held", "level": f"L{tier}", "tier": f"L{tier}", "source": "none",
+            "status": 202, "held_for_approval": True, "approval_id": aid,
+            "error": f"{name} is risk tier L{tier}: held for One2lv's approval (approval {aid}); nothing ran"
+                     + ("; L3 also needs a second confirmation" if tier >= 3 else "")}
+
+
+def list_approvals(status: Optional[str] = "pending", limit: int = 20) -> List[Dict[str, Any]]:
+    _exec("UPDATE approvals SET status='expired' WHERE status IN ('pending','confirm') AND created_at<?",
+          (time.time() - APPROVAL_TTL,))
+    q = "SELECT id,tool,args,tier,caller,reason,status,created_at,decided_at FROM approvals"
+    rows = _rows(q + (" WHERE status=?" if status else "") + " ORDER BY created_at DESC LIMIT ?",
+                 ((status, limit) if status else (limit,)))
+    for r in rows:
+        r["args"] = redact(r["args"] or "")[:500]
+        r["created"] = _iso(r.pop("created_at"))
+    return rows
+
+
+async def decide_approval(aid: str, approve: bool, by_owner: bool, confirm_code: Optional[str] = None) -> Dict[str, Any]:
+    """One2lv approves or denies a held call. L3: the first approval returns a code; repeat with it to run."""
+    if not by_owner:
+        return {"ok": False, "status": 403, "error": "only One2lv can approve held tool calls"}
+    list_approvals(None, 1)  # expire stale ones
+    rows = _rows("SELECT * FROM approvals WHERE id=?", (aid,))
+    if not rows:
+        return {"ok": False, "status": 404, "error": f"no approval {aid!r}"}
+    a = rows[0]
+    if a["status"] not in ("pending", "confirm"):
+        return {"ok": False, "status": 409, "error": f"approval {aid} is already {a['status']}"}
+    if not approve:
+        _exec("UPDATE approvals SET status='denied', decided_at=? WHERE id=?", (time.time(), aid))
+        return {"ok": True, "status": 200, "approval_id": aid, "decision": "denied", "ran": False}
+    if a["tier"] == "L3":
+        if a["status"] == "pending":
+            code = uuid.uuid4().hex[:6]
+            _exec("UPDATE approvals SET status='confirm', confirm_code=? WHERE id=?", (code, aid))
+            return {"ok": True, "status": 200, "approval_id": aid, "decision": "confirm_needed", "ran": False,
+                    "confirm_code": code, "note": f"L3 (destructive): approve again with code {code} to run it"}
+        if (confirm_code or "").strip() != a["confirm_code"]:
+            return {"ok": False, "status": 403, "approval_id": aid, "error": "wrong or missing confirmation code"}
+    out = await dispatch(a["tool"], json.loads(a["args"] or "{}"), caller="owner_approved", approved=True)
+    _exec("UPDATE approvals SET status='approved', decided_at=?, result=? WHERE id=?",
+          (time.time(), json.dumps({"ok": out["ok"], "status": out["status"], "trace_id": out.get("trace_id")}), aid))
+    return {"ok": out["ok"], "status": out["status"], "approval_id": aid, "decision": "approved", "ran": True,
+            "result": out}
+
+
 async def dispatch(name: str, args: Optional[Dict[str, Any]] = None, fresh: bool = False,
-                   caller: str = "api") -> Dict[str, Any]:
+                   caller: str = "api", approved: bool = False) -> Dict[str, Any]:
+    """Risk-tier gate in front of _dispatch_inner. Logs the intent first, then runs or holds the call."""
+    args = dict(args or {})
+    args.pop("tool", None)
+    tier = tier_of(name)
+    if not approved and caller == "council" and tier >= 2:
+        _intent(name, tier, caller, args, "held")
+        return _hold(name, args, tier, caller, "Lumenis asked for a tool at L2 or higher")
+    if not approved and caller == "http" and tier >= 3:
+        _intent(name, tier, caller, args, "held")
+        return _hold(name, args, tier, caller, "HTTP call to an L3 tool without ?confirm=yes")
+    _intent(name, tier, caller, args, "approved_run" if approved else "run")
+    out = await _dispatch_inner(name, args, fresh=fresh, caller=caller)
+    out["tier"] = f"L{tier}"
+    return out
+
+
+async def _dispatch_inner(name: str, args: Optional[Dict[str, Any]] = None, fresh: bool = False,
+                          caller: str = "api") -> Dict[str, Any]:
     """Run one tool. Always answers {ok, tool, kind, level, source, status, result|error, trace_id}."""
     args = dict(args or {})
     args.pop("tool", None)
@@ -908,12 +1059,34 @@ async def r_validate(name: str, request: Request):
 
 
 @router.post("/engine/call/{name:path}")
-async def r_call(name: str, request: Request, fresh: bool = False):
+async def r_call(name: str, request: Request, fresh: bool = False, confirm: str = ""):
     try:
         args = await _body(request)
     except Exception as e:
         return JSONResponse({"ok": False, "status": 400, "error": str(e)}, status_code=400)
-    return _reply(await dispatch(name, args, fresh=fresh, caller="http"))
+    if confirm == "yes":
+        _gate_owner(request)
+    return _reply(await dispatch(name, args, fresh=fresh, caller="http", approved=(confirm == "yes")))
+
+
+def _gate_owner(request: Request):
+    """Tunnel traffic must have passed Cloudflare Access; local calls pass."""
+    h = request.headers
+    if h.get("cf-connecting-ip") and not (h.get("cf-access-jwt-assertion") or h.get("cf-access-authenticated-user-email")):
+        raise HTTPException(403, "owner sign-in (Cloudflare Access) required")
+
+
+@router.get("/engine/approvals")
+async def r_approvals(status: str = "pending"):
+    return JSONResponse({"approvals": list_approvals(None if status == "all" else status, 50)})
+
+
+@router.post("/engine/approvals/{aid}/{decision}")
+async def r_decide(aid: str, decision: str, request: Request, code: str = ""):
+    _gate_owner(request)
+    if decision not in ("approve", "deny"):
+        return JSONResponse({"ok": False, "error": "decision is approve or deny"}, status_code=400)
+    return _reply(await decide_approval(aid, decision == "approve", by_owner=True, confirm_code=code))
 
 
 @router.get("/engine/artifacts/{aid}/download")

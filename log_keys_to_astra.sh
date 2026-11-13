@@ -13,7 +13,7 @@ MESSAGE="System Configuration Update - $(date '+%Y-%m-%d %H:%M:%S')
 Working API Configuration:
 - Embedding Model: nvidia/nemotron-3.5-embed-1b (2048 dimensions)
 - LLM Model: nvidia/nemotron-3.5-lightning-30b-a3b
-- ASTRA DB: Connected to one2lvOS keyspace
+- ASTRA DB: Connected to default_keyspace
 - Memory Collection: aria_memory
 - Vector Dimension: 2048
 
@@ -40,7 +40,7 @@ message = """System Configuration Update - """ + datetime.now().strftime("%Y-%m-
 Working API Configuration:
 - Embedding Model: nvidia/nemotron-3.5-embed-1b (2048 dimensions)
 - LLM Model: nvidia/nemotron-3.5-lightning-30b-a3b
-- ASTRA DB: Connected to one2lvOS keyspace
+- ASTRA DB: Connected to default_keyspace
 - Memory Collection: aria_memory
 - Vector Dimension: 2048
 

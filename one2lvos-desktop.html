@@ -1098,8 +1098,161 @@
                         <div id="lumenis-canvas-container" style="width:100%;height:100%;"></div>
                     </div>
                 `
+            },
+            // Item 13: the swarm, driven by real data. Raccoons are the nine council seats and light up when
+            // they really fire (reactor event "council_live"); nodes are memory facts and dream records;
+            // lines are real recalls from recent turns (/api/council/live). Nothing here is animated from fake data.
+            'council-live': {
+                name: 'Council Live',
+                icon: 'fas fa-project-diagram',
+                color: 'text-emerald-400',
+                width: 860,
+                height: 600,
+                onOpen: () => setTimeout(clInit, 60),
+                content: `
+                    <div id="cl-root" style="position:relative;width:100%;height:100%;background:#05080d;overflow:hidden;font-family:monospace;color:#9fe">
+                        <canvas id="cl-canvas" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+                        <div id="cl-info" style="position:absolute;left:8px;top:6px;font-size:11px;opacity:.85;pointer-events:none"></div>
+                        <div id="cl-legend" style="position:absolute;right:8px;bottom:6px;font-size:10px;opacity:.7;pointer-events:none">raccoon = council seat (bright = just fired) &middot; green = memory &middot; violet = dream &middot; line = recall</div>
+                    </div>`
+            },
+            // Item 14: Master Terminal. Roles = live seat status; commands go to Lumenis through /api/chat;
+            // repo panel reads this One2lvos checkout (owner sign-in). All typed and returned text is set with
+            // textContent, never as HTML.
+            'master-terminal': {
+                name: 'Master Terminal',
+                icon: 'fas fa-terminal',
+                color: 'text-amber-400',
+                width: 900,
+                height: 580,
+                onOpen: () => setTimeout(mtInit, 60),
+                content: `
+                    <div id="mt-root" style="display:flex;width:100%;height:100%;background:#0b0f14;color:#cfe;font-family:monospace;font-size:12px">
+                        <div style="width:170px;border-right:1px solid #1d2a36;padding:8px;overflow:auto">
+                            <div style="color:#7ab;font-weight:bold;margin-bottom:6px">ROLES (live)</div>
+                            <div id="mt-roles"></div>
+                        </div>
+                        <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+                            <div id="mt-log" style="flex:1;overflow:auto;padding:8px;white-space:pre-wrap;word-break:break-word"></div>
+                            <form id="mt-form" style="display:flex;border-top:1px solid #1d2a36">
+                                <span style="padding:8px;color:#fc6">lumenis&gt;</span>
+                                <input id="mt-input" autocomplete="off" placeholder="message or /command (e.g. /status, /match, /help)" style="flex:1;background:transparent;border:0;outline:0;color:#efe;font:inherit;padding:8px">
+                            </form>
+                        </div>
+                        <div style="width:250px;border-left:1px solid #1d2a36;padding:8px;overflow:auto">
+                            <div style="color:#7ab;font-weight:bold;margin-bottom:6px">REPO one2lv-com/One2lvos</div>
+                            <div id="mt-repo">loading...</div>
+                        </div>
+                    </div>`
             }
         };
+
+        // ── Council Live + Master Terminal shared ──
+        const CL_SEATS = ['sentinel','navigator','witness','forge','oracle','weaver','hermes','architect','gambit'];
+        const CL = { flash: {}, data: null, raf: 0, timer: 0, ws: null };
+        function clEl(tag, text, style) { const e = document.createElement(tag); if (text != null) e.textContent = String(text); if (style) e.style.cssText = style; return e; }
+        function clConnectWs() {
+            if (CL.ws && CL.ws.readyState <= 1) return;
+            try {
+                CL.ws = new WebSocket(O2_WS('/ws'));
+                CL.ws.onmessage = (ev) => {
+                    let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+                    if (m.type === 'council_live' && CL_SEATS.includes(m.seat)) { CL.flash[m.seat] = performance.now(); mtRoles(); }
+                };
+                CL.ws.onclose = () => { CL.ws = null; };
+            } catch (e) {}
+        }
+        async function clFetch() {
+            try { CL.data = await ihJson('/api/council/live'); CL.err = null; }
+            catch (e) { CL.err = e.message; }
+            mtRoles();
+        }
+        function clInit() {
+            const cv = document.getElementById('cl-canvas'); if (!cv) return;
+            clConnectWs(); clFetch();
+            clearInterval(CL.timer); CL.timer = setInterval(() => { if (!document.getElementById('cl-canvas') && !document.getElementById('mt-roles')) { clearInterval(CL.timer); return; } clFetch(); }, 5000);
+            cancelAnimationFrame(CL.raf);
+            const draw = () => {
+                const c = document.getElementById('cl-canvas'); if (!c) return;
+                const W = c.clientWidth, H = c.clientHeight, dpr = window.devicePixelRatio || 1;
+                if (c.width !== W * dpr) { c.width = W * dpr; c.height = H * dpr; }
+                const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
+                const t = performance.now(), cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.22;
+                const seatPos = {};
+                CL_SEATS.forEach((s, i) => { const a = -Math.PI / 2 + i * 2 * Math.PI / CL_SEATS.length; seatPos[s] = [cx + R * Math.cos(a), cy + R * Math.sin(a)]; });
+                const nodes = (CL.data && CL.data.nodes) || [], nodePos = {};
+                nodes.forEach((n, i) => { const a = i * 2.399963 + t / 60000, rr = Math.min(W, H) * (0.36 + 0.1 * ((i * 37) % 10) / 10); nodePos[n.id] = [cx + rr * Math.cos(a), cy + rr * Math.sin(a)]; });
+                ((CL.data && CL.data.links) || []).forEach(l => {
+                    const a = seatPos[l.from], b = nodePos[l.to]; if (!a || !b) return;
+                    const age = (Date.now() / 1000) - l.ts; g.strokeStyle = `rgba(120,220,255,${Math.max(0.12, 0.8 - age / 600)})`;
+                    g.lineWidth = 1; g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+                });
+                nodes.forEach(n => { const p = nodePos[n.id]; g.fillStyle = n.kind === 'dream' ? '#b07cff' : n.kind === 'error' ? '#f55' : '#4ee08a';
+                    g.beginPath(); g.arc(p[0], p[1], 3 + Math.min(6, n.recalls * 1.5), 0, 7); g.fill();
+                    if (n.recalls) { g.fillStyle = '#9ab'; g.font = '9px monospace'; g.fillText(n.label.slice(0, 26), p[0] + 6, p[1] + 3); } });
+                const seatInfo = {}; ((CL.data && CL.data.seats) || []).forEach(s => seatInfo[s.seat] = s);
+                CL_SEATS.forEach(s => { const [x, y] = seatPos[s]; const f = CL.flash[s] ? Math.max(0, 1 - (t - CL.flash[s]) / 2500) : 0;
+                    const glow = Math.max(f, seatInfo[s] && seatInfo[s].active ? 0.6 : 0);
+                    g.fillStyle = `rgba(255,200,80,${0.12 + glow * 0.6})`; g.beginPath(); g.arc(x, y, 18 + glow * 8, 0, 7); g.fill();
+                    g.globalAlpha = 0.35 + glow * 0.65; g.font = '20px serif'; g.textAlign = 'center'; g.fillText('\u{1F99D}', x, y + 7); g.globalAlpha = 1;
+                    g.fillStyle = glow ? '#ffd27a' : '#7a8a99'; g.font = '10px monospace'; g.fillText(s + (seatInfo[s] ? ' ' + seatInfo[s].fired : ''), x, y + 30); g.textAlign = 'left'; });
+                const info = document.getElementById('cl-info');
+                if (info) info.textContent = CL.err ? ('Not connected: ' + CL.err) : CL.data ? (`${nodes.length} memory/dream nodes, ${(CL.data.links || []).length} recall lines, ${(CL.data.turns || []).length} recent turns (since ${CL.data.since})`) : 'loading...';
+                CL.raf = requestAnimationFrame(draw);
+            };
+            draw();
+        }
+        function mtRoles() {
+            const box = document.getElementById('mt-roles'); if (!box) return;
+            box.replaceChildren();
+            if (CL.err) { box.appendChild(clEl('div', 'Not connected: ' + CL.err, 'color:#f88')); return; }
+            const info = {}; ((CL.data && CL.data.seats) || []).forEach(s => info[s.seat] = s);
+            const now = performance.now();
+            CL_SEATS.forEach(s => {
+                const i = info[s] || {}, hot = (CL.flash[s] && now - CL.flash[s] < 4000) || i.active;
+                const row = clEl('div', null, 'display:flex;justify-content:space-between;padding:2px 0;color:' + (hot ? '#ffd27a' : '#8aa'));
+                row.appendChild(clEl('span', (hot ? '\u25CF ' : '\u25CB ') + s));
+                row.appendChild(clEl('span', i.last_fired_s_ago == null ? 'idle' : Math.round(i.last_fired_s_ago) + 's', 'opacity:.7'));
+                box.appendChild(row);
+            });
+        }
+        function mtLog(who, text, color) {
+            const log = document.getElementById('mt-log'); if (!log) return;
+            const line = clEl('div', null, 'margin:2px 0');
+            line.appendChild(clEl('span', who + ' ', 'color:' + (color || '#7ab')));
+            line.appendChild(clEl('span', text));      // textContent: never parsed as HTML
+            log.appendChild(line); log.scrollTop = log.scrollHeight;
+        }
+        async function mtRepo() {
+            const box = document.getElementById('mt-repo'); if (!box) return;
+            box.replaceChildren();
+            try {
+                const r = await ihJson('/api/repo/summary');
+                box.appendChild(clEl('div', `${r.branch} @ ${r.head}`, 'color:#fc6'));
+                box.appendChild(clEl('div', `${r.changed_files} changed, ${r.untracked} untracked`, 'opacity:.8;margin-bottom:6px'));
+                if (r.tags && r.tags.length) box.appendChild(clEl('div', 'known-good: ' + r.tags[0], 'color:#6d6;margin-bottom:6px'));
+                (r.commits || []).forEach(c => { const d = clEl('div', null, 'margin:3px 0'); d.appendChild(clEl('span', c.hash + ' ', 'color:#7ab')); d.appendChild(clEl('span', c.subject)); d.appendChild(clEl('div', c.when, 'opacity:.55;font-size:10px')); box.appendChild(d); });
+            } catch (e) { box.appendChild(clEl('div', 'Repo needs owner sign-in: ' + e.message, 'color:#f88')); }
+        }
+        function mtInit() {
+            const form = document.getElementById('mt-form'); if (!form) return;
+            clConnectWs(); clFetch(); mtRepo();
+            clearInterval(CL.timer); CL.timer = setInterval(() => { if (!document.getElementById('mt-roles') && !document.getElementById('cl-canvas')) { clearInterval(CL.timer); return; } clFetch(); }, 5000);
+            mtLog('sys', 'Connected to the reactor bridge. Messages go to Lumenis via /api/chat; slash commands run his tools.');
+            let sid = null;
+            form.onsubmit = async (e) => {
+                e.preventDefault();
+                const inp = document.getElementById('mt-input'); const text = inp.value.trim(); if (!text) return;
+                inp.value = ''; mtLog('you>', text, '#fc6');
+                try {
+                    const r = await ihJson('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ message: text, session_id: sid, channel: 'master-terminal' }) });
+                    sid = r.session_id;
+                    mtLog('lumenis>', r.response || '(no reply)', '#6d6');
+                    mtLog('', `route ${r.route}${r.intent ? ', intent ' + r.intent : ''}${r.seats_activated && r.seats_activated.length ? ', seats ' + r.seats_activated.join(' ') : ''}`, '#567');
+                } catch (err) { mtLog('error>', err.message, '#f88'); }
+                clFetch(); mtRepo();
+            };
+        }
 
         // ── Integrations Hub ── every state shown here comes from the reactor's own checks
         // (/api/desktop/integrations, /api/live_status). Nothing is assumed to work.

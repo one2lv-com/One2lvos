@@ -1,7 +1,8 @@
 #!/bin/bash
 # Clear any existing builds
 echo "Starting ARIA APK Build with Progress Tracking..."
-cd /root/agent
+# Portable path (item 18): run from the folder this script is in (or ARIA_BUILD_DIR).
+cd "${ARIA_BUILD_DIR:-$(dirname "$(readlink -f "$0")")}" || exit 1
 
 # Run buildozer in the background and redirect output to a log
 buildozer -v android debug > build_output.log 2>&1 &

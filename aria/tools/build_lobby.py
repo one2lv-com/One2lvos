@@ -5,6 +5,7 @@ Allows multiple AI agents to coordinate, share state, and chat during builds.
 
 import json
 import time
+import os
 import threading
 import uuid
 from pathlib import Path
@@ -68,8 +69,15 @@ class BuildLobby:
     Supports locking for concurrent access across processes/containers.
     """
     
-    def __init__(self, lobby_path: str = "/root/agent/build_lobby.json"):
+    def __init__(self, lobby_path: Optional[str] = None):
+        # Portable path (item 18): ARIA_BUILD_LOBBY, else data/build_lobby.json at the repo root.
+        # The old default /root/agent/build_lobby.json crashed ARIA on any machine without /root/agent.
+        if lobby_path is None:
+            lobby_path = os.environ.get("ARIA_BUILD_LOBBY") or str(
+                Path(__file__).resolve().parents[2 if Path(__file__).resolve().parent.parent.name == "aria" else 1]
+                / "data" / "build_lobby.json")
         self.lobby_path = Path(lobby_path)
+        self.lobby_path.parent.mkdir(parents=True, exist_ok=True)
         self.lock_path = Path(str(lobby_path) + ".lock")
         self._lock = threading.Lock()
         self._ensure_lobby()
@@ -111,8 +119,19 @@ class BuildLobby:
         with self._lock:
             self._acquire_lock()
             try:
-                with open(self.lobby_path, 'r') as f:
-                    return json.load(f)
+                try:
+                    with open(self.lobby_path, 'r') as f:
+                        return json.load(f)
+                except (json.JSONDecodeError, FileNotFoundError):
+                    # A half-written file used to crash ARIA at start. Keep the bad copy, start a fresh lobby.
+                    if self.lobby_path.exists():
+                        self.lobby_path.replace(self.lobby_path.with_suffix(".corrupt.json"))
+                    return {"lobby_id": f"aria-build-{uuid.uuid4().hex[:8]}", "participants": [],
+                            "build_state": {"phase": "idle", "progress_pct": 0, "current_step": None,
+                                            "blockers": [], "patches_applied": [], "artifacts_cached": []},
+                            "messages": [], "sync_protocol": {"heartbeat_interval_sec": 30,
+                                                              "state_file": str(self.lobby_path),
+                                                              "lock_file": str(self.lock_path)}}
             finally:
                 self._release_lock()
     
@@ -120,8 +139,13 @@ class BuildLobby:
         with self._lock:
             self._acquire_lock()
             try:
-                with open(self.lobby_path, 'w') as f:
-                    json.dump(data, f, indent=2)
+                # Enums (AgentRole, MessageType) are written as their values, and the file is replaced
+                # atomically, so a failed write can never leave half a JSON file behind.
+                text = json.dumps(data, indent=2, default=lambda o: o.value if isinstance(o, Enum) else str(o))
+                tmp = self.lobby_path.with_suffix(".tmp")
+                with open(tmp, 'w') as f:
+                    f.write(text)
+                os.replace(tmp, self.lobby_path)
             finally:
                 self._release_lock()
     

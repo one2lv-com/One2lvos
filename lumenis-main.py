@@ -12,6 +12,7 @@ import asyncio
 import time
 import json
 import os
+import subprocess
 import sqlite3
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -32,12 +33,13 @@ try:
 except Exception as _wd_boot_err:  # never let Who Dat break the reactor boot
     print(f"⚠ Who Dat not available: {type(_wd_boot_err).__name__}")
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from lumenis_reactor_core import LumenisReactor, NvidiaReactor, FluxCompass, ITTCouncil, MatonBridge, VanguardNodePool
 from lumenis_reactor_core import astra_vectors as _astra_mem
+from lumenis_reactor_core import slash as _slash
 
 # ── Global instances ──────────────────────────────────────────────────────────
 reactor = LumenisReactor()
@@ -49,6 +51,20 @@ node_pool = VanguardNodePool()
 
 # Active WebSocket connections for broadcasting
 _ws_clients: set[WebSocket] = set()
+# Live council view (items 13-14): seat firings and recall links from real turns, newest last.
+import collections as _collections
+_council_events: "_collections.deque" = _collections.deque(maxlen=400)   # (ts, seat)
+_council_turns: "_collections.deque" = _collections.deque(maxlen=40)     # real turns with recall links
+
+
+async def _council_live_push(seat: str):
+    """Tell connected desktops a seat fired. Seat name and time only: never the text."""
+    _council_events.append((time.time(), seat))
+    for c in list(_ws_clients):
+        try:
+            await c.send_json({"type": "council_live", "seat": seat, "ts": time.time()})
+        except Exception:
+            pass
 
 
 async def broadcast(msg: dict):
@@ -401,6 +417,26 @@ async def handle_chat(ws: WebSocket, msg: dict):
     # Persist user message
     compass.add_message(session_id, "user", user_text)
 
+    # Slash commands (/soul /memory /skills /status /ai-lobby /revert ...): answered by the reactor itself,
+    # from real checks, with no model call. Same code path for lumenis-chat, Discord and KAI.
+    if _slash.is_command(user_text):
+        owner = _slash.owner_from_ws(ws.headers, msg)
+        channel = "discord" if msg.get("identity") == "discord_owner" or str(msg.get("guest_name", "")).startswith(
+            "discord:") else str(msg.get("channel") or "chat")[:20]
+        await ws.send_json({"type": "processing_start", "session_id": session_id})
+        answer = await _slash.handle(user_text, owner=owner, compass=compass, channel=channel) or "Unknown command."
+        compass.add_message(session_id, "assistant", answer)
+        try:
+            await ws.send_json({"type": "response_chunk", "text": answer, "session_id": session_id})
+            await ws.send_json({"type": "processing_done", "session_id": session_id,
+                                "meta": {"intent": "slash_command", "path": "slash", "seats_activated": [],
+                                         "owner": owner, "guest_mode": guest, "channel": channel,
+                                         "timings": {"layers": ["soul" if user_text.startswith("/soul") else
+                                                                "skill"]}}})
+        except Exception:
+            pass
+        return
+
     # Signal processing start
     await ws.send_json({"type": "processing_start", "session_id": session_id})
 
@@ -412,6 +448,7 @@ async def handle_chat(ws: WebSocket, msg: dict):
                 await ws.send_json({"type": "response_chunk", "text": text})
             else:
                 await ws.send_json({"type": "seat_activity", "seat": seat, "text": text})
+                await _council_live_push(seat)
         except (RuntimeError, Exception):
             pass  # Client disconnected while reasoning model was still thinking
 
@@ -451,6 +488,11 @@ async def handle_chat(ws: WebSocket, msg: dict):
         return
 
     decision = node.result
+    _tm = decision.timings or {}
+    _council_turns.append({"ts": time.time(), "guest": guest, "seats": list(decision.seats_activated or []),
+                           "intent": decision.intent, "path": decision.path,
+                           "facts": [] if guest else _tm.get("recalled_facts", []),
+                           "dreams": [] if guest else _tm.get("recalled_dreams", [])})
 
     # Persist assistant message
     compass.add_message(session_id, "assistant", decision.final_response, "weaver")
@@ -530,6 +572,124 @@ async def get_learning():
 
 
 # ── Frontier #2: External Integration — NLP intent parser ────────────────────
+@app.get("/api/council/live")
+async def council_live(request: Request):
+    """Live council view data (items 13-14), owner only (memory labels are private).
+    seats: the nine seats with how often and when each last fired (real firings since the reactor started);
+    nodes: memory facts and dream records recalled in recent turns, plus the newest facts;
+    links: seat -> node for each recall (Witness recalls memory), turn by turn."""
+    if not _owner_http(request):
+        return JSONResponse({"ok": False, "error": "owner sign-in required"}, status_code=403)
+    from lumenis_reactor_core.itt import SEATS as _SEATS
+    now = time.time()
+    seats = []
+    for k in _SEATS:
+        fired = [t for t, s in _council_events if s == k]
+        seats.append({"seat": k, "fired": len(fired), "last_fired_s_ago": round(now - fired[-1], 1) if fired else None,
+                      "active": bool(fired and now - fired[-1] < 6)})
+    nodes, links = {}, []
+    for t in _council_turns:
+        for f in t["facts"]:
+            nid = f"fact:{f['id']}"
+            nodes.setdefault(nid, {"id": nid, "kind": "memory", "label": f["label"], "recalls": 0})["recalls"] += 1
+            links.append({"from": "witness", "to": nid, "ts": t["ts"]})
+        for d in t["dreams"]:
+            nid = f"dream:{d['id']}"
+            nodes.setdefault(nid, {"id": nid, "kind": "dream", "label": d["label"], "recalls": 0})["recalls"] += 1
+            links.append({"from": "witness", "to": nid, "ts": t["ts"]})
+    try:
+        with compass._connect() as conn:
+            for fid, key, ver in conn.execute("SELECT id, key, COALESCE(verification,'') FROM facts "
+                                              "ORDER BY created_at DESC LIMIT 18"):
+                nid = f"fact:{fid}"
+                nodes.setdefault(nid, {"id": nid, "kind": "dream" if ver == "dream" else "memory",
+                                       "label": str(key)[:60], "recalls": 0})
+    except Exception as e:
+        nodes["error"] = {"id": "error", "kind": "error", "label": f"fact store unreadable: {type(e).__name__}",
+                          "recalls": 0}
+    return JSONResponse({"ok": True, "seats": seats, "nodes": list(nodes.values()), "links": links[-60:],
+                         "turns": [{k: t[k] for k in ("ts", "seats", "intent", "path", "guest")}
+                                   for t in list(_council_turns)[-10:]],
+                         "since": "reactor start", "server_time": now})
+
+
+@app.get("/api/repo/summary")
+async def repo_summary(request: Request):
+    """Master Terminal repo panel (item 14), owner only: this One2lvos checkout read with git, read-only."""
+    if not _owner_http(request):
+        return JSONResponse({"ok": False, "error": "owner sign-in required"}, status_code=403)
+    root = os.path.dirname(os.path.abspath(__file__))
+
+    def g(*a):
+        r = subprocess.run(["git", "-C", root, *a], capture_output=True, text=True, timeout=15)
+        return r.stdout.strip() if r.returncode == 0 else ""
+    remote = g("remote", "get-url", "origin")
+    if "@" in remote and "://" in remote:          # never show a credential in a URL
+        remote = remote.split("://")[0] + "://" + remote.split("@", 1)[1]
+    status = g("status", "--porcelain").splitlines()
+    commits = [dict(zip(("hash", "when", "subject"), l.split("\x1f", 2)))
+               for l in g("log", "-12", "--format=%h%x1f%cr%x1f%s").splitlines()]
+    return JSONResponse({"ok": True, "repo": "one2lv-com/One2lvos", "remote": remote,
+                         "branch": g("rev-parse", "--abbrev-ref", "HEAD"), "head": g("rev-parse", "--short", "HEAD"),
+                         "changed_files": len(status), "untracked": sum(1 for l in status if l.startswith("??")),
+                         "tags": g("tag", "--list", "known-good-*", "--sort=-creatordate").splitlines()[:5],
+                         "commits": commits})
+
+
+@app.post("/api/chat")
+async def api_chat(request: Request):
+    """One chat endpoint that routes (item 15), for clients without a WebSocket (APK, scripts, bridges).
+    Body {"message": "...", "session_id"?: "...", "guest"?: bool, "mode"?: "voice"}.
+    Routing is the same as /ws: a slash command goes to the reactor's own tools (no model call); anything else
+    goes to the council, whose Navigator picks the intent and the seats (Hermes for web, Gambit for games,
+    Forge for code, Architect for system), and the Arbiter checks the answer. Owner = this machine or a
+    Cloudflare Access sign-in; everyone else is a guest. Typed identity claims never count."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    text = str(body.get("message") or body.get("text") or "").strip()
+    if not text:
+        return JSONResponse({"ok": False, "error": "no message"}, status_code=400)
+    owner = _owner_http(request)
+    guest = (not owner) or body.get("guest") is True
+    session_id = body.get("session_id") or compass.create_session(text[:50])
+    compass.add_message(session_id, "user", text)
+    if _slash.is_command(text):
+        answer = await _slash.handle(text, owner=owner and not guest, compass=compass,
+                                     channel=str(body.get("channel") or "api")[:20]) or "Unknown command."
+        compass.add_message(session_id, "assistant", answer)
+        return JSONResponse({"ok": True, "session_id": session_id, "response": answer,
+                             "route": "slash", "seats_activated": [], "guest_mode": guest})
+    seats_seen = []
+
+    async def stream_cb(seat, chunk):
+        if seat != "response":
+            await _council_live_push(seat)
+            if seat not in seats_seen:
+                seats_seen.append(seat)
+
+    identity = "a guest (decided by the channel, not by what they type)" if guest else ""
+    try:
+        decision = await asyncio.wait_for(council.process(
+            user_message=text, session_id=session_id, stream_cb=stream_cb, guest=guest, identity=identity,
+            identity_verified=False, mode="voice" if str(body.get("mode", "")).lower() == "voice" else "",
+            learn=body.get("no_learn") is not True), timeout=300)
+    except asyncio.TimeoutError:
+        return JSONResponse({"ok": False, "session_id": session_id, "error": "council timed out after 300 s"},
+                            status_code=504)
+    _tm = decision.timings or {}
+    _council_turns.append({"ts": time.time(), "guest": guest, "seats": list(decision.seats_activated or []),
+                           "intent": decision.intent, "path": decision.path,
+                           "facts": [] if guest else _tm.get("recalled_facts", []),
+                           "dreams": [] if guest else _tm.get("recalled_dreams", [])})
+    compass.add_message(session_id, "assistant", decision.final_response, "weaver")
+    return JSONResponse({"ok": True, "session_id": session_id, "response": decision.final_response,
+                         "route": "council", "intent": decision.intent, "path": decision.path,
+                         "seats_activated": decision.seats_activated, "arbiter": decision.arbiter,
+                         "timings": decision.timings, "guest_mode": guest})
+
+
 @app.post("/api/nlp/intent")
 async def parse_intent(payload: dict):
     """
@@ -1172,41 +1332,39 @@ async def tool_system_manifest():
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
+def _owner_http(request: Request) -> bool:
+    """Owner over HTTP: this machine, or the tunnel with Cloudflare Access sign-in headers."""
+    h = request.headers
+    if not h.get("cf-connecting-ip"):
+        return True
+    return bool(h.get("cf-access-jwt-assertion") or h.get("cf-access-authenticated-user-email"))
+
+
 @app.post("/api/tools/system/revert")
-async def tool_system_revert():
-    """Revert to last known working state from GitHub."""
-    import subprocess
+async def tool_system_revert(request: Request):
+    """Safe revert-to-working (owner only). Body {} -> preview with a one-time code;
+    {"confirm": "<code>"} -> backup branch + bundle, then the known-good tag's files as a NEW commit.
+    Replaces the old open `git fetch && git reset --hard origin/main`, which could wipe local work."""
+    from lumenis_reactor_core import revert as _rv
+    if not _owner_http(request):
+        return JSONResponse({"ok": False, "error": "owner sign-in (Cloudflare Access) required"}, status_code=403)
     try:
-        repo_dir = Path(__file__).parent
-        result = subprocess.run(
-            ["git", "fetch", "origin", "main"],
-            cwd=repo_dir,
-            capture_output=True,
-            text=True,
-            timeout=30
-        )
-        if result.returncode != 0:
-            return JSONResponse({"ok": False, "error": f"git fetch failed: {result.stderr}"}, status_code=500)
-
-        result = subprocess.run(
-            ["git", "reset", "--hard", "origin/main"],
-            cwd=repo_dir,
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        if result.returncode != 0:
-            return JSONResponse({"ok": False, "error": f"git reset failed: {result.stderr}"}, status_code=500)
-
-        return JSONResponse({
-            "ok": True,
-            "message": "Reverted to origin/main",
-            "output": result.stdout
-        })
-    except subprocess.TimeoutExpired:
-        return JSONResponse({"ok": False, "error": "operation timed out"}, status_code=500)
+        body = await request.json()
+    except Exception:
+        body = {}
+    try:
+        if body.get("undo"):
+            out = _rv.undo(str(body["undo"]))
+        elif body.get("confirm"):
+            out = _rv.run(str(body["confirm"]))
+        elif body.get("tags"):
+            out = {"ok": True, "tags": _rv.known_good()}
+        else:
+            out = _rv.preview(body.get("target"))
     except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+        out = {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}"}
+    return JSONResponse(out, status_code=200 if out.get("ok") else 409)
+
 
 # ── Tool Registry — lets the UI enumerate all available tools ─────────────
 TOOL_REGISTRY = [
@@ -1394,8 +1552,10 @@ async def tool_lobby_agents():
         return JSONResponse({"error": str(e)}, status_code=503)
 
 @app.post("/api/tools/lobby/broadcast")
-async def tool_lobby_broadcast(body: dict):
-    """Broadcast a message to all agents in the AI Lobby."""
+async def tool_lobby_broadcast(body: dict, request: Request):
+    """Broadcast a message to all agents in the AI Lobby (owner only: the lobby trusts this machine)."""
+    if not _owner_http(request):
+        return JSONResponse({"ok": False, "error": "broadcast is owner-only"}, status_code=403)
     try:
         content = body.get("message", "")
         if not content:
@@ -2627,47 +2787,12 @@ async def save_working_snapshot(payload: dict):
 
 
 @app.post("/api/revert/working")
-async def revert_to_working():
-    """
-    Revert to the last working snapshot.
-    Restores environment and reloads reactor.
-    """
-    try:
-        conn = compass._conn()
-        row = conn.execute(
-            "SELECT id, state_json, created_at FROM working_snapshots "
-            "ORDER BY created_at DESC LIMIT 1"
-        ).fetchone()
-        conn.close()
-
-        if not row:
-            return JSONResponse({
-                "ok": False,
-                "error": "No working snapshot found"
-            }, status_code=404)
-
-        snapshot_id, state_json, created_at = row
-        state = json.loads(state_json)
-
-        # Store revert event in compass
-        compass.store_fact(
-            key="revert.last_working",
-            value=f"Reverted to {snapshot_id} at {datetime.now().isoformat()}",
-            source="revert_system"
-        )
-
-        return JSONResponse({
-            "ok": True,
-            "snapshot_id": snapshot_id,
-            "timestamp": created_at,
-            "message": "Reverted to last working state. Reload to apply changes."
-        })
-
-    except Exception as e:
-        return JSONResponse({
-            "ok": False,
-            "error": str(e)
-        }, status_code=500)
+async def revert_to_working(request: Request):
+    """Old endpoint: it used to log a "Reverted" fact without reverting anything. It now only points to the
+    real, safe revert (POST /api/tools/system/revert, or /revert in lumenis-chat) and changes nothing."""
+    return JSONResponse({"ok": False, "reverted": False,
+                         "error": "this endpoint never reverted anything; use POST /api/tools/system/revert "
+                                  "(preview, then confirm) or type /revert in lumenis-chat"}, status_code=410)
 
 
 @app.get("/api/working/snapshots")
