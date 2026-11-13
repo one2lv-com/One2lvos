@@ -1,5 +1,5 @@
 {
- "at": "2026-11-11 23:34:42 UTC",
+ "at": "2026-11-13 08:24:38 UTC",
  "results": {
   "deps": {
    "ok": true,
@@ -7,19 +7,19 @@
   },
   "tts": {
    "ok": true,
-   "detail": "0.67 s to synthesize, 5.30 s of audio -> 266 Discord 20 ms frames (all 3840 bytes: True); voice Magpie-Multilingual.EN-US.Jason; key NVIDIA_API_KEY"
+   "detail": "0.81 s to synthesize, 4.75 s of audio -> 238 Discord 20 ms frames (all 3840 bytes: True); voice Magpie-Multilingual.EN-US.Jason; key NVIDIA_API_KEY"
   },
   "opus_roundtrip": {
    "ok": true,
-   "detail": "266 frames -> 77155 bytes of Opus -> 266 decoded frames"
+   "detail": "238 frames -> 72588 bytes of Opus -> 238 decoded frames"
   },
   "segmenter": {
    "ok": true,
-   "detail": "one sentence -> 1 utterance (6.34 s); two sentences 2 s apart -> 2 utterances"
+   "detail": "one sentence -> 1 utterance (5.82 s); two sentences 2 s apart -> 2 utterances"
   },
   "asr": {
    "ok": true,
-   "detail": "0.88 s, heard 'Hey Lumenis, the quick brown fox, jumps over the lazy dog near the riverbank.' (100% letter similarity to 'Hey Lumenis, the quick brown fox jumps over the lazy dog near the river bank')"
+   "detail": "0.87 s, heard 'Hey Lumenis, the quick brown fox jumps over the Lumenis near the riverbank.' (90% letter similarity to 'Hey Lumenis, the quick brown fox jumps over the lazy dog near the river bank')"
   },
   "receive_patch": {
    "ok": true,
@@ -27,11 +27,11 @@
   },
   "reactor_voice_mode": {
    "ok": true,
-   "detail": "6.0 s, seats=['sentinel', 'navigator', 'weaver'], reply 'Hi there \u2014 good to hear you.'"
+   "detail": "3.2 s, seats=['sentinel', 'navigator', 'weaver'], reply 'Hi there \u2014 good to hear you.'"
   },
   "reply_to_speech": {
    "ok": true,
-   "detail": "0.57 s, 1.6 s of audio (truncated=False)"
+   "detail": "0.44 s, 1.7 s of audio (truncated=False)"
   }
  }
 }

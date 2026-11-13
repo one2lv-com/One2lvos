@@ -28,6 +28,9 @@ done
 pkill -f "webdav_keepalive.sh" 2>/dev/null || true
 pkill -f "bridge_keepalive.sh" 2>/dev/null || true
 pkill -f "public_bridge.py" 2>/dev/null || true
+if command -v sprite-env >/dev/null 2>&1 && sprite-env services get discord-listener >/dev/null 2>&1; then
+    sprite-env services stop discord-listener >/dev/null 2>&1 || true   # else the service restarts it
+fi
 pkill -f "discord_keepalive.sh" 2>/dev/null || true
 pkill -f "discord_listener.py" 2>/dev/null || true
 pkill -f "webdav_server.py" 2>/dev/null || true
