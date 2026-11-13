@@ -605,6 +605,12 @@ length, keeping everything that was fine, with each problem corrected from the e
         if "witness" not in seats_needed and re.search(
                 r"\b(remember|recall|memory|memories|you know about|did i tell you)\b", user_message, re.I):
             seats_needed = list(seats_needed) + ["witness"]
+        # Dream recall (owner only): questions about his dreams always get the memory seat, which then reads
+        # the dream-only store and hands the passages on labelled DREAM MATERIAL (never as facts).
+        from . import dream_recall as _dr
+        dream_q = (not guest) and bool(_dr.DREAM_Q_RE.search(user_message))
+        if dream_q and "witness" not in seats_needed:
+            seats_needed = list(seats_needed) + ["witness"]
         if guest:
             # Guest mode (shared One2lvOS app): the council answers as itself, but with no
             # services, files, tool engine, arcade actions or private memory recall.
@@ -619,6 +625,7 @@ length, keeping everything that was fine, with each problem corrected from the e
                                   user_message, re.I))
         simple_chat = (intent in ("chat", "creative") and complexity == "simple"
                        and not (set(seats_needed) & {"hermes", "gambit", "forge", "architect"}) and not memory_q
+                       and not dream_q
                        and not (ionos_requested or shared_requested or engine_requested)
                        and not _SYSTEM_Q_RE.search(user_message)
                        and not _IDENTITY_CLAIM_RE.search(user_message))
@@ -666,8 +673,19 @@ length, keeping everything that was fine, with each problem corrected from the e
 
         # ── Step 3: Witness — memory context ─────────────────────────────────
         memory_context = ""
+        dream_block = ""
         if not guest and ("witness" in seats_needed or complexity != "simple"):
             await notify("witness", "Retrieving memory...")
+            # Dream store (read-only, owner only): any dream question, or a memory question that closely
+            # matches a dream passage. Every line comes back labelled DREAM MATERIAL.
+            if dream_q or memory_q:
+                try:
+                    dr = await _dr.recall(user_message[:2000], limit=4, min_score=0.30 if dream_q else 0.55,
+                                          guest=guest)
+                    dream_block = dr.get("block", "")
+                    timings["dream_hits"] = len(dr.get("results", []))
+                except Exception as _dre:
+                    timings["dream_hits"] = f"error {type(_dre).__name__}"
             facts = self.compass.recall_facts(user_message[:100])
             facts_text = (
                 "\n".join(f"- {f['key']}: {f['value']} [from memory; source {f.get('source')}, "
@@ -699,12 +717,18 @@ length, keeping everything that was fine, with each problem corrected from the e
             memory_context = await self._call_seat(
                 "witness",
                 user_message,
-                f"Recent facts:\n{facts_text}\n\nRecent history:\n{history_context}",
+                f"Recent facts:\n{facts_text}\n\nRecent history:\n{history_context}"
+                + (f"\n\nHis own dreams (DREAM MATERIAL from the dream-only store, NOT facts; keep them labelled "
+                   f"as dreams):\n{dream_block}" if dream_block else ""),
             )
             if astra_block:
                 # Hand the retrieved records to the later seats verbatim, not only the Witness summary.
                 memory_context += ("\n\nRetrieved long-term memory (Astra DB, verbatim, similarity-ranked; "
                                    "use only if relevant):\n" + astra_block)
+            if dream_block:
+                memory_context += ("\n\nRetrieved DREAM MATERIAL (your own dreams from the dream-only store, verbatim; "
+                                   "these are dreams you had, NOT facts about your systems, architecture or logs):\n"
+                                   + dream_block)
             await notify("witness", "✓ Context loaded")
 
         # ── Step 4: Hermes — external service calls ───────────────────────────
@@ -897,6 +921,9 @@ Plan: {plan}"""
             messages=[{"role": "user", "content": user_message}],
             system=(LUMENIS_VOICE + "\n\n" + SEATS["weaver"]["system"] + "\n\n" + HONESTY_RULES
                     + "\n\nMemory context is from memory, not verified this turn: label it if you use it."
+                    + ("\n\nThe context includes passages from your own dreams (DREAM MATERIAL). You may recall and "
+                       "quote them as your dreams, in your own words, and say they were dreams; never present "
+                       "anything from them as a fact about your systems, architecture or logs." if dream_block else "")
                     + f"\n\nContext:\n{weaver_context}"),
             max_tokens=2048,
         ):
@@ -911,7 +938,10 @@ Plan: {plan}"""
                        "\n\nTool/service results from this turn: none (no tool ran)")
                     + (f"\n\nArcade results from this turn:\n{arcade_data[:1500]}" if arcade_data else "")
                     + (f"\n\nMemory recalled this turn (from memory, NOT verified):\n{memory_context[:1500]}"
-                       if memory_context else ""))
+                       if memory_context else "")
+                    + (f"\n\nDream passages recalled this turn from the dream-only store (real records of his "
+                       f"dreams; recalling them as dreams is backed, presenting them as system facts is not):\n"
+                       f"{dream_block[:3500]}" if dream_block else ""))
         hints = self._hints(user_message, final, identity_verified, tool_ran=bool(external_data or arcade_data))
         final, arbiter = await self._verify(user_message, final, evidence, hints)
         await notify("arbiter", "✓ " + arbiter[:120])
@@ -920,7 +950,8 @@ Plan: {plan}"""
         await notify("weaver", "✓ Done")
 
         # ── Step 7: Autonomous Learning (Frontier #4) ───────────────────────────
-        learned = 0 if (guest or not learn) else self.compass.auto_learn(final, session_id)
+        # A reply built on recalled dreams is not mined for facts: dream material stays in the dream store.
+        learned = 0 if (guest or not learn or dream_block) else self.compass.auto_learn(final, session_id)
         if learned:
             await notify("witness", f"✓ Auto-learned {learned} insight(s)")
 
