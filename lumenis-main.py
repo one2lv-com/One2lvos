@@ -244,6 +244,13 @@ try:
 except Exception as _hub_err:  # never let the hub break the reactor boot
     print(f"⚠ desktop hub not loaded: {_hub_err}")
 
+# ── Dream image loop: dream text -> picture (made outside) -> vision model -> next dream (owner only) ──
+try:
+    from lumenis_reactor_core.dream_images import router as dream_images_router
+    app.include_router(dream_images_router)
+except Exception as _dream_img_err:  # never let the dream image loop break the reactor boot
+    print(f"⚠ dream image loop not loaded: {_dream_img_err}")
+
 
 @app.get("/", response_class=HTMLResponse)
 async def root():

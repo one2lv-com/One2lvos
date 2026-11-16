@@ -146,3 +146,6 @@ data/bridge_app_keys.json
 data/
 dream_memory/*.db
 dream_memory/*.log
+
+# Dream image loop pictures: private dream material, like the dream store (dream_memory/*.db)
+dream_memory/dream_images/

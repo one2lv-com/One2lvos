@@ -109,8 +109,16 @@ async def recall(query: str, limit: int = 4, min_score: float = 0.30, guest: boo
     if not rows:
         return {"ok": True, "results": [], "block": ""}
     if _LATEST_RE.search(query):
-        newest = max(r["batch"] for r in rows)
-        rows = [r for r in rows if r["batch"] == newest]
+        # "latest" = the newest dream run, plus picture-seeded dreams (dream_image_loop, one open-ended batch)
+        # from its newest day when that day is not older than the run. Without this, the loop's batch name
+        # would sort last and hide the newest full run.
+        runs = [r for r in rows if r["batch"] != "dream_image_loop"]
+        imgs = [r for r in rows if r["batch"] == "dream_image_loop"]
+        newest = max(r["batch"] for r in runs) if runs else None
+        run_date = max((r["date"] for r in runs if r["batch"] == newest), default="")
+        img_date = max((r["date"] for r in imgs), default="")
+        rows = [r for r in runs if r["batch"] == newest] + \
+               [r for r in imgs if r["date"] == img_date and img_date >= run_date]
     terms = _terms(query)
     qv, err = None, None
     try:
