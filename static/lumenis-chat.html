@@ -552,18 +552,45 @@ function addChipToBar(name,state){
 }
 
 // ── SEND ──
+// Phone keyboards (Gboard and others) build each word as an IME "composition" and own the text box while
+// they do. Writing to the box (its value) or moving it around in that window makes the keyboard lose its
+// place: letters drop, or each one lands at the start, so "hey lumenis" comes out as "enis mul yeh".
+// So: never send or clear the box mid-word, and leave the box alone until the keyboard finishes the word.
+let imeComposing=false, sendAfterCompose=false;
+const msgInput=document.getElementById('msg-input');
+function isComposingNow(e){return imeComposing||(e&&(e.isComposing||e.keyCode===229));}
+function sizeInput(){
+  const t=msgInput, want=Math.min(Math.max(t.scrollHeight,40),120);
+  if(t.value===''){if(t.style.height){t.style.height='';}return;}
+  if(Math.abs((parseFloat(t.style.height)||t.offsetHeight)-want)<2&&t.scrollHeight<=t.clientHeight+1)return;
+  t.style.height='auto';
+  t.style.height=Math.min(t.scrollHeight,120)+'px';
+}
 function sendMsg(text){
-  text=text||document.getElementById('msg-input').value.trim();
+  const fromBox=!text;
+  if(fromBox&&imeComposing){sendAfterCompose=true;return;}   // finish the word first, then send
+  text=text||msgInput.value.trim();
   if(!text||processing||!ws||ws.readyState!==WebSocket.OPEN)return;
   userMsg(text);
   ws.send(JSON.stringify({action:'chat',message:text,session_id:sessionId,channel:'lumenis-chat'}));
-  document.getElementById('msg-input').value='';
-  document.getElementById('msg-input').style.height='auto';
+  if(fromBox){msgInput.value='';msgInput.style.height='';}  // a skill/Revert button leaves your draft alone
   switchTab('chat');
 }
 function skill(text){toggleDrawer();sendMsg(text);}
-document.getElementById('msg-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
-document.getElementById('msg-input').addEventListener('input',function(){this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px';});
+msgInput.addEventListener('compositionstart',()=>{imeComposing=true;});
+msgInput.addEventListener('compositionend',()=>{
+  imeComposing=false;
+  // let the keyboard's committed text land in the box before reading or resizing it
+  setTimeout(()=>{sizeInput();if(sendAfterCompose){sendAfterCompose=false;sendMsg();}},0);
+});
+msgInput.addEventListener('blur',()=>{imeComposing=false;});
+msgInput.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.shiftKey)return;
+  e.preventDefault();
+  if(isComposingNow(e)){sendAfterCompose=true;return;}
+  sendMsg();
+});
+msgInput.addEventListener('input',e=>{if(!isComposingNow(e))sizeInput();});
 function newSession(){if(!ws||ws.readyState!==WebSocket.OPEN)return;ws.send(JSON.stringify({action:'new_session',title:'Chat Session'}));resetSeats();sysMsg('New session started.');}
 function clearChat(){document.getElementById('messages').innerHTML='';msgStore=[];sysMsg('Chat cleared.');}
 
@@ -975,16 +1002,21 @@ function toggleDrawer(which){
   if(want)b.classList.add('show-'+want);
 }
 // Keep the page the height of the VISIBLE screen, so the input stays above the phone keyboard.
+// Only on real height changes, never while the keyboard is building a word (it would move the box under
+// the keyboard mid-word), and no forced window scrolling.
 (function(){
   const vv=window.visualViewport;
+  let lastH=0, pending=false;
   function fit(){
-    const h=vv?vv.height:window.innerHeight;
+    if(imeComposing){if(!pending){pending=true;msgInput.addEventListener('compositionend',()=>{pending=false;setTimeout(fit,0);},{once:true});}return;}
+    const h=Math.round(vv?vv.height:window.innerHeight);
+    if(Math.abs(h-lastH)<2)return;
+    lastH=h;
     document.body.style.setProperty('--app-h',h+'px');
-    if(vv&&vv.offsetTop)window.scrollTo(0,0);
   }
-  if(vv){vv.addEventListener('resize',fit);vv.addEventListener('scroll',fit);}
+  if(vv)vv.addEventListener('resize',fit);
   window.addEventListener('resize',fit);fit();
-  document.getElementById('msg-input').addEventListener('focus',()=>setTimeout(()=>{fit();scroll();},250));
+  msgInput.addEventListener('focus',()=>setTimeout(()=>{fit();if(!imeComposing)scroll();},250));
 })();
 
 // ── AUTO WORKING STATE SAVE ──
