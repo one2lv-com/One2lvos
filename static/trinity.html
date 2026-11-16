@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- Built by tools/build_trinity_page.py from the Trinity Core v9 upload (2026-11-16). -->
+<title>One2lvOS — Trinity Core</title>
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIk9uZTLGbHZPUyDigJQgVHJpbml0eSBDb3JlIiwKICAic2hvcnRfbmFtZSI6ICJPbmUybHZPUyIsCiAgInN0YXJ0X3VybCI6ICIuIiwidGhlbWUiOiAiZGFyayIsCiAgImRpc3BsYXkiOiAib3ZlcmxheSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAyMDYxNyIsCiAgInRoZW1lX2NvbG9yIjogIiMwMGZmY2MiCn0=">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+/* ─── VOID CANVAS ─ steganography RAM vector ─ */
+body { background-color:#020617; margin:0; overflow:hidden; }
+canvas#genesisGrid { display:none; }
+
+/* ─── AURORA BOOT ─────────────────────────── */
+#aurora-boot{position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 20% 30%,rgba(0,255,180,.25),transparent 40%),radial-gradient(circle at 70% 20%,rgba(120,0,255,.2),transparent 45%),linear-gradient(#02040a,#000);
+  animation:aurora-d 8s infinite alternate;transition:opacity 1.5s ease-out;}
+#aurora-boot.fade{opacity:0;pointer-events:none;}
+@keyframes aurora-d{from{filter:hue-rotate(0deg) brightness(1)}to{filter:hue-rotate(60deg) brightness(1.2)}}
+#boot-log{font-family:'JetBrains Mono',monospace;font-size:13px;color:#0ff;text-align:left;white-space:pre-line;line-height:1.8;text-shadow:0 0 8px #0ff,0 0 20px #0ff4;margin-bottom:30px;min-width:520px;}
+#genesis-progress{width:420px;height:3px;background:rgba(0,255,255,.2);border-radius:2px;overflow:hidden;}
+#genesis-bar{height:100%;width:0%;background:linear-gradient(90deg,#0ff,#a855f7,#ff5c8a);box-shadow:0 0 10px #0ff;transition:width .4s ease;}
+.boot-label{font-family:'JetBrains Mono',monospace;font-size:10px;color:#a0a0c0;margin-top:8px;letter-spacing:3px;}
+
+/* ─── CSS VARS ─────────────────────────────── */
+:root{
+  --bg-deep:#020617;--bg-primary:#0a0a12;--bg-card:#1a1a2e;
+  --accent:#00ffcc;--accent-cyan:#00f5ff;--accent-purple:#a855f7;--accent-pink:#ff5c8a;
+  --accent-green:#5cff8a;--accent-amber:#ffaa00;--accent-red:#ff4444;
+  --text-primary:#e2e8f0;--text-secondary:#94a3b8;--text-muted:#a0a0c0;
+  --glass-bg:rgba(6,6,15,.88);--glass-border:rgba(0,245,255,.35);
+  --terminal-green:#00ff88;--danger:#f44336;
+  --glow-cyan:0 0 20px rgba(0,245,255,.4);--glow-pink:0 0 20px rgba(244,114,182,.4);--glow-purple:0 0 20px rgba(168,85,247,.4);
+}
+
+/* ─── CRT SCANLINES ────────────────────────── */
+body::after{content:" ";display:block;position:fixed;inset:0;
+  background:linear-gradient(rgba(18,16,16,0) 50%,rgba(0,0,0,.25) 50%),linear-gradient(90deg,rgba(255,0,0,.04),rgba(0,255,0,.01),rgba(0,0,255,.04));
+  background-size:100% 2px,3px 100%;z-index:9999;pointer-events:none;}
+
+/* ─── THREE.JS ─────────────────────────────── */
+#webgl-bg{position:fixed;inset:0;z-index:0;}
+#css3d-container{position:fixed;inset:0;z-index:1;pointer-events:none;}
+
+/* ─── HUD ──────────────────────────────────── */
+.hud{position:fixed;inset:0;pointer-events:none;z-index:100;}
+.hud>*{pointer-events:auto;}
+
+/* ─── HEADER ──────────────────────────────── */
+header{position:absolute;top:0;width:100%;padding:16px 40px;display:flex;justify-content:space-between;align-items:center;
+  background:linear-gradient(to bottom,rgba(2,6,23,.9),transparent);border-bottom:1px solid rgba(0,245,255,.1);}
+.logo-area{display:flex;align-items:center;gap:14px;}
+.logo{font-size:30px;filter:drop-shadow(0 0 10px var(--accent-cyan));}
+h1{font-family:'JetBrains Mono';font-size:1.2rem;font-weight:700;color:var(--accent-cyan);letter-spacing:2px;text-shadow:var(--glow-cyan);}
+.subtitle{color:var(--text-secondary);font-size:.7rem;letter-spacing:1px;}
+
+/* ─── RESONANCE STRIP ─────────────────────── */
+#resonance-strip{position:absolute;top:75px;left:50%;transform:translateX(-50%);display:flex;gap:28px;align-items:center;
+  background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:20px;padding:8px 24px;
+  font-family:'JetBrains Mono';font-size:11px;color:var(--text-secondary);backdrop-filter:blur(10px);}
+.res-item{display:flex;gap:6px;align-items:center;}
+.res-val{color:var(--accent-cyan);font-weight:700;}
+.res-val.purple{color:var(--accent-purple);}
+.res-val.pink{color:var(--accent-pink);}
+
+/* ─── CONNECTION BADGE ─────────────────────── */
+#conn-badge{position:absolute;top:18px;right:40px;z-index:200;display:flex;align-items:center;gap:8px;
+  background:var(--glass-bg);border:1px solid var(--glass-border);border-radius:20px;padding:6px 16px;
+  font-family:'JetBrains Mono';font-size:10px;color:var(--text-secondary);backdrop-filter:blur(10px);}
+.conn-dot{width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 6px var(--danger);transition:background .5s,box-shadow .5s;}
+.conn-dot.online{background:var(--accent-green);box-shadow:0 0 8px var(--accent-green);}
+
+/* ─── DOCK ─────────────────────────────────── */
+#dock{position:absolute;top:22px;right:320px;display:flex;gap:5px;z-index:1000;}
+.dock-btn{padding:5px 10px;background:rgba(6,6,15,.85);border:1px solid var(--glass-border);color:var(--text-primary);
+  border-radius:6px;font-family:'JetBrains Mono';font-size:10px;cursor:pointer;transition:all .2s;letter-spacing:.5px;}
+.dock-btn:hover{border-color:var(--accent-cyan);color:var(--accent-cyan);background:rgba(0,245,255,.08);}
+.dock-btn.active{border-color:var(--accent-purple);color:var(--accent-purple);background:rgba(168,85,247,.1);}
+.dock-btn span{color:var(--danger);margin-left:3px;}
+
+/* ─── GLASS WINDOWS ────────────────────────── */
+.window-3d{width:420px;max-height:440px;background:var(--glass-bg);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border:1px solid var(--glass-border);border-radius:14px;
+  box-shadow:inset 0 0 20px rgba(0,245,255,.05),0 10px 40px rgba(0,0,0,.8),var(--glow-cyan);
+  display:flex;flex-direction:column;transition:box-shadow .3s,border-color .3s;overflow:hidden;position:relative;}
+.window-3d:hover{box-shadow:inset 0 0 30px rgba(0,245,255,.1),0 15px 50px rgba(0,0,0,.9),0 0 30px rgba(0,245,255,.3);border-color:var(--accent-cyan);}
+.window-3d .raccoon-unit{position:absolute;font-size:36px;top:-26px;right:-8px;z-index:5;filter:drop-shadow(0 0 8px rgba(0,255,255,.5));}
+.panel-header{padding:10px 18px;background:rgba(0,245,255,.07);border-bottom:1px solid var(--glass-border);
+  display:flex;justify-content:space-between;align-items:center;border-radius:14px 14px 0 0;cursor:move;user-select:none;}
+.panel-title{font-family:'JetBrains Mono';font-size:11px;font-weight:700;color:var(--accent-cyan);text-transform:uppercase;letter-spacing:1px;text-shadow:0 0 8px rgba(0,245,255,.5);}
+.panel-close{color:var(--accent-pink);cursor:pointer;font-size:16px;font-weight:bold;transition:color .2s;}
+.panel-close:hover{color:#ff8;}
+.panel-content{flex:1;padding:14px;overflow-y:auto;font-family:'JetBrains Mono';font-size:11px;line-height:1.6;}
+.panel-content::-webkit-scrollbar{width:4px;}
+.panel-content::-webkit-scrollbar-thumb{background:var(--glass-border);border-radius:2px;}
+
+/* ─── STATS ────────────────────────────────── */
+.stat-row{margin-bottom:10px;}
+.stat-label{display:flex;justify-content:space-between;margin-bottom:5px;color:var(--text-primary);font-size:10px;font-weight:600;}
+.stat-bar{height:7px;background:rgba(0,0,0,.5);border-radius:4px;overflow:hidden;border:1px solid rgba(255,255,255,.08);}
+.stat-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent-cyan),var(--accent-purple),var(--accent-pink));background-size:200% 200%;animation:gradientShift 3s ease infinite;transition:width .5s ease;}
+@keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:10px;color:var(--text-secondary);}
+.stat-chip{background:rgba(0,0,0,.4);padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.05);}
+.stat-chip .val{color:var(--accent-cyan);font-size:14px;font-weight:700;}
+
+/* ─── ACTION BUTTONS ───────────────────────── */
+.action-row{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+.action-btn{flex:1;min-width:55px;padding:7px 8px;background:rgba(0,245,255,.05);border:1px solid rgba(0,245,255,.2);
+  color:var(--accent-cyan);border-radius:6px;cursor:pointer;transition:all .2s;font-family:'JetBrains Mono';font-size:10px;
+  text-transform:uppercase;letter-spacing:.5px;outline:none;}
+.action-btn:hover{background:var(--accent-cyan);color:#000;box-shadow:var(--glow-cyan);}
+.action-btn:active{transform:scale(.95);}
+.action-btn.purple{color:var(--accent-purple);border-color:rgba(168,85,247,.3);background:rgba(168,85,247,.05);}
+.action-btn.purple:hover{background:var(--accent-purple);color:#fff;}
+.action-btn.pink{color:var(--accent-pink);border-color:rgba(255,92,138,.3);background:rgba(255,92,138,.05);}
+.action-btn.pink:hover{background:var(--accent-pink);color:#fff;}
+.action-btn.green{color:var(--accent-green);border-color:rgba(92,255,138,.3);}
+.action-btn.green:hover{background:var(--accent-green);color:#000;}
+.action-btn.amber{color:var(--accent-amber);border-color:rgba(255,170,0,.3);background:rgba(255,170,0,.05);}
+.action-btn.amber:hover{background:var(--accent-amber);color:#000;}
+.action-btn.red{color:var(--accent-red);border-color:rgba(255,68,68,.3);background:rgba(255,68,68,.05);}
+.action-btn.red:hover{background:var(--accent-red);color:#fff;}
+
+/* ─── CODE BLOCK ───────────────────────────── */
+pre.code-block{background:rgba(0,0,0,.65);padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);
+  font-size:10px;color:var(--terminal-green);overflow-y:auto;max-height:100px;white-space:pre-wrap;word-break:break-all;
+  font-family:'JetBrains Mono';margin-top:8px;}
+pre.code-block img{max-width:100%;border-radius:6px;margin-top:6px;}
+
+/* ─── TOOL GRID ────────────────────────────── */
+.tool-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px;}
+.tool-chip{padding:8px 6px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.06);border-radius:8px;
+  text-align:center;cursor:pointer;transition:all .2s;font-family:'JetBrains Mono';font-size:9px;color:var(--text-secondary);}
+.tool-chip:hover{border-color:var(--accent-cyan);color:var(--accent-cyan);background:rgba(0,245,255,.08);}
+.tool-chip.risk-high{border-left:2px solid var(--accent-pink);}
+.tool-chip.risk-critical{border-left:2px solid var(--danger);}
+.tool-chip .t-name{font-weight:700;margin-bottom:2px;}
+.tool-chip .t-risk{font-size:8px;opacity:.6;}
+
+/* ─── MODEL SELECT ─────────────────────────── */
+.model-select{background:rgba(0,0,0,.5);border:1px solid var(--glass-border);border-radius:6px;
+  padding:6px 10px;color:var(--accent-cyan);font-family:'JetBrains Mono';font-size:10px;outline:none;cursor:pointer;width:100%;}
+.model-select:focus{border-color:var(--accent-cyan);}
+
+/* ─── AI CHAT ──────────────────────────────── */
+#chat-messages{max-height:260px;overflow-y:auto;margin-bottom:10px;}
+#chat-messages::-webkit-scrollbar{width:3px;}
+#chat-messages::-webkit-scrollbar-thumb{background:var(--glass-border);}
+.chat-msg{margin-bottom:8px;padding:8px 12px;border-radius:10px;font-size:11px;line-height:1.5;}
+.chat-msg.user{background:rgba(0,245,255,.12);border:1px solid rgba(0,245,255,.2);align-self:flex-end;}
+.chat-msg.assistant{background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.2);}
+.chat-msg .sender{font-size:9px;font-weight:700;letter-spacing:1px;margin-bottom:4px;}
+.chat-msg.user .sender{color:var(--accent-cyan);}
+.chat-msg.assistant .sender{color:var(--accent-purple);}
+.chat-msg .typing{color:var(--accent-purple);animation:blink 1s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.chat-input-row{display:flex;gap:6px;align-items:center;}
+#chat-input{flex:1;background:rgba(0,0,0,.5);border:1px solid var(--glass-border);border-radius:8px;padding:8px 12px;
+  color:var(--text-primary);font-family:'JetBrains Mono';font-size:11px;outline:none;}
+#chat-input:focus{border-color:var(--accent-cyan);}
+.stream-toggle{margin-bottom:8px;display:flex;gap:6px;align-items:center;}
+.stream-toggle label{font-size:10px;color:var(--text-muted);display:flex;align-items:center;gap:6px;cursor:pointer;}
+.stream-toggle input[type=checkbox]{accent-color:var(--accent-cyan);}
+
+/* ─── APPROVAL PANEL ───────────────────────── */
+#approval-panel .approval-card{background:rgba(6,6,15,.95);backdrop-filter:blur(14px);border-radius:12px;padding:14px 16px;margin-bottom:8px;
+  font-family:'JetBrains Mono';font-size:11px;box-shadow:0 4px 20px rgba(244,67,54,.15);}
+.risk-badge{display:inline-block;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:bold;letter-spacing:1px;margin-bottom:6px;}
+.risk-safe{background:rgba(0,255,136,.2);color:#0f8;}
+.risk-low{background:rgba(92,255,138,.15);color:#5cff8a;}
+.risk-medium{background:rgba(255,170,0,.2);color:#fa0;}
+.risk-high{background:rgba(255,92,138,.2);color:#ff5c8a;}
+.risk-critical{background:rgba(244,67,54,.2);color:#f44336;}
+
+/* ─── ITT COUNCIL ──────────────────────────── */
+#itt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.council-seat{background:rgba(0,0,0,.45);padding:12px;border-radius:10px;border-left:3px solid var(--seat-color,#0ff);}
+.council-seat .seat-name{color:var(--seat-color,#0ff);font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:4px;}
+.council-seat .seat-desc{color:var(--text-muted);font-size:9px;margin-bottom:6px;}
+.council-seat .seat-meta{display:flex;justify-content:space-between;font-size:9px;color:var(--text-muted);}
+.council-vote-bar{height:5px;background:rgba(0,0,0,.5);border-radius:3px;overflow:hidden;margin-top:6px;border:1px solid rgba(255,255,255,.06);}
+.council-vote-fill{height:100%;width:0%;border-radius:3px;transition:width 1.5s ease;}
+.status-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:8px;font-weight:bold;letter-spacing:.5px;}
+.badge-online{background:rgba(0,255,136,.2);color:#0f8;border:1px solid rgba(0,255,136,.4);}
+.badge-voting{background:rgba(255,170,0,.2);color:#fa0;border:1px solid rgba(255,170,0,.4);}
+.badge-idle{background:rgba(148,163,184,.15);color:#94a3b8;border:1px solid rgba(148,163,184,.3);}
+
+/* ─── RACCOON ─────────────────────────────── */
+#raccoon-agent{position:fixed;bottom:160px;right:40px;z-index:200;font-size:52px;cursor:pointer;
+  filter:drop-shadow(0 0 12px rgba(0,255,255,.6));transition:transform .3s ease,filter .3s ease;
+  user-select:none;animation:raccoon-idle 3s ease-in-out infinite;}
+#raccoon-agent:hover{transform:scale(1.2) rotate(-5deg);filter:drop-shadow(0 0 20px rgba(168,85,247,.8));}
+@keyframes raccoon-idle{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-8px) rotate(3deg)}}
+#raccoon-tooltip{position:absolute;bottom:65px;right:0;background:var(--glass-bg);border:1px solid var(--glass-border);
+  border-radius:10px;padding:12px 16px;min-width:220px;display:none;backdrop-filter:blur(10px);
+  font-family:'JetBrains Mono';font-size:11px;color:var(--text-secondary);}
+#raccoon-tooltip.visible{display:block;}
+.tip-title{color:var(--accent-cyan);font-weight:700;margin-bottom:6px;font-size:12px;}
+.tip-desc{color:var(--text-muted);font-size:10px;line-height:1.5;}
+
+/* ─── VELOCITY ─────────────────────────────── */
+#velocity-hud{position:fixed;bottom:160px;left:40px;z-index:200;background:var(--glass-bg);backdrop-filter:blur(10px);
+  border:1px solid var(--glass-border);border-radius:12px;padding:12px 18px;width:260px;}
+.slider-label{font-family:'JetBrains Mono';font-size:10px;color:var(--accent-cyan);margin-bottom:8px;display:flex;justify-content:space-between;}
+input[type=range]{-webkit-appearance:none;width:100%;background:transparent;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;height:14px;width:14px;border-radius:50%;background:var(--accent-cyan);cursor:pointer;box-shadow:var(--glow-cyan);}
+input[type=range]::-webkit-slider-runnable-track{width:100%;height:4px;background:rgba(255,255,255,.15);border-radius:2px;}
+
+/* ─── MEMORY ───────────────────────────────── */
+#memory-entries{margin-top:8px;max-height:150px;overflow-y:auto;}
+.vfs-entry{background:rgba(0,0,0,.4);padding:6px 8px;border-radius:6px;margin-top:4px;border:1px solid rgba(255,255,255,.05);}
+.vfs-key{color:var(--accent-purple);font-size:9px;}
+.vfs-val{color:var(--text-muted);font-size:9px;margin-top:2px;max-height:24px;overflow:hidden;}
+
+/* ─── TERMINAL ─────────────────────────────── */
+#terminal-container{position:fixed;bottom:0;left:0;width:100%;background:rgba(2,6,23,.97);border-top:2px solid var(--accent-cyan);
+  padding:10px 40px;z-index:1000;box-shadow:0 -10px 40px rgba(0,0,0,.8);}
+#terminal-output{height:65px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);margin-bottom:8px;}
+#terminal-output::-webkit-scrollbar{width:3px;}
+#terminal-output::-webkit-scrollbar-thumb{background:var(--glass-border);}
+#terminal-input-line{display:flex;gap:12px;align-items:center;}
+#terminal-prompt{color:var(--accent-cyan);font-family:'JetBrains Mono';font-weight:bold;font-size:12px;}
+#terminal-input{flex:1;background:transparent;border:none;color:var(--text-primary);outline:none;font-size:12px;font-family:'JetBrains Mono';}
+.mic-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--accent-cyan);background:rgba(0,245,255,.1);
+  color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;transition:.3s;}
+.mic-btn.listening{background:var(--danger);border-color:var(--danger);animation:pulse 1.5s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(244,67,54,.4)}70%{box-shadow:0 0 0 10px rgba(244,67,54,0)}100%{box-shadow:0 0 0 0 rgba(244,67,54,0)}}
+
+/* ─── DISCORD/TWITCH PANELS ─────────────────── */
+.bridge-status{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.bridge-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:rgba(0,0,0,.4);
+  border:1px solid rgba(255,255,255,.1);font-size:10px;color:var(--text-secondary);}
+.bridge-pill.online{border-color:rgba(0,255,136,.4);color:var(--accent-green);}
+.bridge-pill.offline{border-color:rgba(244,67,54,.3);color:var(--accent-red);}
+.bridge-dot{width:6px;height:6px;border-radius:50%;background:var(--danger);}
+.bridge-dot.online{background:var(--accent-green);box-shadow:0 0 5px var(--accent-green);}
+.chat-feed{max-height:180px;overflow-y:auto;background:rgba(0,0,0,.4);border-radius:8px;padding:8px;margin-top:8px;border:1px solid rgba(255,255,255,.06);}
+.chat-entry{padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:10px;}
+.chat-entry:last-child{border-bottom:none;}
+.chat-user{color:var(--accent-cyan);font-weight:700;margin-right:6px;}
+.chat-time{color:var(--text-muted);font-size:9px;float:right;}
+
+/* ─── GALLERY ──────────────────────────────── */
+.image-gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}
+.image-thumb{width:100%;aspect-ratio:1;border-radius:8px;border:1px solid var(--glass-border);object-fit:cover;cursor:pointer;transition:border-color .2s;}
+.image-thumb:hover{border-color:var(--accent-cyan);}
+</style>
+</head>
+<body>
+
+<canvas id="genesisGrid"></canvas>
+
+<!-- ─── AURORA BOOT ──────────────────────────── -->
+<div id="aurora-boot">
+  <div id="boot-log"></div>
+  <div id="genesis-progress"><div id="genesis-bar"></div></div>
+  <div class="boot-label">RESONANCE LOCK · 73Hz · 18.000°C · PHASE 9.6</div>
+</div>
+
+<!-- ─── THREE.JS BACKGROUND ───────────────────── -->
+<div id="webgl-bg"></div>
+<div id="css3d-container"></div>
+
+<!-- ─── HUD ──────────────────────────────────── -->
+<div class="hud">
+
+  <header>
+    <div class="logo-area">
+      <div class="logo">🌌</div>
+      <div>
+        <h1>One2lvOS · Trinity Core</h1>
+        <div class="subtitle">INFINITY GLASS · LUMENIS v9 · SOVEREIGN ARCHITECTURE · PHASE 9</div>
+      </div>
+    </div>
+  </header>
+
+  <div id="conn-badge">
+    <div class="conn-dot" id="conn-dot"></div>
+    <span id="conn-label">CONNECTING</span>
+  </div>
+
+  <div id="resonance-strip">
+    <div class="res-item"><span class="res-val" id="res-hz">–</span><span>Hz</span></div>
+    <div class="res-item"><span class="res-val purple" id="res-temp">–</span><span>temp</span></div>
+    <div class="res-item"><span id="res-phase">–</span></div>
+    <div class="res-item"><span style="color:var(--text-muted);font-size:10px;">Nodes</span><span class="res-val" id="res-nodes">–</span></div>
+    <div class="res-item"><span style="color:var(--text-muted);font-size:10px;">Council</span><span class="res-val" id="res-council">–</span></div>
+  </div>
+
+  <!-- DOCK -->
+  <div id="dock">
+    <button class="dock-btn" onclick="togglePanel('ai-chat')">AI COUNCIL</button>
+    <button class="dock-btn" onclick="togglePanel('tools-panel')">TOOLS</button>
+    <button class="dock-btn" onclick="togglePanel('memory-panel')">MEMORY</button>
+    <button class="dock-btn" onclick="togglePanel('bridge-panel')">BRIDGES</button>
+    <button class="dock-btn" onclick="togglePanel('itt-panel')">ITT</button>
+    <button class="dock-btn" onclick="togglePanel('vfs-panel')">VFS</button>
+    <button class="dock-btn" onclick="togglePanel('genesis-panel')">GENESIS</button>
+    <button class="dock-btn" onclick="togglePanel('approval-panel')">APPROVALS<span id="approval-count" style="display:none">0</span></button>
+  </div>
+
+  <!-- AI COUNCIL CHAT -->
+  <div id="ai-chat" style="display:none;position:fixed;top:130px;left:50%;transform:translateX(-50%);z-index:50;">
+    <div class="window-3d" style="width:480px;max-height:480px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">🤖 AI COUNCIL — LIVE</span><span class="panel-close" onclick="WM.close('ai-chat')">×</span></div>
+      <div class="panel-content">
+        <div class="model-select" id="model-select" style="font-size:10px;">Council chooses: each seat answers with its own model (/models in the terminal). Multi-part messages run as a parallel swarm.</div>
+        <div class="stream-toggle" style="margin-top:8px;">
+          <label><input type="checkbox" id="stream-mode" checked> Show seat activity in the log</label>
+        </div>
+        <div id="chat-messages"></div>
+        <div class="chat-input-row">
+          <input type="text" id="chat-input" placeholder="Address the ITT Council..." onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="action-btn" onclick="sendChat()" style="min-width:70px;">SEND</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOOLS PANEL -->
+  <div id="tools-panel" style="display:none;position:fixed;top:130px;left:40px;z-index:50;">
+    <div class="window-3d" style="width:420px;max-height:500px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">🛠 TOOL REGISTRY — LIVE</span><span class="panel-close" onclick="WM.close('tools-panel')">×</span></div>
+      <div class="panel-content">
+        <div class="tool-grid" id="tool-grid"></div>
+        <div style="margin-top:10px;">
+          <label style="font-size:10px;color:var(--text-muted);">PARAMETERS:</label>
+          <input type="text" id="tool-params" placeholder='{"query": "..."}' style="width:100%;margin-top:4px;background:rgba(0,0,0,.5);border:1px solid var(--glass-border);border-radius:6px;padding:6px 10px;color:var(--text-primary);font-family:'JetBrains Mono';font-size:10px;outline:none;">
+        </div>
+        <pre class="code-block" id="tool-output">> Select a tool. L2/L3 tools are held for One2lv's approval.</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMORY PANEL -->
+  <div id="memory-panel" style="display:none;position:fixed;top:130px;left:40px;z-index:50;">
+    <div class="window-3d" style="width:380px;max-height:440px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">🧠 AKASHIC MEMORY LATTICE</span><span class="panel-close" onclick="WM.close('memory-panel')">×</span></div>
+      <div class="panel-content">
+        <div class="stat-row">
+          <div class="stat-label"><span>VECTOR ENTRIES</span><span class="res-val" id="mem-count">0</span></div>
+          <div class="stat-bar"><div class="stat-fill" id="mem-fill" style="width:0%"></div></div>
+        </div>
+        <div class="action-row">
+          <button class="action-btn" onclick="doStore()">STORE</button>
+          <button class="action-btn purple" onclick="doSearch()">SEARCH</button>
+          
+        </div>
+        <div id="memory-entries"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BRIDGE PANEL -->
+  <div id="bridge-panel" style="display:none;position:fixed;top:130px;right:40px;z-index:50;">
+    <div class="window-3d" style="width:420px;max-height:480px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">🔗 LIVE BRIDGES</span><span class="panel-close" onclick="WM.close('bridge-panel')">×</span></div>
+      <div class="panel-content">
+        <div class="bridge-status" id="bridge-status"></div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--accent-purple);margin-bottom:6px;letter-spacing:1px;">DISCORD MESSAGE</div>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="discord-msg" placeholder="Message to Discord..." style="flex:1;background:rgba(0,0,0,.5);border:1px solid var(--glass-border);border-radius:6px;padding:7px 10px;color:var(--text-primary);font-family:'JetBrains Mono';font-size:10px;outline:none;">
+            <button class="action-btn green" onclick="sendDiscord()">SEND</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:10px;color:var(--accent-amber);margin-bottom:6px;letter-spacing:1px;">TWITCH MESSAGE</div>
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="twitch-msg" placeholder="Twitch: not built in the reactor yet" disabled style="flex:1;background:rgba(0,0,0,.5);border:1px solid var(--glass-border);border-radius:6px;padding:7px 10px;color:var(--text-primary);font-family:'JetBrains Mono';font-size:10px;outline:none;">
+            <button class="action-btn amber" onclick="sendTwitch()">SEND</button>
+          </div>
+        </div>
+
+        <div style="font-size:10px;color:var(--accent-pink);margin-bottom:6px;letter-spacing:1px;">DISCORD FEED</div>
+        <div class="chat-feed" id="discord-feed"><div style="color:var(--text-muted);font-size:10px;">Waiting for Discord messages...</div></div>
+
+        <div style="font-size:10px;color:var(--accent-amber);margin:10px 0 6px;letter-spacing:1px;">TWITCH FEED</div>
+        <div class="chat-feed" id="twitch-feed"><div style="color:var(--text-muted);font-size:10px;">No Twitch bridge in the reactor yet.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ITT COUNCIL -->
+  <div id="itt-panel" style="display:none;position:fixed;top:130px;left:50%;transform:translateX(-50%);z-index:50;">
+    <div class="window-3d" style="width:640px;max-height:480px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">ITT COUNCIL OF SEVEN — GOVERNANCE</span><span class="panel-close" onclick="WM.close('itt-panel')">×</span></div>
+      <div class="panel-content">
+        <div id="itt-grid"></div>
+        <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,.4);border-radius:8px;text-align:center;font-size:10px;color:var(--text-muted);">
+          Live seat activity from /api/council/live; each seat shows the model it really calls.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VFS PANEL -->
+  <div id="vfs-panel" style="display:none;position:fixed;top:130px;left:40px;z-index:50;">
+    <div class="window-3d" style="width:380px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">🌱 VFS GENESIS STORE</span><span class="panel-close" onclick="WM.close('vfs-panel')">×</span></div>
+      <div class="panel-content">
+        <pre class="code-block" id="vfs-output">> VFS: not connected to the reactor (no endpoint yet).</pre>
+        <div id="vfs-entries" style="margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GENESIS PANEL -->
+  <div id="genesis-panel" style="display:none;position:fixed;top:130px;right:40px;z-index:50;">
+    <div class="window-3d" style="width:380px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">🖼 TRINITY GENESIS CORE</span><span class="panel-close" onclick="WM.close('genesis-panel')">×</span></div>
+      <div class="panel-content">
+        <p style="color:var(--text-muted);font-size:10px;margin-bottom:12px;line-height:1.6;">
+          Encode OS state into a PNG genesis seed via LSB steganography, or boot from a saved seed.
+        </p>
+        <div class="action-row">
+          <button class="action-btn" onclick="genesisEncode()">COLLAPSE → PNG</button>
+          <button class="action-btn purple" onclick="genesisDecode()">AWAKEN</button>
+        </div>
+        <div style="margin-top:10px;">
+          <label style="font-size:10px;color:var(--text-muted);">GENESIS IMAGE:</label>
+          <input type="file" id="genesis-file" accept="image/*" style="margin-top:6px;width:100%;font-size:10px;color:var(--text-secondary);">
+        </div>
+        <pre class="code-block" id="genesis-output" style="margin-top:10px;">> Awaiting genesis vector allocation...</pre>
+        <div id="image-gallery" class="image-gallery" style="display:none;margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPROVAL PANEL -->
+  <div id="approval-panel" style="display:none;position:fixed;top:130px;right:40px;z-index:50;">
+    <div class="window-3d" style="width:380px;max-height:500px;">
+      <div class="raccoon-unit">🦝</div>
+      <div class="panel-header"><span class="panel-title">⚠ APPROVAL QUEUE</span><span class="panel-close" onclick="WM.close('approval-panel')">×</span></div>
+      <div class="panel-content" id="approval-queue"></div>
+    </div>
+  </div>
+
+  <!-- RACCOON AGENT -->
+  <div id="raccoon-agent" onclick="raccoonInteract()">🦝
+    <div id="raccoon-tooltip">
+      <div class="tip-title">RACCOON AGENT — SCOUT</div>
+      <div class="tip-desc">Click for wisdom. I rotate through 4 agent archetypes. Click dock buttons to open panels.</div>
+    </div>
+  </div>
+
+  <!-- VELOCITY -->
+  <div id="velocity-hud">
+    <div class="slider-label"><span>ORBITAL VELOCITY</span><span id="vel-value">1.0×</span></div>
+    <input type="range" id="velocity-slider" min="0.1" max="5" step="0.1" value="1" oninput="updateVelocity(this.value)">
+  </div>
+
+  <!-- TERMINAL -->
+  <div id="terminal-container">
+    <div id="terminal-output"></div>
+    <div id="terminal-input-line">
+      <span id="terminal-prompt">root@one2lvos:~$</span>
+      <input type="text" id="terminal-input" placeholder="Enter command... (/help)" onkeydown="handleTerminal(event)">
+      <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎤</button>
+    </div>
+  </div>
+
+</div><!-- /hud -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════
+   TRINITY CORE — OUROBOROS ENCRYPTER / DECRYPTER
+   ~ | π √ ∆ v =
+   ═══════════════════════════════════════════════════════════ */
+const TERMINAL_DELIMITER = '0000000000000000';
+const SERVER = window.location.origin; // served by the Lumenis reactor
+
+function stringToBinary(str) {
+  let binary = '';
+  for (let i = 0; i < str.length; i++) binary += str.charCodeAt(i).toString(2).padStart(8, '0');
+  return binary + TERMINAL_DELIMITER;
+}
+function binaryToString(binary) {
+  let result = '';
+  for (let i = 0; i < binary.length; i += 8) {
+    if (binary.slice(i, i + 16) === TERMINAL_DELIMITER) break;
+    result += String.fromCharCode(parseInt(binary.slice(i, i + 8), 2));
+  }
+  return result;
+}
+
+function writeStateToVoid(osStateJSON, baseImageSrc, callback) {
+  const canvas = document.getElementById('genesisGrid');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const img = new Image();
+  img.crossOrigin = 'Anonymous';
+  img.onload = () => {
+    canvas.width = img.width; canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    const bin = stringToBinary(osStateJSON);
+    let bit = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      for (let j = 0; j < 3; j++) {
+        if (bit < bin.length) { d[i + j] = (d[i + j] & ~1) | parseInt(bin[bit]); bit++; }
+      }
+      if (bit >= bin.length) break;
+    }
+    ctx.putImageData(ctx.getImageData(0, 0, canvas.width, canvas.height), 0, 0);
+    const seed = canvas.toDataURL('image/png');
+    log('GENESIS: Collapsed into PNG seed (' + (osStateJSON.length) + ' chars)');
+    if (callback) callback(seed);
+  };
+  img.onerror = () => {
+    canvas.width = 512; canvas.height = 512;
+    const grad = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
+    grad.addColorStop(0, '#00ffcc'); grad.addColorStop(0.5, '#0a0a2a'); grad.addColorStop(1, '#020617');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 512);
+    const d = ctx.getImageData(0, 0, 512, 512).data;
+    const bin = stringToBinary(osStateJSON);
+    let bit = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      for (let j = 0; j < 3; j++) {
+        if (bit < bin.length) { d[i + j] = (d[i + j] & ~1) | parseInt(bin[bit]); bit++; }
+      }
+      if (bit >= bin.length) break;
+    }
+    ctx.putImageData(ctx.getImageData(0, 0, 512, 512), 0, 0);
+    const seed = canvas.toDataURL('image/png');
+    log('GENESIS: Synthetic genesis generated');
+    if (callback) callback(seed);
+  };
+  img.src = baseImageSrc || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512"><rect fill="%23020617" width="512" height="512"/><circle cx="256" cy="256" r="180" fill="%230a2a4a" opacity="0.6"/><circle cx="256" cy="256" r="60" fill="%2300ffcc" opacity="0.4"/></svg>';
+}
+
+function bootFromVoid(encodedImageSrc, callback) {
+  const canvas = document.getElementById('genesisGrid');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const img = new Image();
+  img.crossOrigin = 'Anonymous';
+  img.onload = () => {
+    canvas.width = img.width; canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+    let bin = '';
+    for (let i = 0; i < d.length; i += 4) for (let j = 0; j < 3; j++) bin += (d[i + j] & 1).toString();
+    try {
+      const state = JSON.parse(binaryToString(bin));
+      log('GENESIS: Restored — ' + state.version);
+      if (callback) callback(state);
+    } catch { log('GENESIS: No valid state in image'); if (callback) callback(null); }
+  };
+  img.onerror = () => { log('GENESIS: Image load failed'); if (callback) callback(null); };
+  img.src = encodedImageSrc;
+}
+
+function genesisEncode() {
+  const state = {
+    version: 'One2lvOS Trinity Core v9',
+    timestamp: new Date().toISOString(),
+    resonance: parseFloat(document.getElementById('res-hz').textContent),
+    temp: parseFloat(document.getElementById('res-temp').textContent),
+    phase: parseFloat(document.getElementById('res-phase').textContent),
+    nodes: 7, council: 7,
+    witnessed: 'BOUND | MATURING | BECOMING'
+  };
+  const file = document.getElementById('genesis-file').files[0];
+  const src = file ? URL.createObjectURL(file) : null;
+  writeStateToVoid(JSON.stringify(state), src, (seed) => {
+    document.getElementById('genesis-output').textContent = '> COLLAPSE COMPLETE\n> ' + (seed ? 'Seed ready for download' : 'Generated');
+    const a = document.createElement('a'); a.href = seed; a.download = 'one2lvos-genesis.png'; a.click();
+    // Save to VFS
+  });
+}
+
+function genesisDecode() {
+  const file = document.getElementById('genesis-file').files[0];
+  if (file) {
+    bootFromVoid(URL.createObjectURL(file), (state) => {
+      if (state) {
+        document.getElementById('res-hz').textContent = state.resonance || 73;
+        document.getElementById('res-temp').textContent = state.temp || 18.000;
+        document.getElementById('res-phase').textContent = state.phase || 9.6;
+      }
+      document.getElementById('genesis-output').textContent = '> AWAKENING COMPLETE' + (state ? '\n> Version: ' + state.version : '\n> Fresh boot');
+    });
+  } else {
+    document.getElementById('genesis-output').textContent = '> Select a genesis PNG file first';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════════ */
+const STATE = {
+  version: 'Trinity Core v9', resonance: 73, temp: 18.000, phase: 9.6,
+  velocity: 1.0, nodes: 7, council: 7,
+  seatModels: {}, connected: false, discord: 'OFFLINE', twitch: 'OFFLINE'
+};
+
+const RACCOON = {
+  moods: ['scout', 'guardian', 'berserker', 'archivist'],
+  idx: 0, get current() { return this.moods[this.idx]; }
+};
+
+/* ═══════════════════════════════════════════════════════════
+   COUNCIL OF SEVEN
+   ═══════════════════════════════════════════════════════════ */
+const COUNCIL = [
+  { name: 'THE SENTINEL',   emoji: '🛡️', color: '#00ffcc', weight: 1.2, desc: 'Security',              status: 'online' },
+  { name: 'THE NAVIGATOR',  emoji: '🧭', color: '#a855f7', weight: 1.0, desc: 'Planning',             status: 'online' },
+  { name: 'THE WITNESS',    emoji: '👁️', color: '#ff5c8a', weight: 0.9, desc: 'Memory',              status: 'online' },
+  { name: 'THE WEAVER',    emoji: '🧶', color: '#5cff8a', weight: 1.1, desc: 'Synthesis',           status: 'online' },
+  { name: 'THE FORGE',     emoji: '🔨', color: '#ffaa00', weight: 1.0, desc: 'Execution',            status: 'online' },
+  { name: 'THE ORACLE',   emoji: '🔮', color: '#00f5ff', weight: 1.3, desc: 'Knowledge',             status: 'voting' },
+  { name: 'THE ARCHITECT', emoji: '🏛️', color: '#ff8c00', weight: 1.4, desc: 'Governance',           status: 'online' }
+];
+
+function renderCouncil() {
+  const total = COUNCIL.reduce((s, c) => s + c.weight, 0);
+  const grid = document.getElementById('itt-grid');
+  if (!grid) return;
+  let html = '';
+  COUNCIL.forEach(c => {
+    const pct = (c.weight / total * 100).toFixed(0);
+    html += `<div class="council-seat" style="--seat-color:${c.color}">
+      <div class="seat-name" style="color:${c.color}">${c.emoji} ${c.name}</div>
+      <div class="seat-desc">${c.desc}</div>
+      <div class="council-vote-bar"><div class="council-vote-fill" style="background:${c.color};width:${pct}%"></div></div>
+      <div class="seat-meta">
+        <span>${c.model || ''}</span>
+        <span class="status-badge badge-${c.status}">${c.status.toUpperCase()}</span>
+      </div>
+    </div>`;
+  });
+  grid.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOOL REGISTRY — reactor tool engine (/engine/tools), L0-L3 gate on the server
+   ═══════════════════════════════════════════════════════════ */
+let TOOL_LIST = [];
+const TIER_LABEL = ['L0 READ', 'L1 WRITE', 'L2 HELD', 'L3 HELD+CODE'];
+async function loadTools() {
+  try {
+    const r = await fetch(SERVER + '/engine/tools');
+    const d = await r.json();
+    const list = Array.isArray(d) ? d : (d.tools || []);
+    TOOL_LIST = list.map(t => ({ name: t.name, label: t.name, tier: (t.tier ?? t.level ?? 0), desc: t.description || '' }))
+      .filter(t => t.name).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name));
+    renderToolGrid();
+    log('TOOLS: ' + TOOL_LIST.length + ' tools from the reactor tool engine');
+  } catch (e) { log('TOOLS ERROR: ' + e.message); }
+}
+function renderToolGrid() {
+  const grid = document.getElementById('tool-grid');
+  if (!grid) return;
+  if (!TOOL_LIST.length) { grid.innerHTML = '<div style="color:var(--text-muted);font-size:10px;">Loading tools…</div>'; return; }
+  grid.innerHTML = TOOL_LIST.slice(0, 60).map(t => {
+    const cls = t.tier >= 3 ? 'risk-critical' : t.tier >= 2 ? 'risk-high' : '';
+    return `<div class="tool-chip ${cls}" title="${esc(t.desc)}" onclick="execTool('${esc(t.name)}')">
+      <div class="t-name">${esc(t.label)}</div><div class="t-risk">${TIER_LABEL[t.tier] || ('L' + t.tier)}</div></div>`;
+  }).join('');
+}
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+async function execTool(name) {
+  const paramsStr = document.getElementById('tool-params').value.trim();
+  let params = {};
+  if (paramsStr) { try { params = JSON.parse(paramsStr); } catch { params = { text: paramsStr }; } }
+  const out = document.getElementById('tool-output');
+  out.textContent = `> Calling ${name}…`;
+  try {
+    const r = await fetch(SERVER + '/engine/call/' + encodeURIComponent(name).replace(/%2F/g, '/'), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) });
+    const d = await r.json();
+    if (d.held_for_approval) {
+      renderApproval({ id: d.approval_id, tool: name, tier: d.tier, reason: d.error || 'held for approval', params });
+      out.textContent = `> ${name}: held for One2lv's approval (${d.approval_id})`;
+    } else displayToolResult(name, d);
+    log('TOOL: ' + name + ' → ' + (d.ok ? 'OK' : (d.held_for_approval ? 'HELD' : 'ERR')));
+  } catch (e) { out.textContent = '> Error: ' + e.message; }
+}
+function displayToolResult(tool, result) {
+  document.getElementById('tool-output').textContent = '> ' + JSON.stringify(result, null, 2).slice(0, 6000);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   APPROVAL QUEUE — decided on the server (owner only); no browser auto-approve
+   ═══════════════════════════════════════════════════════════ */
+function renderApproval(a) {
+  if (!a || !a.id || document.getElementById('approval-' + a.id)) return;
+  const queue = document.getElementById('approval-queue');
+  const tier = Number(String(a.tier ?? '').replace(/\D/g, '')) || 2;
+  const div = document.createElement('div');
+  div.className = 'approval-card';
+  div.id = 'approval-' + a.id;
+  div.innerHTML = `
+    <span class="risk-badge risk-${tier >= 3 ? 'critical' : 'high'}">L${tier}</span>
+    <div style="margin-top:6px;color:var(--accent-cyan);font-weight:700;">${esc(a.tool || a.name)}</div>
+    <div style="color:var(--text-muted);font-size:10px;margin:6px 0;">${esc(a.reason || JSON.stringify(a.params || a.args || {}).substring(0, 120))}</div>
+    ${tier >= 3 ? '<input type="text" placeholder="confirmation code" id="code-' + esc(a.id) + '" style="width:100%;margin-bottom:6px;background:rgba(0,0,0,.5);border:1px solid var(--glass-border);border-radius:6px;padding:5px;color:var(--text-primary);">' : ''}
+    <div class="action-row">
+      <button class="action-btn green" onclick="resolveApproval('${esc(a.id)}','approve')" style="min-width:50px;">✓ APPROVE</button>
+      <button class="action-btn pink" onclick="resolveApproval('${esc(a.id)}','deny')" style="min-width:50px;">✗ DENY</button>
+    </div>`;
+  queue.appendChild(div);
+  updateApprovalCount();
+}
+function updateApprovalCount() {
+  const n = document.querySelectorAll('.approval-card').length;
+  const count = document.getElementById('approval-count');
+  count.textContent = n; count.style.display = n ? 'inline' : 'none';
+}
+async function resolveApproval(id, action) {
+  const codeEl = document.getElementById('code-' + id);
+  const q = codeEl && codeEl.value ? '?code=' + encodeURIComponent(codeEl.value) : '';
+  try {
+    const r = await fetch(SERVER + `/engine/approvals/${encodeURIComponent(id)}/${action}` + q, { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 403) { log('APPROVAL ERROR: owner sign-in required'); return; }
+    log('APPROVAL: ' + action.toUpperCase() + ' ' + id + (d.ok === false ? ' — ' + (d.error || 'refused') : ''));
+    if (d.ok !== false) { const div = document.getElementById('approval-' + id); if (div) div.remove(); updateApprovalCount(); }
+  } catch (e) { log('APPROVAL ERROR: ' + e.message); }
+}
+async function pollApprovals() {
+  try {
+    const d = await (await fetch(SERVER + '/engine/approvals')).json();
+    (d.approvals || []).forEach(a => renderApproval({ id: a.id || a.approval_id, tool: a.tool || a.name, tier: a.tier, reason: a.reason, params: a.args }));
+  } catch (e) { /* reactor busy */ }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MEMORY — /api/tools/memory/*
+   ═══════════════════════════════════════════════════════════ */
+async function refreshMemoryCount() {
+  try {
+    const s = await (await fetch(SERVER + '/api/status')).json();
+    const facts = (s.compass && s.compass.facts) || 0;
+    document.getElementById('mem-count').textContent = facts;
+    document.getElementById('mem-fill').style.width = Math.min(100, facts / 10000 * 100) + '%';
+  } catch (e) { }
+}
+async function doStore() {
+  const text = prompt('Store a fact in Lumenis memory:');
+  if (!text) return;
+  try {
+    const r = await fetch(SERVER + '/api/tools/memory/store', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, source: 'trinity_page' }) });
+    const d = await r.json();
+    log(d.error ? 'MEMORY ERROR: ' + d.error : 'MEMORY: stored (' + (d.stored || 'ok') + ')');
+    refreshMemoryCount();
+  } catch (e) { log('MEMORY ERROR: ' + e.message); }
+}
+async function doSearch() {
+  const q = prompt('Search Lumenis memory:');
+  if (!q) return;
+  const el = document.getElementById('memory-entries');
+  try {
+    const d = await (await fetch(SERVER + '/api/tools/memory/search', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, limit: 8 }) })).json();
+    const rows = [].concat(d.results || [], d.local || [], d.astra || []);
+    el.innerHTML = rows.slice(0, 12).map(e => {
+      const key = e.key || e.source || e.collection || 'fact';
+      const val = e.value || e.text || e.content || JSON.stringify(e);
+      return `<div class="vfs-entry"><div class="vfs-key">${esc(key)}</div><div class="vfs-val">${esc(String(val).substring(0, 240))}</div></div>`;
+    }).join('') || '<div style="color:var(--text-muted);font-size:10px;">No results</div>';
+    log('MEMORY: ' + rows.length + ' results for "' + q + '"');
+  } catch (e) { log('MEMORY ERROR: ' + e.message); }
+}
+function doClear() {
+  log('MEMORY: wiping memory is not available from this page (owner action on the reactor).');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DISCORD — /api/tools/discord/*  (Twitch: no reactor endpoint)
+   ═══════════════════════════════════════════════════════════ */
+async function sendDiscord() {
+  const msg = document.getElementById('discord-msg').value.trim();
+  if (!msg) return;
+  try {
+    const r = await fetch(SERVER + '/api/tools/discord/send', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: msg }) });
+    const d = await r.json();
+    log(r.ok && !d.error ? 'DISCORD: Message sent' : 'DISCORD: Failed — ' + (d.error || r.status));
+    if (r.ok && !d.error) document.getElementById('discord-msg').value = '';
+  } catch (e) { log('DISCORD ERROR: ' + e.message); }
+}
+function sendTwitch() { log('TWITCH: the reactor has no Twitch endpoint yet — nothing sent.'); }
+let _discordSeen = new Set();
+async function pollDiscord() {
+  try {
+    const r = await fetch(SERVER + '/api/tools/discord/messages');
+    const d = await r.json();
+    STATE.discord = r.ok && !d.error ? 'ONLINE' : 'OFFLINE';
+    const msgs = d.messages || (Array.isArray(d) ? d : []);
+    msgs.slice().reverse().forEach(m => {
+      const id = m.id || (m.timestamp + (m.author && (m.author.username || m.author)));
+      if (_discordSeen.has(id)) return;
+      _discordSeen.add(id);
+      addDiscordMsg({ author: (m.author && (m.author.username || m.author)) || '?', timestamp: m.timestamp, content: m.content || '' });
+    });
+  } catch (e) { STATE.discord = 'OFFLINE'; }
+  renderBridgeStatus();
+}
+function renderBridgeStatus() {
+  const el = document.getElementById('bridge-status');
+  el.innerHTML = `
+    <div class="bridge-pill ${STATE.discord === 'ONLINE' ? 'online' : 'offline'}">
+      <div class="bridge-dot ${STATE.discord === 'ONLINE' ? 'online' : ''}"></div>Discord: ${STATE.discord}</div>
+    <div class="bridge-pill offline"><div class="bridge-dot"></div>Twitch: NOT BUILT</div>`;
+}
+function addDiscordMsg(msg) {
+  const feed = document.getElementById('discord-feed');
+  if (feed.dataset.started !== '1') { feed.innerHTML = ''; feed.dataset.started = '1'; }
+  const div = document.createElement('div');
+  div.className = 'chat-entry';
+  div.innerHTML = `<span class="chat-user">${esc(msg.author)}</span><span class="chat-time">${msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}</span><br>${esc(msg.content)}`;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+function addTwitchMsg(msg) { }
+
+/* ═══════════════════════════════════════════════════════════
+   AI CHAT — the reactor's lumenis-chat WebSocket (/ws); fallback POST /api/chat (`response`)
+   ═══════════════════════════════════════════════════════════ */
+let SESSION_ID = sessionStorage.getItem('trinity_session') || null;
+function addChatMsg(role, text) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.innerHTML = `<div class="sender">${role === 'user' ? 'YOU' : 'COUNCIL'}</div><div>${esc(text).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>')}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  addChatMsg('user', msg);
+  input.value = '';
+  const showSeats = document.getElementById('stream-mode').checked;
+  const container = document.getElementById('chat-messages');
+  const typing = document.createElement('div');
+  typing.className = 'chat-msg assistant';
+  typing.innerHTML = '<div class="sender">COUNCIL</div><div class="typing">Deliberating<span>.</span><span>.</span><span>.</span></div>';
+  container.appendChild(typing);
+  container.scrollTop = container.scrollHeight;
+  const t0 = performance.now();
+  if (socket && socket.readyState === 1) {
+    const chunks = [];
+    socket._turn = {
+      chunk(t) { chunks.push(t); typing.querySelector('div:last-child').textContent = chunks.join('').slice(-300); },
+      seat(seat, text) { pulseSeat(seat); if (showSeats) log('COUNCIL: [' + seat + '] ' + text); },
+      done(meta) {
+        typing.remove();
+        addChatMsg('assistant', chunks.join(''));
+        const secs = ((performance.now() - t0) / 1000).toFixed(1);
+        log('COUNCIL: reply in ' + secs + ' s' + (meta && meta.path ? ' via ' + meta.path : '') + (meta && meta.seats_activated ? ' — seats: ' + meta.seats_activated.join(', ') : ''));
+      },
+      error(m) { typing.remove(); addChatMsg('assistant', 'Council error: ' + m); log('COUNCIL ERROR: ' + m); }
+    };
+    socket.send(JSON.stringify({ action: 'chat', message: msg, session_id: SESSION_ID }));
+  } else {
+    fetch(SERVER + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, session_id: SESSION_ID }) })
+      .then(r => r.json())
+      .then(r => {
+        typing.remove();
+        if (r.error) { addChatMsg('assistant', 'Council error: ' + r.error); return; }
+        if (r.session_id) { SESSION_ID = r.session_id; sessionStorage.setItem('trinity_session', SESSION_ID); }
+        addChatMsg('assistant', r.response || '');
+        log('COUNCIL: reply (' + (r.response || '').length + ' chars, HTTP)');
+      })
+      .catch(e => { typing.remove(); addChatMsg('assistant', 'Reactor not reachable: ' + e.message); });
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   TERMINAL (page commands only — nothing here runs on the machine)
+   ═══════════════════════════════════════════════════════════ */
+function log(msg) {
+  const out = document.getElementById('terminal-output');
+  if (!out) { console.log(msg); return; }
+  const line = document.createElement('div');
+  const color = msg.includes('ERROR') ? 'var(--danger)' : msg.includes('GENESIS') ? 'var(--accent-purple)'
+    : msg.includes('COUNCIL') ? 'var(--accent-cyan)' : msg.includes('MEMORY') ? 'var(--accent-green)'
+    : msg.includes('DISCORD') ? '#9f4' : msg.includes('REACTOR') ? 'var(--accent-amber)' : 'var(--text-secondary)';
+  line.style.color = color;
+  line.textContent = '> ' + msg;
+  out.appendChild(line);
+  out.scrollTop = out.scrollHeight;
+}
+function handleTerminal(e) {
+  if (e.key !== 'Enter') return;
+  const cmd = e.target.value.trim();
+  if (!cmd) return;
+  log('$ ' + cmd);
+  if (cmd === '/help') {
+    log('Commands: /help /status /council /models /approvals /memory /clear  discord <msg>');
+    log('Approvals are decided on the reactor (L2/L3 held for One2lv); this page has no auto-approve.');
+  } else if (cmd === '/status') {
+    refreshStatus(true);
+  } else if (cmd === '/council') {
+    COUNCIL.forEach(c => log(`${c.emoji} ${c.name} [${c.status}]${c.model ? ' ' + c.model : ''}`));
+  } else if (cmd === '/models') {
+    Object.entries(STATE.seatModels || {}).forEach(([k, v]) => log(k + ': ' + v));
+  } else if (cmd === '/approvals') {
+    pollApprovals(); togglePanel('approval-panel');
+  } else if (cmd === '/clear') {
+    document.getElementById('terminal-output').innerHTML = '';
+  } else if (cmd === '/memory') {
+    refreshMemoryCount().then(() => log('MEMORY: ' + document.getElementById('mem-count').textContent + ' facts'));
+  } else if (cmd.startsWith('discord ')) {
+    document.getElementById('discord-msg').value = cmd.slice(8);
+    sendDiscord();
+  } else {
+    log('Unknown: ' + cmd + ' — /help');
+  }
+  e.target.value = '';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WINDOW MANAGER
+   ═══════════════════════════════════════════════════════════ */
+const WM = {
+  toggle(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const shown = el.style.display !== 'none';
+    el.style.display = shown ? 'none' : 'block';
+    document.querySelectorAll('.dock-btn').forEach(b => {
+      if (b.textContent.includes(id.replace('-panel','').toUpperCase())) b.classList.toggle('active', !shown);
+    });
+  }, close(id) { document.getElementById(id).style.display = 'none'; }
+};
+function togglePanel(id) { WM.toggle(id); }
+
+/* ═══════════════════════════════════════════════════════════
+   RACCOON AGENT
+   ═══════════════════════════════════════════════════════════ */
+function raccoonInteract() {
+  RACCOON.idx = (RACCOON.idx + 1) % RACCOON.moods.length;
+  const mood = RACCOON.current;
+  const el = document.getElementById('raccoon-agent');
+  el.style.filter = mood === 'berserker' ? 'drop-shadow(0 0 20px rgba(255,92,138,.9))'
+    : mood === 'guardian' ? 'drop-shadow(0 0 15px rgba(0,255,136,.8))'
+    : mood === 'archivist' ? 'drop-shadow(0 0 15px rgba(168,85,247,.8))'
+    : 'drop-shadow(0 0 12px rgba(0,255,255,.6))';
+  const tip = document.getElementById('raccoon-tooltip');
+  const tips = {
+    scout: 'Scout mode — I see everything. Guide you to any panel.',
+    guardian: 'Guardian mode — All systems guarded. Safe to proceed.',
+    berserker: 'Berserker mode — COMBO CHAIN MAXIMUM OVERDRIVE!',
+    archivist: 'Archivist mode — Consulting the Akashic Records...'
+  };
+  tip.querySelector('.tip-title').textContent = 'RACCOON — ' + mood.toUpperCase();
+  tip.querySelector('.tip-desc').textContent = tips[mood];
+  tip.classList.add('visible');
+  log('RACCOON: ' + mood.toUpperCase() + ' mode');
+  setTimeout(() => tip.classList.remove('visible'), 3000);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VELOCITY
+   ═══════════════════════════════════════════════════════════ */
+function updateVelocity(val) {
+  STATE.velocity = parseFloat(val);
+  document.getElementById('vel-value').textContent = val + '×';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VOICE INPUT
+   ═══════════════════════════════════════════════════════════ */
+let micActive = false;
+function toggleMic() {
+  micActive = !micActive;
+  document.getElementById('micBtn').classList.toggle('listening', micActive);
+  log(micActive ? 'VOICE: Listening...' : 'VOICE: Disabled');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THREE.JS SPATIAL OS
+   ═══════════════════════════════════════════════════════════ */
+let scene, camera, renderer, nodes = [];
+
+function initThreeJS() {
+  const container = document.getElementById('webgl-bg');
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
+  camera.position.set(0, 12, 28);
+  camera.lookAt(0, 0, 0);
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  container.appendChild(renderer.domElement);
+
+  // Stars
+  const sg = new THREE.BufferGeometry();
+  const sp = new Float32Array(3000 * 3);
+  for (let i = 0; i < 3000 * 3; i++) sp[i] = (Math.random() - 0.5) * 400;
+  sg.setAttribute('position', new THREE.BufferAttribute(sp, 3));
+  scene.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xaaddff, size: 0.3, transparent: true, opacity: 0.7 })));
+
+  // Singularity
+  const singularity = new THREE.Mesh(
+    new THREE.SphereGeometry(1.5, 32, 32),
+    new THREE.MeshBasicMaterial({ color: 0x00ffcc, transparent: true, opacity: 0.6 })
+  );
+  scene.add(singularity);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(2.2, 0.05, 16, 100),
+    new THREE.MeshBasicMaterial({ color: 0xa855f7, transparent: true, opacity: 0.4 }));
+  ring.rotation.x = Math.PI / 2;
+  scene.add(ring);
+
+  // 7 orbital nodes
+  const defs = [
+    { name: 'SENTINEL',  color: 0x00ffcc, orbit: 6,   speed: 0.003,  size: 0.35, phase: 0 },
+    { name: 'NAVIGATOR', color: 0xa855f7, orbit: 8,   speed: 0.002,  size: 0.30, phase: Math.PI * 0.3 },
+    { name: 'WITNESS',   color: 0xff5c8a, orbit: 10,  speed: 0.0015, size: 0.32, phase: Math.PI * 0.6 },
+    { name: 'WEAVER',   color: 0x5cff8a, orbit: 7,   speed: 0.0025, size: 0.28, phase: Math.PI * 0.9 },
+    { name: 'FORGE',    color: 0xffaa00, orbit: 9,   speed: 0.0018, size: 0.33, phase: Math.PI * 1.2 },
+    { name: 'ORACLE',   color: 0x00f5ff, orbit: 11,  speed: 0.0012, size: 0.36, phase: Math.PI * 1.5 },
+    { name: 'ARCHITECT',color: 0xff8c00, orbit: 7.5, speed: 0.0022, size: 0.40, phase: Math.PI * 1.8 }
+  ];
+  defs.forEach((def, i) => {
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(def.size, 16, 16),
+      new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.85 })
+    );
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(def.size * 2, 8, 8),
+      new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.15 }));
+    mesh.add(glow);
+    const oGeo = new THREE.TorusGeometry(def.orbit, 0.01, 8, 100);
+    const orbit = new THREE.Mesh(oGeo,
+      new THREE.MeshBasicMaterial({ color: def.color, transparent: true, opacity: 0.12 }));
+    orbit.rotation.x = Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+    scene.add(orbit);
+    mesh.userData = { def, orbit };
+    scene.add(mesh);
+    nodes.push(mesh);
+  });
+
+  // Galaxy arms
+  for (let arm = 0; arm < 3; arm++) {
+    const pts = [];
+    for (let i = 0; i < 200; i++) {
+      const t = i / 200, angle = arm * (Math.PI * 2 / 3) + t * Math.PI * 3, r = t * 20;
+      pts.push(new THREE.Vector3(Math.cos(angle) * r, (Math.random() - 0.5) * 0.5, Math.sin(angle) * r));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts);
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 200, 0.05, 8, false),
+      new THREE.MeshBasicMaterial({ color: [0x00ffcc, 0xa855f7, 0xff5c8a][arm], transparent: true, opacity: 0.2 })));
+  }
+
+  scene.add(new THREE.AmbientLight(0x222244, 0.5));
+
+  let mouseX = 0, mouseY = 0;
+  addEventListener('mousemove', (e) => {
+    mouseX = (e.clientX / innerWidth - 0.5) * 2;
+    mouseY = (e.clientY / innerHeight - 0.5) * 2;
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const v = STATE.velocity;
+    nodes.forEach((node, i) => {
+      const def = node.userData.def;
+      const angle = Date.now() * 0.001 * def.speed * v + def.phase;
+      node.position.x = Math.cos(angle) * def.orbit;
+      node.position.z = Math.sin(angle) * def.orbit;
+      node.position.y = Math.sin(angle * 2) * 1.5;
+      node.rotation.x += 0.01 * v;
+      node.rotation.y += 0.015 * v;
+    });
+    singularity.rotation.y += 0.005 * v;
+    ring.rotation.z += 0.003 * v;
+    camera.position.x += (mouseX * 3 - camera.position.x) * 0.02;
+    camera.position.y += (-mouseY * 2 + 12 - camera.position.y) * 0.02;
+    camera.lookAt(0, 0, 0);
+    renderer.render(scene, camera);
+  }
+  animate();
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BOOT — real reactor status (/api/status), no canned log
+   ═══════════════════════════════════════════════════════════ */
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+const SEAT_INDEX = { sentinel: 0, navigator: 1, witness: 2, weaver: 3, forge: 4, oracle: 5, architect: 6 };
+function applyStatus(s) {
+  const r = s.reactor || {};
+  document.getElementById('res-hz').textContent = (r.frequency_hz ?? '–');
+  document.getElementById('res-temp').textContent = (r.temperature ?? '–');
+  document.getElementById('res-phase').textContent = r.uptime_seconds != null ? Math.round(r.uptime_seconds / 60) + 'm up' : '–';
+  document.getElementById('res-nodes').textContent = (s.nodes ? s.nodes.active_workers + '/' + s.nodes.max_concurrent : '–');
+  STATE.seatModels = s.seat_models || {};
+  (s.seats || []).forEach(seat => {
+    const i = SEAT_INDEX[seat.key];
+    if (i != null) { COUNCIL[i].model = (seat.model || '').split('/').pop(); COUNCIL[i].desc = seat.role || COUNCIL[i].desc; }
+  });
+}
+async function refreshStatus(verbose) {
+  try {
+    const s = await (await fetch(SERVER + '/api/status')).json();
+    applyStatus(s);
+    if (verbose) {
+      const r = s.reactor || {};
+      log(`REACTOR: model ${r.model} · up ${Math.round((r.uptime_seconds || 0) / 60)} min · pulses ${r.pulse_count}`);
+      log(`MEMORY: ${(s.compass || {}).facts} facts · ${(s.compass || {}).sessions} sessions`);
+      log('SWARM: ' + ((s.swarm || {}).enabled ? 'on' : 'off'));
+    }
+    return s;
+  } catch (e) { if (verbose) log('REACTOR ERROR: ' + e.message); return null; }
+}
+async function refreshCouncil() {
+  try {
+    const d = await (await fetch(SERVER + '/api/council/live')).json();
+    let active = 0;
+    (d.seats || []).forEach(seat => {
+      const i = SEAT_INDEX[seat.seat];
+      if (i == null) return;
+      COUNCIL[i].status = seat.active ? 'voting' : (seat.fired ? 'online' : 'idle');
+      COUNCIL[i].fired = seat.fired;
+      if (seat.active) active++;
+    });
+    document.getElementById('res-council').textContent = active + '/' + ((d.seats || []).length || COUNCIL.length) + ' active';
+    renderCouncil();
+  } catch (e) { }
+}
+function pulseSeat(seat) {
+  const i = SEAT_INDEX[seat];
+  if (i == null || !nodes[i]) return;
+  const n = nodes[i]; n.scale.set(1.8, 1.8, 1.8);
+  setTimeout(() => n.scale.set(1, 1, 1), 600);
+}
+async function runAuroraBoot() {
+  const logEl = document.getElementById('boot-log');
+  const bar = document.getElementById('genesis-bar');
+  const line = t => { logEl.textContent += t + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+  line('One2lvOS Trinity Core · connecting to the Lumenis reactor…');
+  bar.style.width = '20%';
+  const s = await refreshStatus(false);
+  if (!s) {
+    line('Reactor not reachable at ' + SERVER + ' — status unknown.');
+  } else {
+    const r = s.reactor || {}, c = s.compass || {}, nd = s.nodes || {};
+    line(`Reactor: ${r.provider || '?'} · model ${r.model || '?'} · up ${Math.round((r.uptime_seconds || 0) / 60)} min`);
+    bar.style.width = '45%'; await delay(150);
+    line(`Council: ${(s.seats || []).length} seats · Oracle ${(s.oracle_reactor || {}).model || '?'} · Forge ${(s.forge_reactor || {}).model || '?'}`);
+    bar.style.width = '65%'; await delay(150);
+    line(`Memory: ${c.facts ?? '?'} facts in ${c.sessions ?? '?'} sessions · workers ${nd.active_workers ?? '?'}/${nd.max_concurrent ?? '?'}`);
+    line(`Bridges: Maton ${(s.maton || {}).connected_services ?? 0} services · swarm ${(s.swarm || {}).enabled ? 'on' : 'off'}`);
+    const bad = [s.nvidia && s.nvidia.online === false ? 'NVIDIA offline' : '', (s.oracle_reactor || {}).errors ? 'Oracle errors: ' + s.oracle_reactor.errors : ''].filter(Boolean);
+    line(bad.length ? 'Warnings: ' + bad.join(' · ') : 'Reactor answered /api/status.');
+  }
+  bar.style.width = '100%';
+  await delay(700);
+  document.getElementById('aurora-boot').classList.add('fade');
+  await delay(1200);
+  document.getElementById('aurora-boot').style.display = 'none';
+  log('BOOT: ' + (s ? 'reactor status loaded' : 'reactor not reachable'));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LUMENIS-CHAT WEBSOCKET (/ws)
+   ═══════════════════════════════════════════════════════════ */
+var socket = null;
+function connectSocket() {
+  const url = SERVER.replace(/^http/, 'ws') + '/ws';
+  try { socket = new WebSocket(url); } catch (e) { log('REACTOR ERROR: ' + e.message); return; }
+  socket.onopen = () => {
+    STATE.connected = true;
+    document.getElementById('conn-dot').classList.add('online');
+    document.getElementById('conn-label').textContent = 'REACTOR ONLINE';
+    log('REACTOR: lumenis-chat connected');
+  };
+  socket.onclose = () => {
+    STATE.connected = false;
+    document.getElementById('conn-dot').classList.remove('online');
+    document.getElementById('conn-label').textContent = 'OFFLINE';
+    if (socket && socket._turn) { socket._turn.error('connection closed'); socket._turn = null; }
+    setTimeout(connectSocket, 5000);
+  };
+  socket.onmessage = ev => {
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    const turn = socket._turn;
+    switch (m.type) {
+      case 'init': if (m.session_id && !SESSION_ID) { SESSION_ID = m.session_id; sessionStorage.setItem('trinity_session', SESSION_ID); } break;
+      case 'ping': socket.send(JSON.stringify({ action: 'ping' })); break;
+      case 'response_chunk': if (turn) turn.chunk(m.text || ''); break;
+      case 'seat_activity': if (turn) turn.seat(m.seat, m.text || ''); else pulseSeat(m.seat); break;
+      case 'processing_done': if (m.session_id) { SESSION_ID = m.session_id; sessionStorage.setItem('trinity_session', SESSION_ID); } if (turn) { turn.done(m.meta || m); socket._turn = null; } refreshCouncil(); break;
+      case 'error': if (turn) { turn.error(m.message || 'error'); socket._turn = null; } else log('REACTOR ERROR: ' + (m.message || '')); break;
+    }
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+   ═══════════════════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  try { initThreeJS(); } catch (e) { log('3D view unavailable: ' + e.message); }
+  renderCouncil();
+  renderToolGrid();
+  renderBridgeStatus();
+  log('One2lvOS Trinity Core v9 — served by the Lumenis reactor');
+  log('Type /help for commands');
+  runAuroraBoot().then(() => { refreshCouncil(); loadTools(); refreshMemoryCount(); pollDiscord(); pollApprovals(); });
+  connectSocket();
+  setInterval(() => { refreshStatus(false); refreshCouncil(); }, 15000);
+  setInterval(pollApprovals, 20000);
+  setInterval(pollDiscord, 30000);
+});
+
+</script>
+</body>
+</html>

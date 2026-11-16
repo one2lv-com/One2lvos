@@ -28,6 +28,9 @@ from . import shared_files as _shared
 from . import live_status as _ls
 from . import soul as _soul
 from .reactor import fast_call as _fast_call, FAST_MODEL as _FAST_MODEL, ROUTE_MODEL as _ROUTE_MODEL
+from .reactor import NVIDIA_PRIMARY_MODEL as _PRIMARY_MODEL, VERIFY_MODEL as _VERIFY_MODEL
+from .model_guard import env_chat_model as _env_chat_model, DEFAULT_REASONING as _DEFAULT_REASONING
+from .swarm import council_swarm as _swarm
 
 # ── Honesty layer ────────────────────────────────────────────────────────────
 # Character and voice only. Capabilities are NOT listed here: what works, what is down and what
@@ -385,14 +388,16 @@ class ITTCouncil:
         self.reactor = reactor                # Primary: llama-3.2-90b
         self.nvidia = NvidiaReactor()         # Fallback secondary: llama-3.2-11b
         # Reasoning reactors (Frontier #1 — Advanced AI)
+        # Each reasoning seat now really calls its own model (before 2026-11-16 the model was ignored and both
+        # seats ran on LLM_PRIMARY_MODEL). Override with LUMENIS_ORACLE_MODEL / LUMENIS_FORGE_MODEL.
         self.oracle_reactor = ReasoningReactor(
-            model="nvidia/nemotron-3.5-lightning-30b-a3b",
+            model=_env_chat_model("LUMENIS_ORACLE_MODEL", _DEFAULT_REASONING),
             api_key_env="NVIDIA_API_KEY",
         )
-        # DeepSeek Flash times out on NVIDIA's API — use Lightning for Forge too
+        # DeepSeek Flash times out on NVIDIA's API (60 s with no answer on 2026-11-16) — Lightning for Forge too
         # Oracle and Forge are differentiated by their system prompts, not the model
         self.forge_reactor = ReasoningReactor(
-            model="nvidia/nemotron-3.5-lightning-30b-a3b",
+            model=_env_chat_model("LUMENIS_FORGE_MODEL", _DEFAULT_REASONING),
             api_key_env="NVIDIA_API_KEY",
         )
         self.compass = compass
@@ -437,6 +442,19 @@ class ITTCouncil:
             system=seat["system"],
             max_tokens=max_tok,
         )
+
+    def seat_model(self, seat_key: str) -> str:
+        """The model a seat's calls actually go to."""
+        if seat_key == self.ORACLE_SEAT:
+            return self.oracle_reactor.model
+        if seat_key == self.FORGE_SEAT:
+            return self.forge_reactor.model
+        if seat_key in ("sentinel", "navigator"):
+            return _ROUTE_MODEL
+        return _PRIMARY_MODEL
+
+    def seat_models(self) -> dict:
+        return {s: self.seat_model(s) for s in SEATS} | {"fast_path": _FAST_MODEL, "arbiter": _VERIFY_MODEL}
 
     async def _call_fast_seat(self, seat_key: str, user_message: str, max_tokens: int = 300) -> str:
         """Routing seats (Sentinel, Navigator) on the fast model; falls back to the primary model."""
@@ -506,6 +524,41 @@ length, keeping everything that was fine, with each problem corrected from the e
             h.append("The draft contains what looks like tool/scan output, but no tool ran this turn.")
         return h
 
+    async def _swarm_path(self, user_message, parts, session_id, notify, emit, status_block, identity_verified,
+                          sentinel, intent, complexity, plan, timings, t_start, guest, learn) -> "CouncilDecision":
+        """Answer each independent part on its own seat at the same time, then one attributed reply."""
+        import time as _t
+        await notify("navigator", f"✓ swarm: {len(parts)} parts in parallel → "
+                     + ", ".join(p["seat"] for p in parts))
+        context = status_block + ("\n\nGUEST CONVERSATION: you are speaking with a guest of One2lv; share no private "
+                                  "details and offer no tools." if guest else "")
+        sw = await _swarm.run(parts, user_message, self._call_seat, self.seat_model, notify, context=context)
+        timings["swarm_parallel_s"] = sw["parallel_s"]
+        timings["swarm"] = [{k: r[k] for k in ("part", "seat", "model", "seconds", "ok")} for r in sw["results"]]
+        timings["draft_s"] = round(_t.time() - t_start, 2)
+        draft = sw["text"]
+        hints = self._hints(user_message, draft, identity_verified, tool_ran=False)
+        arbiter = "skipped (no status, tool, memory or identity claims)"
+        if hints or _CLAIM_RE.search(draft):
+            await notify("arbiter", "Checking claims...")
+            draft, arbiter = await self._verify(user_message, draft, status_block, hints)
+            await notify("arbiter", "✓ " + arbiter[:120])
+        timings["total_s"] = round(_t.time() - t_start, 2)
+        layers = ["soul"] + ([] if guest else ["live status"])
+        timings["layers"] = layers
+        shown = draft + _soul.cite(layers)
+        await emit(shown)
+        await notify("weaver", "✓ Done")
+        if learn and not guest:
+            self.compass.auto_learn(draft, session_id)
+        seats = list(dict.fromkeys(p["seat"] for p in parts))
+        return CouncilDecision(
+            sentinel_ok=True, risk_level=sentinel.get("risk_level", "none"), intent=intent, complexity=complexity,
+            seats_activated=["sentinel", "navigator"] + seats + (["arbiter"] if not arbiter.startswith("skipped") else []),
+            plan=plan or f"swarm: {len(parts)} parallel parts", memory_context="",
+            specialist_output="\n\n".join(f"[{r['seat']}] {r['text']}" for r in sw["results"]),
+            external_data="", final_response=shown, path="swarm", arbiter=arbiter, timings=timings)
+
     async def process(
         self,
         user_message: str,
@@ -558,6 +611,11 @@ length, keeping everything that was fine, with each problem corrected from the e
         # ── Steps 1+2: Sentinel and Navigator, in parallel on the fast model ─────
         await notify("sentinel", "Checking...")
         await notify("navigator", "Planning route...")
+        # Swarm decomposition runs at the same time as Sentinel and Navigator (no added wait); only longer
+        # messages with signs of several asks are sent to it.
+        swarm_task = None
+        if _swarm.enabled() and mode != "voice" and _swarm.worth_trying(user_message):
+            swarm_task = asyncio.create_task(_swarm.decompose(user_message, _fast_call, _ROUTE_MODEL, guest=guest))
         sentinel_raw, nav_raw = await asyncio.gather(
             self._call_fast_seat("sentinel", user_message),
             self._call_fast_seat("navigator", user_message),
@@ -568,6 +626,8 @@ length, keeping everything that was fine, with each problem corrected from the e
 
         # The fast Sentinel only blocks when it also rates the risk high (avoids false blocks on benign chat).
         if sentinel.get("recommendation") == "block" and sentinel.get("risk_level") == "high":
+            if swarm_task:
+                swarm_task.cancel()
             return CouncilDecision(
                 sentinel_ok=False,
                 risk_level=sentinel.get("risk_level", "high"),
@@ -630,6 +690,28 @@ length, keeping everything that was fine, with each problem corrected from the e
                        and not (ionos_requested or shared_requested or engine_requested)
                        and not _SYSTEM_Q_RE.search(user_message)
                        and not _IDENTITY_CLAIM_RE.search(user_message))
+        # ── Swarm path: 2+ independent parts → seats answer in parallel, one attributed reply ──
+        if swarm_task is not None:
+            swarm_ok = (intent not in ("external", "arcade", "system")
+                        and not (set(seats_needed) & {"hermes", "gambit"}) and not memory_q and not dream_q
+                        and not (ionos_requested or shared_requested or engine_requested)
+                        and not _SYSTEM_Q_RE.search(user_message)
+                        and not _IDENTITY_CLAIM_RE.search(user_message))
+            parts = []
+            if swarm_ok:
+                try:
+                    parts = await swarm_task
+                except Exception:
+                    parts = []
+            else:
+                swarm_task.cancel()
+            timings["swarm_decompose_s"] = round(_t.time() - t_start, 2)
+            timings["swarm_parts"] = len(parts)
+            if len(parts) >= 2:
+                return await self._swarm_path(user_message, parts, session_id, notify, emit, status_block,
+                                              identity_verified, sentinel, intent, complexity, plan, timings,
+                                              t_start, guest, learn)
+
         if mode == "voice" or simple_chat:
             await notify("weaver", f"Fast path [{_FAST_MODEL.split('/')[-1]}]...")
             history = "" if guest else "\n".join(
@@ -936,10 +1018,29 @@ Plan: {plan}"""
                        "quote them as your dreams, in your own words, and say they were dreams; never present "
                        "anything from them as a fact about your systems, architecture or logs." if dream_block else "")
                     + f"\n\nContext:\n{weaver_context}"),
-            max_tokens=2048,
+            # 4096: the Weaver model's reasoning counts against this budget; 2048 cut long replies off
+            # mid-sentence (seen live 2026-11-16).
+            max_tokens=4096,
         ):
             full_response.append(chunk)
         final = "".join(full_response)
+        if not final.strip():
+            # The Weaver model reasons before it answers; on a long context it can spend the whole token budget
+            # reasoning and send no answer text (seen live 2026-11-16: reply was only the Sources line).
+            # One retry on the fast model, so a turn never ends with an empty reply.
+            await notify("weaver", f"↻ no answer text; retrying on {_FAST_MODEL.split('/')[-1]}")
+            timings["weaver_retry"] = _FAST_MODEL
+            try:
+                final = await asyncio.wait_for(_fast_call(
+                    LUMENIS_VOICE + "\n\n" + SEATS["weaver"]["system"] + "\n\n" + _soul.rules_block()
+                    + "\n\n" + HONESTY_RULES + f"\n\nContext:\n{weaver_context}",
+                    [{"role": "user", "content": user_message}], max_tokens=1500, temperature=0.4,
+                    model=_FAST_MODEL), timeout=60)
+            except Exception as e:
+                final = ""
+                timings["weaver_retry_error"] = type(e).__name__
+            if not (final or "").strip():
+                final = "(No answer text came back from the Weaver or the fast model this turn. Please send it again.)"
         timings["draft_s"] = round(_t.time() - t_start, 2)
 
         # ── Step 6b: Arbiter — final truth check before the user sees anything ──

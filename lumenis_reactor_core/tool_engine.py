@@ -656,6 +656,31 @@ def _p9():
     return phase9
 
 
+# ── Supervisor shell commands (Autonomis), one tool per risk tier ───────────────────────────────────────
+# Autonomis never runs an AI-proposed shell command itself: it calls local.supervisor_cmd_l<N> here with the
+# tier from command_tiers.classify(). Each tool re-checks the tier, so an L3 command cannot ride the L1 tool.
+# L0-L1 run; L2+ are held for One2lv (callers "council"/"autonomis"), L3 also needs the second confirmation.
+def _supervisor_cmd(expected_tier: int):
+    def run(a):
+        from . import command_tiers as _ct
+        cmd = str(a.get("command", "")).strip()
+        tier, why = _ct.classify(cmd)
+        if tier != expected_tier:
+            raise PermissionError(f"command is L{tier} ({why}), not L{expected_tier}; use local.supervisor_cmd_l{tier}")
+        out = _ct.run_argv(cmd, timeout=float(a.get("timeout") or 120))
+        out.update(command=cmd, tier=f"L{tier}", why=why)
+        out["stdout"] = redact(out.get("stdout", ""))
+        out["stderr"] = redact(out.get("stderr", ""))
+        return out
+    return run
+
+
+for _n, _lvl in ((0, "local_read"), (1, "local_write"), (2, "local_write"), (3, "local_write")):
+    LOCAL_TOOLS[f"supervisor_cmd_l{_n}"] = (
+        _supervisor_cmd(_n), _lvl, _obj({"command": _S, "timeout": {"type": "number"}}, ["command"]),
+        f"Run one L{_n} supervisor (Autonomis) shell command, without a shell, in the repo folder.")
+
+
 # ── Dispatcher ─────────────────────────────────────────────────────────────────────────────
 
 def summarize_kinds() -> Dict[str, int]:
@@ -760,7 +785,8 @@ def _trace(tool, kind, level, source, ok, status_code, args, error, t0, caller) 
 TIER_BY_LEVEL = {"engine_read": 0, "local_read": 0, "remote_read": 1, "nvidia_call": 1, "engine_write": 1,
                  "local_write": 1, "nvidia_batch": 2, "remote_write": 3, "refused": 3}
 TIER_OVERRIDES = {"local.delete_chart": 3, "engine.rollback_catalog": 1, "engine.learn": 1,
-                  "local.delta_reset": 2}
+                  "local.delta_reset": 2,
+                  "local.supervisor_cmd_l2": 2, "local.supervisor_cmd_l3": 3}
 APPROVAL_TTL = 24 * 3600
 
 
@@ -855,9 +881,10 @@ async def dispatch(name: str, args: Optional[Dict[str, Any]] = None, fresh: bool
     args = dict(args or {})
     args.pop("tool", None)
     tier = tier_of(name)
-    if not approved and caller == "council" and tier >= 2:
+    if not approved and caller in ("council", "autonomis") and tier >= 2:
         _intent(name, tier, caller, args, "held")
-        return _hold(name, args, tier, caller, "Lumenis asked for a tool at L2 or higher")
+        return _hold(name, args, tier, caller, ("Lumenis" if caller == "council" else "Autonomis")
+                     + " asked for a tool at L2 or higher")
     if not approved and caller == "http" and tier >= 3:
         _intent(name, tier, caller, args, "held")
         return _hold(name, args, tier, caller, "HTTP call to an L3 tool without ?confirm=yes")
@@ -1059,11 +1086,16 @@ async def r_validate(name: str, request: Request):
 
 
 @router.post("/engine/call/{name:path}")
-async def r_call(name: str, request: Request, fresh: bool = False, confirm: str = ""):
+async def r_call(name: str, request: Request, fresh: bool = False, confirm: str = "", as_caller: str = ""):
     try:
         args = await _body(request)
     except Exception as e:
         return JSONResponse({"ok": False, "status": 400, "error": str(e)}, status_code=400)
+    # as_caller=autonomis only makes the gate stricter (L2+ held), so it needs no sign-in; it cannot approve.
+    if as_caller == "autonomis":
+        return _reply(await dispatch(name, args, fresh=fresh, caller="autonomis", approved=False))
+    if name.startswith("local.supervisor_cmd_"):
+        _gate_owner(request)
     if confirm == "yes":
         _gate_owner(request)
     return _reply(await dispatch(name, args, fresh=fresh, caller="http", approved=(confirm == "yes")))

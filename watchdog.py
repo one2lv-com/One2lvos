@@ -51,6 +51,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT_DIR   = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT_DIR))
+from service_lock import REACTOR_SERVICE, restart_lock  # shared with autonomis-agent.py
 COMPASS_DB = os.environ.get("COMPASS_DB", str(ROOT_DIR / "compass.db"))
 LOG_FILE   = ROOT_DIR / "logs" / "watchdog.log"
 LOCK_FILE  = ROOT_DIR / "logs" / "watchdog.lock"
@@ -330,6 +332,19 @@ def restart(reason: str, restart_count: int):
     return ok
 
 
+def locked_restart(reason: str, count: int, hung: bool = False) -> bool | None:
+    """Stop (if hung) and restart the reactor while holding the shared restart lock (service_lock.py),
+    so Autonomis never restarts it at the same time. None = the other supervisor holds it; skip this round."""
+    with restart_lock(REACTOR_SERVICE, holder="watchdog") as got:
+        if not got:
+            log("Reactor restart skipped - another supervisor holds the restart lock or just restarted it")
+            return None
+        if hung and not stop_hung_reactor():
+            log("Could not free the port - will try again later")
+            return False
+        return restart(reason, count)
+
+
 def main():
     global _reactor_proc
 
@@ -348,7 +363,7 @@ def main():
         log("Port is taken but reactor not answering yet — will keep checking")
     else:
         log("Reactor not running on startup — starting now")
-        restart("not_running_on_start", 0)
+        locked_restart("not_running_on_start", 0)
 
     restart_count = 0
     fails = 0
@@ -367,7 +382,10 @@ def main():
             fails = 0
             restart_count += 1
             log(f"Nothing listening on port {REACTOR_PORT} — reactor is down, restarting")
-            ok = restart("port_closed", restart_count)
+            ok = locked_restart("port_closed", restart_count)
+            if ok is None:
+                restart_count -= 1
+                continue
             backoff = 0 if ok else min(MAX_BACKOFF, max(30, backoff * 2))
             continue
 
@@ -390,11 +408,10 @@ def main():
         log("Reactor hung — restarting it")
         fails = 0
         restart_count += 1
-        if not stop_hung_reactor():
-            log("Could not free the port — will try again later")
-            backoff = min(MAX_BACKOFF, max(30, backoff * 2))
+        ok = locked_restart("hung", restart_count, hung=True)
+        if ok is None:
+            restart_count -= 1
             continue
-        ok = restart("hung", restart_count)
         backoff = 0 if ok else min(MAX_BACKOFF, max(30, backoff * 2))
 
 

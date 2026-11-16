@@ -14,8 +14,10 @@ Usage:
   ONE2LVOS_SKIP_MODEL_UPDATE=1 python3 ...    # Skip entirely
 
 Note:
-  - Prioritizes models accessible on free/basic NVIDIA API tiers
-  - Falls back to known good models if API is unavailable
+  - Never selects safety/guard/classifier models (nemoguard, content-safety, topic-control ...)
+  - Keeps a current model that is listed and answers a live chat test; otherwise live-tests candidates
+  - Keeps the existing configuration if the API is unavailable
+  ONE2LVOS_MODEL_UPDATE_NO_LIVE_TEST=1  never change models (no live tests run)
   - Automatically called by startos.sh during boot
   - Get API key from: https://build.nvidia.com/explore/discover
 """
@@ -32,6 +34,15 @@ try:
 except ImportError:
     print("⚠ requests module not installed - skipping NVIDIA model update", file=sys.stderr)
     sys.exit(0)
+
+# Shared rule with the reactor: lumenis_reactor_core/model_guard.py (loaded by path, no package import).
+import importlib.util as _ilu
+_mg_spec = _ilu.spec_from_file_location(
+    "_model_guard", Path(__file__).resolve().parent / "lumenis_reactor_core" / "model_guard.py")
+_mg = _ilu.module_from_spec(_mg_spec)
+_mg_spec.loader.exec_module(_mg)
+is_safety_model = _mg.is_safety_model
+is_chat_candidate = _mg.is_chat_candidate
 
 
 class NvidiaModelUpdater:
@@ -106,113 +117,84 @@ class NvidiaModelUpdater:
             return self._fallback_models()
 
     def _fallback_models(self) -> Dict[str, List[Dict]]:
-        """Fallback model list when API is unavailable - using widely accessible models"""
-        return {
-            "chat": [
-                {"id": "meta/llama-3.1-8b-instruct", "owned_by": "meta"},
-                {"id": "mistralai/mistral-7b-instruct-v0.3", "owned_by": "mistralai"},
-                {"id": "google/gemma-2b-it", "owned_by": "google"},
-            ],
-            "vision": [
-                {"id": "microsoft/phi-3-vision-128k-instruct", "owned_by": "microsoft"},
-                {"id": "nvidia/vila", "owned_by": "nvidia"},
-            ],
-            "embedding": [
-                {"id": "nvidia/nv-embedqa-e5-v5", "owned_by": "nvidia"},
-                {"id": "baai/bge-large-en-v1.5", "owned_by": "baai"},
-            ],
-            "reasoning": [
-                {"id": "meta/llama-3.1-8b-instruct", "owned_by": "meta"},
-            ]
-        }
+        """API unavailable: return nothing, so the existing configuration is kept. (The old canned list
+        wrote models that were never tested, e.g. microsoft/phi-3-vision-128k-instruct, now gone.)"""
+        return {"chat": [], "vision": [], "embedding": [], "reasoning": []}
 
-    def select_best_models(self, categorized: Dict[str, List[Dict]]) -> Dict[str, str]:
-        """Select the best model from each category"""
-        selected = {}
+    # Owner's rule (2026-11-16): no safety / guard / classifier model is ever picked for a chat seat.
+    # The old picker took the first model whose id contained "llama-3.1"; in NVIDIA's list that was
+    # nvidia/llama-3.1-nemoguard-8b-content-safety, later ...-topic-control (HTTP 500 on chat), and it
+    # never tested a model before writing it (it also wrote microsoft/phi-3-vision-128k-instruct, gone: 410).
+    PREFERRED = {
+        "LLM_PRIMARY_MODEL": ["nvidia/nemotron-3.5-super-vl-120b-a12b", "nvidia/nemotron-3-ultra-550b-a55b",
+                              "nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3.5-bolt-e4b"],
+        "LLM_SECONDARY_MODEL": ["nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3.5-lightning-30b-a3b",
+                                "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "nvidia/nemotron-3.5-bolt-e4b"],
+        "LLM_VISION_MODEL": ["nvidia/nemotron-3.5-super-vl-120b-a12b"],
+    }
+    KEYWORDS = ["nemotron", "llama-3.3", "llama-4", "mistral", "qwen", "gemma", "llama"]
 
-        # Primary chat model - prefer models that are widely accessible
-        # Prioritize by: free tier > popularity > capability
-        if categorized["chat"]:
-            # Prioritize models known to work on free tier / basic access
-            priority_keywords = [
-                "llama-3.1",     # Meta Llama models (widely accessible)
-                "llama-3",       # Meta Llama 3 family
-                "mistral",       # Mistral models (often accessible)
-                "gemma",         # Google Gemma (free tier friendly)
-                "phi",           # Microsoft Phi (lightweight, accessible)
-                "nemotron",      # NVIDIA Nemotron
-                "llama",         # Any Llama model
-            ]
-            chat_models = categorized["chat"]
+    def live_chat_ok(self, model_id: str, timeout: float = 25.0) -> bool:
+        """One tiny chat request; True only for HTTP 200 with a non-empty answer."""
+        if not self.api_key or os.getenv("ONE2LVOS_MODEL_UPDATE_NO_LIVE_TEST") == "1":
+            return False
+        try:
+            r = self.session.post(f"{self.base_url}/chat/completions", timeout=timeout, json={
+                "model": model_id, "max_tokens": 300, "temperature": 0, "stream": False,
+                "messages": [{"role": "user", "content": "Reply with the single word: ready"}]})
+            if r.status_code != 200:
+                return False
+            msg = (r.json().get("choices") or [{}])[0].get("message") or {}
+            return bool((msg.get("content") or "").strip())
+        except Exception:
+            return False
 
-            best_chat = None
-            for keyword in priority_keywords:
-                for model in chat_models:
-                    model_id_lower = model["id"].lower()
-                    if keyword in model_id_lower:
-                        # Skip very large models that often require special access
-                        if any(size in model_id_lower for size in ["405b", "70b-instruct"]):
-                            continue
-                        best_chat = model
-                        break
-                if best_chat:
+    def _candidates(self, key: str, listed: List[str], current: str) -> List[str]:
+        out: List[str] = []
+        def add(m):
+            if m and m in listed and is_chat_candidate(m) and m not in out:
+                out.append(m)
+        add(current)
+        for m in self.PREFERRED.get(key, []):
+            add(m)
+        for kw in self.KEYWORDS:
+            for m in listed:
+                if kw in m.lower() and not any(sz in m.lower() for sz in ("405b", "70b-instruct")):
+                    add(m)
+        return out
+
+    def select_best_models(self, categorized: Dict[str, List[Dict]], current: Optional[Dict[str, str]] = None,
+                           max_tries: int = 4) -> Dict[str, str]:
+        """Pick a working model per setting. The current value is kept when it is listed, is not a safety
+        model and answers a live test. Otherwise the first preferred/keyword candidate that answers wins.
+        A setting is left alone when nothing passes (never replaced by an untested model)."""
+        current = current or {}
+        listed = [m["id"] for cat in ("chat", "reasoning", "vision") for m in categorized.get(cat, [])]
+        selected: Dict[str, str] = {}
+        tested: Dict[str, bool] = {}
+        for key in ("LLM_PRIMARY_MODEL", "LLM_SECONDARY_MODEL", "LLM_VISION_MODEL"):
+            for m in self._candidates(key, listed, current.get(key, ""))[:max_tries]:
+                if m not in tested:
+                    tested[m] = self.live_chat_ok(m)
+                    print(f"    live test {m}: {'ok' if tested[m] else 'failed'}", file=sys.stderr)
+                if tested[m]:
+                    selected[key] = m
                     break
-
-            # Fallback to any available chat model
-            if not best_chat and chat_models:
-                best_chat = chat_models[0]
-
-            if best_chat:
-                selected["LLM_MODEL"] = best_chat["id"]
-                selected["LLM_PRIMARY_MODEL"] = best_chat["id"]
-
-        # Vision model
-        if categorized["vision"]:
-            # Prefer phi-3-vision or llama-vision
-            vision_priority = ["phi-3-vision", "llama", "nemotron"]
-            best_vision = None
-
-            for keyword in vision_priority:
-                for model in categorized["vision"]:
-                    if keyword in model["id"].lower():
-                        best_vision = model
-                        break
-                if best_vision:
+            else:
+                print(f"  \u26a0 {key}: no candidate passed a live test - left unchanged", file=sys.stderr)
+        if "LLM_PRIMARY_MODEL" in selected:
+            selected["LLM_MODEL"] = selected["LLM_PRIMARY_MODEL"]
+        # Embeddings: keep the current model (changing it would break stored Astra vectors); pick one only
+        # when none is set.
+        if not current.get("EMBEDDING_MODEL"):
+            embeds = [m["id"] for m in categorized.get("embedding", []) if not is_safety_model(m["id"])]
+            for kw in ("nemotron-3-embed", "embedqa-e5-v5"):
+                hit = next((m for m in embeds if kw in m.lower()), None)
+                if hit:
+                    selected["EMBEDDING_MODEL"] = hit
                     break
-
-            if not best_vision and categorized["vision"]:
-                best_vision = categorized["vision"][0]
-
-            if best_vision:
-                selected["LLM_VISION_MODEL"] = best_vision["id"]
-
-        # Embedding model
-        if categorized["embedding"]:
-            # Prefer nv-embedqa or nemotron-embed
-            embed_priority = ["embedqa-e5-v5", "nemotron-3-embed"]
-            best_embed = None
-
-            for keyword in embed_priority:
-                for model in categorized["embedding"]:
-                    if keyword in model["id"].lower():
-                        best_embed = model
-                        break
-                if best_embed:
-                    break
-
-            if not best_embed and categorized["embedding"]:
-                best_embed = categorized["embedding"][0]
-
-            if best_embed:
-                selected["EMBEDDING_MODEL"] = best_embed["id"]
-
-        # Secondary/reasoning model
-        if categorized["reasoning"]:
-            selected["LLM_SECONDARY_MODEL"] = categorized["reasoning"][0]["id"]
-        elif categorized["chat"] and len(categorized["chat"]) > 1:
-            selected["LLM_SECONDARY_MODEL"] = categorized["chat"][1]["id"]
-
-        return selected
+        # Only report real changes
+        return {k: v for k, v in selected.items() if current.get(k) != v}
 
     def update_env_file(self, env_path: Path, updates: Dict[str, str], dry_run: bool = False) -> bool:
         """Update .env file with new model IDs"""
@@ -220,6 +202,12 @@ class NvidiaModelUpdater:
             print(f"⚠ .env file not found at {env_path}", file=sys.stderr)
             return False
 
+        bad = {k: v for k, v in updates.items() if k != "EMBEDDING_MODEL" and is_safety_model(v)}
+        if bad:
+            print(f"  \u26a0 refusing to write safety/guard models: {bad}", file=sys.stderr)
+            updates = {k: v for k, v in updates.items() if k not in bad}
+        if not updates:
+            return True
         try:
             with open(env_path, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
@@ -239,7 +227,11 @@ class NvidiaModelUpdater:
                 if '=' in line:
                     key = line.split('=')[0].strip()
                     if key in updates:
-                        # Update this line
+                        # Update this line, noting the old value
+                        old = line.split('=', 1)[1].strip()
+                        if old != updates[key]:
+                            updated_lines.append(f"# {key} was {old} - replaced by the model fetcher "
+                                                 f"{time.strftime('%Y-%m-%d')} (live-tested)\n")
                         updated_lines.append(f"{key}={updates[key]}\n")
                         updated_keys.add(key)
                         continue
@@ -259,9 +251,12 @@ class NvidiaModelUpdater:
                     print(f"  {key}={updates[key]}", file=sys.stderr)
                 return True
 
-            # Write back
-            with open(env_path, 'w', encoding='utf-8') as f:
+            # Write back atomically, keeping the file's permissions
+            tmp = env_path.with_name(env_path.name + ".tmp")
+            with open(tmp, 'w', encoding='utf-8') as f:
                 f.writelines(updated_lines)
+            os.chmod(tmp, env_path.stat().st_mode & 0o777)
+            os.replace(tmp, env_path)
 
             return True
 
@@ -308,11 +303,23 @@ def main():
 
     print(f"  ✓ Found {total_models} available models", file=sys.stderr)
 
-    # Select best models
-    selected = updater.select_best_models(categorized)
+    # Current values (kept when they are working chat models)
+    current: Dict[str, str] = {}
+    try:
+        for line in env_path.read_text(encoding='utf-8').splitlines():
+            if '=' in line and not line.lstrip().startswith('#'):
+                k, v = line.split('=', 1)
+                if k.strip() in ("LLM_MODEL", "LLM_PRIMARY_MODEL", "LLM_SECONDARY_MODEL", "LLM_VISION_MODEL",
+                                 "EMBEDDING_MODEL"):
+                    current[k.strip()] = v.strip()
+    except Exception:
+        pass
+
+    # Select working, non-safety models (live-tested)
+    selected = updater.select_best_models(categorized, current)
 
     if not selected:
-        print("  ⚠ Could not select models - keeping existing configuration", file=sys.stderr)
+        print("  ✓ Model settings unchanged (current models are working, non-safety models)", file=sys.stderr)
         sys.exit(0)
 
     # Update .env

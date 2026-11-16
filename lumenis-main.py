@@ -270,10 +270,17 @@ async def status():
         "compass": compass.get_stats(),
         "maton": bridge.get_status(),
         "seats": [
-            {"key": k, "name": v["name"], "role": v["role"]}
+            {"key": k, "name": v["name"], "role": v["role"], "model": council.seat_model(k)}
             for k, v in SEATS.items()
         ],
+        "seat_models": council.seat_models(),
+        "swarm": {"enabled": _swarm_enabled()},
     }
+
+
+def _swarm_enabled() -> bool:
+    from lumenis_reactor_core.swarm import council_swarm
+    return council_swarm.enabled()
 
 
 @app.get("/api/sessions")
@@ -449,9 +456,12 @@ async def handle_chat(ws: WebSocket, msg: dict):
 
     # Streaming callback: sends seat activity and response chunks to the client
     # Gracefully handles client disconnects mid-reasoning (RuntimeError from closed WS)
+    streamed = {"any": False}
+
     async def stream_cb(seat: str, text: str):
         try:
             if seat == "response":
+                streamed["any"] = True
                 await ws.send_json({"type": "response_chunk", "text": text})
             else:
                 await ws.send_json({"type": "seat_activity", "seat": seat, "text": text})
@@ -503,6 +513,14 @@ async def handle_chat(ws: WebSocket, msg: dict):
 
     # Persist assistant message
     compass.add_message(session_id, "assistant", decision.final_response, "weaver")
+
+    # A reply that was never streamed (e.g. a Sentinel block returns before Weaver runs) is sent whole,
+    # so the client never ends a turn with an empty reply.
+    if not streamed["any"] and decision.final_response:
+        try:
+            await ws.send_json({"type": "response_chunk", "text": decision.final_response})
+        except Exception:
+            pass
 
     # Send completion metadata (client may have disconnected during long reasoning)
     try:

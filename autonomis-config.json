@@ -1,0 +1,89 @@
+{
+  "agent_name": "Autonomis",
+  "version": "2.0.0",
+  "description": "Autonomous monitor, restarter and installer for One2lvOS. Paths are auto-detected from the repo root, so this config is portable between machines.",
+  "monitoring": {
+    "enabled": true,
+    "check_interval_seconds": 30,
+    "max_restart_attempts": 5,
+    "ai_consultation_cooldown_seconds": 300,
+    "failure_threshold_before_ai": 3
+  },
+  "services": {
+    "auto_restart": true,
+    "health_check_timeout": 5,
+    "restart_backoff_seconds": 5
+  },
+  "installation": {
+    "auto_install_dependencies": true,
+    "check_on_startup": true,
+    "npm_install": true,
+    "pip_install": true,
+    "apt_packages": [
+      "libmtdev1",
+      "xvfb"
+    ],
+    "apt_update_before_install": true
+  },
+  "mcp_integration": {
+    "enabled": true,
+    "tools_directory": "tools",
+    "auto_discover": true
+  },
+  "ai_consultation": {
+    "enabled": true,
+    "base_url": "https://integrate.api.nvidia.com/v1",
+    "api_key_env": "NVIDIA_API_KEY",
+    "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "fallback_models": [
+      "nvidia/nemotron-3.5-super-vl-120b-a12b",
+      "nvidia/nemotron-3-ultra-550b-a55b"
+    ],
+    "timeout_seconds": 90,
+    "max_tokens": 1024,
+    "disable_thinking": true,
+    "command_allowlist": [
+      "pip install",
+      "pip3 install",
+      "python -m pip install",
+      "python3 -m pip install",
+      "apt-get install",
+      "apt install",
+      "npm install",
+      "npm ci",
+      "pkill",
+      "bash ",
+      "chmod",
+      "mkdir",
+      "ln -s",
+      "cd "
+    ],
+    "command_denylist": [
+      "rm ",
+      "rm -",
+      "rmdir",
+      "mv ",
+      "dd ",
+      "mkfs",
+      "shred",
+      "truncate",
+      "> /",
+      ">> /",
+      ":(){",
+      "chmod 777"
+    ],
+    "command_approval": "AI-proposed commands go through the reactor tool engine (local.supervisor_cmd_l0-l3): L0-L1 run, L2-L3 are held for One2lv's approval."
+  },
+  "notifications": {
+    "discord_enabled": true,
+    "discord_webhook_env": "DISCORD_WEBHOOK_URL",
+    "log_level": "INFO"
+  },
+  "aria": {
+    "monitor": false,
+    "note": "ARIA is a Kivy desktop app; set monitor to true only on a machine with a display or xvfb-run."
+  },
+  "restart_coordination": {
+    "note": "watchdog.py owns lumenis-reactor while it runs; both supervisors take the shared restart lock in service_lock.py before any restart."
+  }
+}
