@@ -21,7 +21,6 @@ import asyncio
 import json
 import re
 from dataclasses import dataclass
-from typing import Optional
 
 from . import ionos as _ionos
 from . import shared_files as _shared
@@ -366,7 +365,7 @@ class CouncilDecision:
     final_response: str
     path: str = "council"
     arbiter: str = ""
-    timings: Optional[dict] = None
+    timings: dict | None = None
 
 
 class ITTCouncil:

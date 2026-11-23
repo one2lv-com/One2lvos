@@ -38,7 +38,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import AsyncIterator, Iterator
+from typing import Optional, AsyncIterator, Iterator
 
 import httpx
 

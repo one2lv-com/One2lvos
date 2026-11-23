@@ -204,7 +204,7 @@ async def learn() -> Dict[str, Any]:
             "diff": diff if old else {"first_pull": True}, "kinds": kinds}
 
 
-def rollback_catalog(version_file: Optional[str] = None) -> Dict[str, Any]:
+def rollback_catalog(version_file: str | None = None) -> Dict[str, Any]:
     """Put an earlier pulled catalog back (default: the one before the current)."""
     versions = catalog_versions()
     cur = load_catalog().get("sha256")
@@ -244,7 +244,7 @@ def why_remote(name: str) -> str:
     return "implemented on SF Compute's server"
 
 
-def remote_level(name: str, tool: Optional[dict] = None) -> str:
+def remote_level(name: str, tool: dict | None = None) -> str:
     return "remote_read" if _sfc.tool_allowed(name, (tool or {}).get("annotations")) else "remote_write"
 
 
@@ -351,7 +351,7 @@ def _now() -> float:
     return time.time()
 
 
-def _iso(ts: Optional[float]) -> Optional[str]:
+def _iso(ts: float | None) -> str | None:
     return time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(ts)) if ts else None
 
 
@@ -492,7 +492,7 @@ def l_get_artifact(a):
     return r
 
 
-def store_artifact(src: Path, note: str = "", mission_id: Optional[str] = None) -> Dict[str, Any]:
+def store_artifact(src: Path, note: str = "", mission_id: str | None = None) -> Dict[str, Any]:
     """Copy a file a tool produced (e.g. a nimlab.tts WAV) into the artifact store."""
     aid = "a_" + uuid.uuid4().hex[:10]
     ARTIFACT_DIR.mkdir(parents=True, exist_ok=True)
@@ -712,7 +712,7 @@ def status() -> Dict[str, Any]:
             "nimlab": _nim.summary()}
 
 
-def list_tools(kind: Optional[str] = None, q: Optional[str] = None) -> List[Dict[str, Any]]:
+def list_tools(kind: str | None = None, q: str | None = None) -> List[Dict[str, Any]]:
     rows = []
     for name, (_, level, _, desc) in LOCAL_TOOLS.items():
         rows.append({"name": f"local.{name}", "kind": "local", "level": level, "description": desc,
@@ -834,7 +834,7 @@ def _hold(name: str, args: Dict[str, Any], tier: int, caller: str, reason: str) 
                      + ("; L3 also needs a second confirmation" if tier >= 3 else "")}
 
 
-def list_approvals(status: Optional[str] = "pending", limit: int = 20) -> List[Dict[str, Any]]:
+def list_approvals(status: str | None = "pending", limit: int = 20) -> List[Dict[str, Any]]:
     _exec("UPDATE approvals SET status='expired' WHERE status IN ('pending','confirm') AND created_at<?",
           (time.time() - APPROVAL_TTL,))
     q = "SELECT id,tool,args,tier,caller,reason,status,created_at,decided_at FROM approvals"
@@ -846,7 +846,7 @@ def list_approvals(status: Optional[str] = "pending", limit: int = 20) -> List[D
     return rows
 
 
-async def decide_approval(aid: str, approve: bool, by_owner: bool, confirm_code: Optional[str] = None) -> Dict[str, Any]:
+async def decide_approval(aid: str, approve: bool, by_owner: bool, confirm_code: str | None = None) -> Dict[str, Any]:
     """One2lv approves or denies a held call. L3: the first approval returns a code; repeat with it to run."""
     if not by_owner:
         return {"ok": False, "status": 403, "error": "only One2lv can approve held tool calls"}
@@ -1061,7 +1061,7 @@ async def r_status():
 
 
 @router.get("/engine/tools")
-async def r_tools(kind: Optional[str] = None, q: Optional[str] = None):
+async def r_tools(kind: str | None = None, q: str | None = None):
     rows = list_tools(kind, q)
     return JSONResponse({"count": len(rows), "tools": rows})
 

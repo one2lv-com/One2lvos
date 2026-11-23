@@ -149,7 +149,7 @@ async def run(parts: list[dict], message: str, call_seat: Callable[..., Awaitabl
             "text": combine(list(results))}
 
 
-def _is_answer(text: str | None) -> bool:
+def _is_answer(text: Optional[str]) -> bool:
     t = (text or "").strip()
     return bool(t) and not _NOT_AN_ANSWER.match(t)
 

@@ -27,7 +27,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import httpx
 
@@ -173,7 +172,7 @@ async def _revert(args: list, channel: str) -> str:
     return "Usage: /revert [tags | preview [tag] | confirm <code> | undo <backup-branch>]"
 
 
-async def handle(text: str, owner: bool, compass=None, channel: str = "chat") -> Optional[str]:
+async def handle(text: str, owner: bool, compass=None, channel: str = "chat") -> str | None:
     """Answer a slash command, or None when the text is not one."""
     if not is_command(text):
         return None

@@ -113,7 +113,7 @@ async def _auth_meta(client: httpx.AsyncClient) -> Tuple[Dict[str, Any], Dict[st
     return prm, asm
 
 
-async def _refresh(client: httpx.AsyncClient, tok: Dict[str, Any]) -> Optional[str]:
+async def _refresh(client: httpx.AsyncClient, tok: Dict[str, Any]) -> str | None:
     if not tok.get("refresh_token"):
         return None
     prm, asm = await _auth_meta(client)
@@ -139,7 +139,7 @@ def _store_token_response(resp: Dict[str, Any], client_id: str, old: Optional[Di
     _save_token_file(data)
 
 
-async def get_token(client: httpx.AsyncClient, force_refresh: bool = False) -> Tuple[Optional[str], str]:
+async def get_token(client: httpx.AsyncClient, force_refresh: bool = False) -> Tuple[str | None, str]:
     """Returns (token, source). Env SFCOMPUTE_MCP_TOKEN (or GMN_TOKEN) wins; else the
     device-flow token file, refreshed when it has expired."""
     env = os.getenv("SFCOMPUTE_MCP_TOKEN") or os.getenv("GMN_TOKEN")
@@ -180,7 +180,7 @@ def _parse_rpc(resp: httpx.Response, want_id: Any) -> Dict[str, Any]:
 class SfcomputeMCP:
     def __init__(self, token: str, client: httpx.AsyncClient):
         self.token, self.client = token, client
-        self.session_id: Optional[str] = None
+        self.session_id: str | None = None
         self._id = 0
 
     def _headers(self) -> Dict[bytes, bytes]:
@@ -193,7 +193,7 @@ class SfcomputeMCP:
             h[b"Mcp-Session-Id"] = self.session_id.encode()
         return h
 
-    async def _rpc(self, method: str, params: Optional[dict] = None, notify: bool = False) -> Any:
+    async def _rpc(self, method: str, params: dict | None = None, notify: bool = False) -> Any:
         body: Dict[str, Any] = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             body["params"] = params
@@ -263,7 +263,7 @@ def _allow_list() -> set:
     return {t.strip() for t in os.getenv("SFCOMPUTE_MCP_ALLOW_TOOLS", "").split(",") if t.strip()}
 
 
-def tool_allowed(name: str, annotations: Optional[dict] = None) -> bool:
+def tool_allowed(name: str, annotations: dict | None = None) -> bool:
     if name in _allow_list():
         return True
     if name in ALWAYS_ASK:

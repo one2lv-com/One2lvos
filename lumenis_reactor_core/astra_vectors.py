@@ -27,7 +27,6 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
 
@@ -99,7 +98,7 @@ async def embed(text: str, input_type: str = "passage") -> dict:
     return {"ok": False, "error": _clean(last)}
 
 
-async def _astra(collection: Optional[str], body: dict, timeout: float = 20) -> dict:
+async def _astra(collection: str | None, body: dict, timeout: float = 20) -> dict:
     c = _cfg()
     if not (c["endpoint"] and c["token"]):
         return {"ok": False, "error": "Astra not configured (ASTRA_DB_API_ENDPOINT / ASTRA_DB_APPLICATION_TOKEN)"}
@@ -118,7 +117,7 @@ async def _astra(collection: Optional[str], body: dict, timeout: float = 20) -> 
         return {"ok": False, "error": _clean(f"Astra {type(e).__name__}: {e}")}
 
 
-async def collection_dim(name: Optional[str] = None) -> dict:
+async def collection_dim(name: str | None = None) -> dict:
     name = name or _cfg()["collection"]
     if name in _dim_cache:
         return {"ok": True, "dim": _dim_cache[name]}
@@ -149,8 +148,8 @@ async def _vector_for(text: str, input_type: str) -> dict:
     return e
 
 
-async def store(key: str, text: str, source: str = "lumenis", session_id: Optional[str] = None,
-                kind: str = "fact", extra: Optional[dict] = None, doc_id: Optional[str] = None) -> dict:
+async def store(key: str, text: str, source: str = "lumenis", session_id: str | None = None,
+                kind: str = "fact", extra: dict | None = None, doc_id: str | None = None) -> dict:
     """Embed and insert one factual memory. Refuses dream material."""
     if not text or not text.strip():
         return {"ok": False, "error": "text required"}
@@ -242,7 +241,7 @@ async def search_legacy(query: str, limit: int = 5) -> dict:
     return {"ok": True, "collection": c["legacy"], "results": [s[1] for s in scored[:limit]]}
 
 
-async def delete_ids(ids: list[str], collection: Optional[str] = None) -> dict:
+async def delete_ids(ids: list[str], collection: str | None = None) -> dict:
     """Delete specific documents by _id only (used to clean up test records)."""
     if not ids:
         return {"ok": True, "deleted": 0}

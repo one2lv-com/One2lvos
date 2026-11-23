@@ -16,9 +16,12 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 import httpx
+
+from .model_guard import (DEFAULT_FAST, DEFAULT_PRIMARY, DEFAULT_REASONING, DEFAULT_SECONDARY,
+                          chat_model as _chat_model, env_chat_model as _env_chat_model)
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 THERMAL_BASELINE = 0.18          # 18°C → 0.18 temperature
@@ -26,8 +29,10 @@ PULSE_INTERVAL_MS = 73           # 73Hz → 73ms
 NODE_COUNT = 144_382             # Vanguard lattice size (used for pool sizing / display)
 
 NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
-NVIDIA_PRIMARY_MODEL = os.environ.get("LLM_PRIMARY_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
-NVIDIA_SECONDARY_MODEL = os.environ.get("LLM_SECONDARY_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b")
+# Safety/guard models are never used for a seat (owner's rule, 2026-11-16): model_guard swaps them for a
+# working chat model. meta/llama-3.2-90b-vision-instruct reached end of life on 2026-11-16.
+NVIDIA_PRIMARY_MODEL = _env_chat_model("LLM_PRIMARY_MODEL", DEFAULT_PRIMARY)
+NVIDIA_SECONDARY_MODEL = _env_chat_model("LLM_SECONDARY_MODEL", DEFAULT_SECONDARY)
 
 # ─── Universal LLM backend resolution ────────────────────────────────────────
 # Priority:
@@ -56,16 +61,21 @@ def _resolve_backend() -> dict:
     llm_url = os.environ.get("LLM_BASE_URL", "")
     llm_model = os.environ.get("LLM_MODEL", "")
     if llm_key and llm_url and llm_model:
+        llm_model = _chat_model(llm_model, DEFAULT_PRIMARY)
         return {"provider": "openai_compat", "key": llm_key, "model": llm_model, "base_url": llm_url.rstrip("/") + "/chat/completions"}
     # 3. NVIDIA fallback
     nvidia_key = os.environ.get("NVIDIA_API_KEY", "")
-    nvidia_model = os.environ.get("LLM_PRIMARY_MODEL", "nvidia/nemotron-3.5-super-vl-120b-a12b")
+    nvidia_model = _env_chat_model("LLM_PRIMARY_MODEL", DEFAULT_PRIMARY)
     return {"provider": "nvidia", "key": nvidia_key, "model": nvidia_model, "base_url": NVIDIA_API_URL}
 
 
-async def _llm_stream(system: str, messages: list[dict], max_tokens: int, temperature: float) -> AsyncIterator[str]:
-    """Universal LLM streaming call — routes to Bedrock, OpenAI-compat, or NVIDIA."""
+async def _llm_stream(system: str, messages: list[dict], max_tokens: int, temperature: float,
+                      model: Optional[str] = None, timeout: float = 120) -> AsyncIterator[str]:
+    """Universal LLM streaming call — routes to Bedrock, OpenAI-compat, or NVIDIA.
+    model= overrides the model on the NVIDIA backend (used by the fast path and the verifier)."""
     backend = _resolve_backend()
+    if model and backend["provider"] == "nvidia":
+        backend = dict(backend, model=model)
 
     if backend["provider"] == "bedrock":
         payload: dict = {
@@ -102,22 +112,61 @@ async def _llm_stream(system: str, messages: list[dict], max_tokens: int, temper
             "Content-Type": "application/json",
             "Accept": "text/event-stream",
         }
-        async with httpx.AsyncClient(timeout=120) as client:
-            async with client.stream("POST", backend["base_url"], headers=headers, json=payload) as response:
-                response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:].strip()
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                        text = chunk["choices"][0]["delta"].get("content", "")
-                        if text:
-                            yield text
-                    except Exception:
-                        continue
+        # One retry on a fallback model when the first model fails before sending any text
+        # (HTTP error, 410 retired model, 429, timeout). Never retries mid-answer.
+        models = [backend["model"]]
+        fb = _env_chat_model("LUMENIS_FALLBACK_MODEL", DEFAULT_FAST)
+        if backend["provider"] == "nvidia" and fb and fb != backend["model"]:
+            models.append(fb)
+        for i, mdl in enumerate(models):
+            payload["model"] = mdl
+            sent = False
+            try:
+                async with httpx.AsyncClient(timeout=timeout) as client:
+                    async with client.stream("POST", backend["base_url"], headers=headers, json=payload) as response:
+                        response.raise_for_status()
+                        async for line in response.aiter_lines():
+                            if not line.startswith("data: "):
+                                continue
+                            data = line[6:].strip()
+                            if data == "[DONE]":
+                                break
+                            try:
+                                chunk = json.loads(data)
+                                text = chunk["choices"][0]["delta"].get("content", "")
+                            except Exception:
+                                continue
+                            if text:
+                                sent = True
+                                yield text
+                return
+            except (httpx.HTTPError, httpx.StreamError) as e:
+                if sent or i == len(models) - 1:
+                    raise
+                print(f"⚠ LLM {mdl} failed before answering ({type(e).__name__}); retrying on {models[i + 1]}")
+
+# Fast path / Arbiter model and routing model (Sentinel, Navigator). Measured on the user's keys
+# 2026-11-11: nemotron-3-ultra ~1-3 s per reply, bolt-e4b ~0.5 s; llama-3.2-90b-vision 20-46 s.
+FAST_MODEL = _env_chat_model("LUMENIS_FAST_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
+ROUTE_MODEL = _env_chat_model("LUMENIS_ROUTE_MODEL", DEFAULT_FAST)
+VERIFY_MODEL = _env_chat_model("LUMENIS_VERIFY_MODEL", FAST_MODEL)
+
+
+async def fast_stream(system: str, messages: list[dict], max_tokens: int = 500, temperature: float = 0.5,
+                      model: Optional[str] = None, timeout: float = 45) -> AsyncIterator[str]:
+    """Streaming call on the fast model (fast path / voice mode)."""
+    async for chunk in _llm_stream(system, messages, max_tokens, temperature, model=model or FAST_MODEL,
+                                   timeout=timeout):
+        yield chunk
+
+
+async def fast_call(system: str, messages: list[dict], max_tokens: int = 500, temperature: float = 0.2,
+                    model: Optional[str] = None, timeout: float = 45) -> str:
+    out = []
+    async for chunk in fast_stream(system, messages, max_tokens, temperature, model=model, timeout=timeout):
+        out.append(chunk)
+    return "".join(out)
+
 
 @dataclass
 class ReactorStatus:
@@ -263,7 +312,9 @@ class ReasoningReactor:
     """
 
     def __init__(self, model: str = "", api_key_env: str = ""):
-        self.model = model
+        # Each seat keeps its own model. Until 2026-11-16 this model was stored but never sent, so
+        # Oracle and Forge actually ran on LLM_PRIMARY_MODEL (a guard model at the time).
+        self.model = _chat_model(model, DEFAULT_REASONING)
         self.api_key = os.environ.get(api_key_env, "") if api_key_env else ""
         self._call_count = 0
         self._error_count = 0
@@ -275,8 +326,8 @@ class ReasoningReactor:
         system: str = "",
         max_tokens: int = 2048,
     ) -> AsyncIterator[str]:
-        """Stream response from active LLM backend."""
-        async for chunk in _llm_stream(system, messages, max_tokens, 0.6):
+        """Stream the answer from this seat's own model (reasoning tokens are not yielded)."""
+        async for chunk in _llm_stream(system, messages, max_tokens, 0.6, model=self.model):
             self._call_count += 1
             yield chunk
 

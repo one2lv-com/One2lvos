@@ -56,7 +56,7 @@ def known_good() -> list:
     return rows
 
 
-def preview(target: Optional[str] = None) -> dict:
+def preview(target: str | None = None) -> dict:
     tags = known_good()
     if target is None:
         h = _git("rev-parse", "--short", "HEAD")

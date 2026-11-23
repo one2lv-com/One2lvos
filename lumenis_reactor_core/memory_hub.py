@@ -21,7 +21,6 @@ import re
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 HUB_DIR = ROOT / "data" / "memory_hub"
@@ -40,7 +39,7 @@ def _conn(compass):
     return c
 
 
-def _write_run(kind: str, ids: list, extra: dict) -> Optional[str]:
+def _write_run(kind: str, ids: list, extra: dict) -> str | None:
     if not ids:
         return None
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
@@ -49,7 +48,7 @@ def _write_run(kind: str, ids: list, extra: dict) -> Optional[str]:
     return str(f)
 
 
-def compile(compass, dry_run: bool = False, now: Optional[float] = None) -> dict:
+def compile(compass, dry_run: bool = False, now: float | None = None) -> dict:
     """One pass of the compile loop. Returns a report; dry_run changes nothing."""
     now = now or time.time()
     with _conn(compass) as c:
@@ -100,7 +99,7 @@ def fuzzy_review(compass) -> dict:
             "by_tag": [{"tag": r["tag"], "rows": r["n"], "bytes": r["b"]} for r in rows[:15]]}
 
 
-def weekly_archive(compass, dry_run: bool = False, now: Optional[float] = None) -> dict:
+def weekly_archive(compass, dry_run: bool = False, now: float | None = None) -> dict:
     now = now or time.time()
     cutoff = now - ARCHIVE_DAYS * 86400
     with _conn(compass) as c:
@@ -150,7 +149,7 @@ def _load_state() -> dict:
         return {}
 
 
-def upkeep(compass, now: Optional[datetime] = None, force: Optional[str] = None) -> dict:
+def upkeep(compass, now: Optional[datetime] = None, force: str | None = None) -> dict:
     """Run whatever upkeep is due today (or the one named in force: daily|weekly|monthly)."""
     now = now or datetime.now()
     st = _load_state()

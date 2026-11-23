@@ -266,7 +266,7 @@ def _item_id(section: str, i: int, item: Any) -> str:
     return f"{i}"
 
 
-def import_memory(compass, memory_path: Optional[str] = None, vectors_path: Optional[str] = None,
+def import_memory(compass, memory_path: str | None = None, vectors_path: str | None = None,
                   dry_run: bool = True) -> Dict[str, Any]:
     """Merge Phase 9 memory into the reactor as fuzzy facts (source phase9_import, tag PHASE9).
     Never overwrites: a key that already exists is skipped. Never touches dream rows or stable facts."""
@@ -316,7 +316,7 @@ def import_memory(compass, memory_path: Optional[str] = None, vectors_path: Opti
     return out
 
 
-def find_memory_files() -> Dict[str, Optional[str]]:
+def find_memory_files() -> Dict[str, str | None]:
     """Where Phase 9 writes its memory at run time. The payload in the repo ships none."""
     cands = [Path(os.environ.get("PHASE9_MEMORY_FILE", "/opt/one2lv/memory/memory.json")), PAYLOAD / "memory" / "memory.json"]
     vcands = [Path(os.environ.get("PHASE9_VECTOR_FILE", "/opt/one2lv/vector/vectors.json")), PAYLOAD / "vector" / "vectors.json"]
