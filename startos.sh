@@ -413,6 +413,31 @@ if [ -f "$ROOT_DIR/ai_lobby.py" ]; then
     else
         echo -e "  ${YELLOW}⚠${NC} Lobby starting (check logs/lobby.log)"
     fi
+fi
+
+# AGENTIC CONTROL: Node.js AI Lobby (port 8787)
+AGENTIC_LOBBY_DIR="$ROOT_DIR/One2lvOS/Agentic_Control/ai-lobby"
+if [ -f "$AGENTIC_LOBBY_DIR/server.js" ]; then
+    echo -e "  ${BLUE}→${NC} Starting Agentic Control Lobby (port 8787)..."
+    cd "$AGENTIC_LOBBY_DIR"
+    PORT=8787 NVIDIA_API_KEY="$NVIDIA_API_KEY" nohup node server.js \
+        > "$ROOT_DIR/logs/agentic-lobby.log" 2>&1 &
+    AGENTIC_PID=$!
+    cd "$ROOT_DIR"
+    sleep 3
+    if curl -s --max-time 5 http://localhost:8787/ >/dev/null 2>&1; then
+        echo -e "  ${GREEN}✓${NC} Agentic Control Lobby ONLINE (port 8787)"
+        # Start mesh bridge: Lumenis ↔ AI Lobby
+        nohup python3 "$ROOT_DIR/lumenis_lobby_bridge.py" \
+            > "$ROOT_DIR/logs/lumenis-bridge.log" 2>&1 &
+        sleep 2
+        echo -e "  ${GREEN}✓${NC} Lumenis ↔ Lobby mesh bridge active"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Agentic Lobby starting (check logs/agentic-lobby.log)"
+    fi
+else
+    # Suppress the outer fi
+    true
 else
     echo -e "  ${YELLOW}⚠${NC} ai_lobby.py not found - skipped"
 fi
