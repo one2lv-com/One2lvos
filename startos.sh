@@ -436,9 +436,10 @@ if [ -f "$AGENTIC_LOBBY_DIR/server.js" ]; then
         echo -e "  ${YELLOW}⚠${NC} Agentic Lobby starting (check logs/agentic-lobby.log)"
     fi
 else
-    # Suppress the outer fi
-    true
-else
+    echo -e "  ${YELLOW}⚠${NC} Agentic Control Lobby not found - skipped"
+fi
+
+if [ ! -f "$ROOT_DIR/ai_lobby.py" ]; then
     echo -e "  ${YELLOW}⚠${NC} ai_lobby.py not found - skipped"
 fi
 
