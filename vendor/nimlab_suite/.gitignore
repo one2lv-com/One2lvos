@@ -4,3 +4,25 @@
 /data/
 /output/
 __pycache__/
+# from upstream nimlab 3.8.6: never commit wallets, keys, runtime output or backups
+*.pyc
+.pytest_cache/
+.env
+.env.*
+*.pem
+*.key
+*.sso
+*.p12
+*.jks
+*.onnx
+assets/Wallet_*.zip
+assets/cwallet.sso
+assets/ewallet.p12
+assets/ewallet.pem
+assets/keystore.jks
+assets/truststore.jks
+assets/ojdbc.properties
+assets/sqlnet.ora
+assets/tnsnames.ora
+*.bak.*
+/local_settings.json

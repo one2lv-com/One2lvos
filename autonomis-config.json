@@ -85,5 +85,9 @@
   },
   "restart_coordination": {
     "note": "watchdog.py owns lumenis-reactor while it runs; both supervisors take the shared restart lock in service_lock.py before any restart."
+  },
+  "nimlab": {
+    "monitor": true,
+    "note": "Each cycle Autonomis runs nimlab.status (L0, read-only, no NVIDIA request) through the reactor's tool engine. python3 autonomis-agent.py --nimlab TOOL --nimlab-args JSON runs any nimlab tool through the L0-L3 tiers."
   }
 }

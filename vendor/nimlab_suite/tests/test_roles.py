@@ -307,9 +307,14 @@ class TestRouting(unittest.TestCase):
         def ask(p):
             prompts.append(p)
             return "reasoning"
-        rt = self.r("hey how was your day", ask=ask)
+        rt = self.r("help me think through my project plan", ask=ask)
         self.assertEqual((rt["role"], rt["via"]), ("reasoning", "router"))
         self.assertIn("- coding:", prompts[0])
+        # v3.7.0: small talk goes straight to the persona: no router call, no reasoning
+        prompts.clear()
+        rt = self.r("hey how was your day", ask=ask)
+        self.assertEqual((rt["role"], rt["via"]), ("persona", "fast"))
+        self.assertEqual(prompts, [])
         rt = self.r("hello", setroles={"persona", "coding"}, ask=lambda p: "I'd say image_gen")
         self.assertEqual(rt["role"], "persona")    # image_gen not set, so not offered or accepted
         rt = self.r("fix python", ask=lambda p: None)
@@ -340,9 +345,27 @@ class TestEntityTurns(unittest.TestCase):
         hist = []
         out = ent.turn("please help", hist)
         self.assertEqual(out["route"]["role"], "coding")
+        # v3.4: coding runs as an ability, then the persona writes the reply
+        self.assertEqual(calls, ["r/router", "c/coder", "p/persona"])
+        self.assertEqual(out["result"].text, "answer from p/persona")
+        self.assertEqual(out["answered_by"], "persona")
+        self.assertEqual(hist[-1]["content"], "answer from p/persona")
+        self.assertIn("answer from c/coder", hist[-2]["content"])  # the coder's output reached the persona
+
+    def test_turn_old_mode_lets_role_answer(self):
+        calls = []
+
+        def chat(req):
+            body = json.loads(req.data)
+            calls.append(body["model"])
+            return chat_reply("coding" if body["model"] == "r/router" else f"answer from {body['model']}")
+        opener = RouteOpener([("chat/completions", chat)])
+        roles = {"intent_router": "r/router", "persona": "p/persona", "coding": "c/coder"}
+        ent, _ = make_entity(self, roles, opener)
+        ent.cluster.setdefault("routing_settings", {})["persona_final"] = False
+        out = ent.turn("please help", [])
         self.assertEqual(calls, ["r/router", "c/coder"])
         self.assertEqual(out["result"].text, "answer from c/coder")
-        self.assertEqual(hist[-1]["content"], "answer from c/coder")
 
     def test_image_turn_runs_vision_then_persona(self):
         models = []

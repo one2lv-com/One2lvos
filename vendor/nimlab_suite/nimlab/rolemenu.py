@@ -4,7 +4,7 @@ them; save_fn persists the cluster config."""
 
 import os
 
-from . import picker, rolemcp, roles as R, store, voiceclone
+from . import colors as C, picker, rolemcp, roles as R, store, voiceclone
 
 CLONE_DIRS = ("/storage/emulated/0/Download", "/storage/emulated/0/Recordings", "/storage/emulated/0/Music",
               "/storage/emulated/0/Documents", "/storage/emulated/0/Voice Recorder",
@@ -15,6 +15,17 @@ def _ask(input_fn, prompt):
     try:
         return (input_fn(prompt) or "").strip()
     except EOFError:
+        return ""
+
+
+def grpc_flag(model):
+    """'NVCF gRPC' (+ a missing-id warning) for a gRPC-only model, else ''."""
+    try:
+        from . import nvcf_grpc
+        if not nvcf_grpc.is_grpc_model(model):
+            return ""
+        return "NVCF gRPC" if nvcf_grpc.function_id(model) else "NVCF gRPC, no function ID: grpc set"
+    except Exception:
         return ""
 
 
@@ -34,30 +45,137 @@ def role_lines(roles, verified=None, numbered=True):
         desc = R.describe(v)
         flags = []
         m = R.model_of(v)
-        if m and verified and m not in verified:
+        g = grpc_flag(m) if m else ""
+        if g:
+            flags.append(g)
+        elif m and verified and m not in verified:
             flags.append("not 200-tested")
         ct = R.clone_text(v) if key == "tts" else ""
         if ct:
             flags.append(ct)
         tail = ("  (" + "; ".join(flags) + ")") if flags else ""
         num = f"{i:>2}. " if numbered else "- "
-        lines.append(f"  {num}{R.label(key):<56} {desc}{tail}{support_tag(key)}")
+        if not C.enabled():
+            lines.append(f"  {num}{R.label(key):<56} {desc}{tail}{support_tag(key)}")
+            continue
+        cnum = C.paint(num, C.role_rgb(key), "bold")
+        if desc == "(unset)":
+            cdesc = C.dim(desc)
+        elif desc.startswith("[MCP]"):
+            cdesc = C.dim("[MCP] ") + C.paint(desc[6:], "accent", "bold")
+        elif desc.startswith("[model] "):
+            body, _, ep = desc[8:].partition(" @ ")
+            cdesc = C.dim("[model] ") + C.model(body) + (C.dim(" @ ") + C.url(ep) if ep else "")
+        else:
+            cdesc = C.model(desc)
+        ctail = ""
+        if flags:
+            ctail = C.dim("  (") + C.dim("; ").join(
+                C.warn(f) if (f == "not 200-tested" or "no function ID" in f) else C.role("tts", f, bold_=False)
+                for f in flags) + C.dim(")")
+        tag = support_tag(key)
+        ctag = (C.err(tag) if "not available" in tag else C.warn(tag)) if tag else ""
+        lines.append(f"  {cnum}{C.role(key, f'{R.label(key):<56}')} {cdesc}{ctail}{ctag}")
     return lines
 
 
 def model_lists():
-    verified = store.verified_ids()
+    """(usable, all). Usable = 200-tested plus the gRPC-only Riva models
+    (v3.5: they run over NVCF gRPC once their function ID is known)."""
+    from . import nvcf_grpc
+    grpc = [r["model"] for r in nvcf_grpc.rows() if r["kind"] in nvcf_grpc.RIVA_KINDS]
+    verified = sorted(set(store.verified_ids()) | set(grpc), key=str.lower)
     discovered = sorted(set(store.load(store.DISCOVERED)["models"]) | set(verified), key=str.lower)
     return verified, discovered
 
 
-def pick_role(input_fn, out, title="Role #"):
+def pick_role(input_fn, out, title="Role #", extra=None):
+    """extra: {letter: value} returned as-is (e.g. {"f": "FALLBACKS"})."""
     sel = _ask(input_fn, f"\n{title} (Enter to return): ")
+    if extra and sel.lower() in extra:
+        return extra[sel.lower()]
     if sel.isdigit() and 1 <= int(sel) <= len(R.ROLE_KEYS):
         return R.ROLE_KEYS[int(sel) - 1]
     if sel in R.BY_KEY:
         return sel
     return None
+
+
+# ---------------------------------------------------------------------------
+# Fallback models (v3.8.3)
+# ---------------------------------------------------------------------------
+FALLBACK_ROLES = ("persona", "coding", "reasoning")
+
+
+def fallback_lines(entity):
+    from . import fallback as FB
+    fs = FB.settings(entity.cluster)
+    out = [f"  Fallbacks are {'ON' if fs['enabled'] else 'OFF'}; persona tries the Reasoning model first: "
+           f"{'yes' if fs['to_reasoning'] else 'no'}; cooldown {int(fs['cooldown'])} s"]
+    for key in FALLBACK_ROLES:
+        if not entity.is_set(key) or entity.backend(key) != R.MODEL:
+            continue
+        chain = entity.fallback_chain(key, fs)
+        out.append(f"  {C.role(R.label(key))}: {entity.model(key)} -> " +
+                   (" -> ".join(f"{d['model']}" + (" (reasoning)" if k == "reasoning" else "") for k, d in chain)
+                    or C.dim("no fallback")))
+    return out
+
+
+def fallback_menu(entity, input_fn=input, out=print, save_fn=None, verified=None):
+    """Per-role secondary fallback list, tried in order when the model fails
+    (429, 5xx, timeout) after the reasoning model (persona)."""
+    from . import fallback as FB
+    while True:
+        out("")
+        out(C.header("FALLBACK MODELS (when a model is busy or down)"))
+        for line in fallback_lines(entity):
+            out(line)
+        out(C.entry(1, "Edit a role's list", "persona, coding, reasoning", pad=22))
+        out(C.entry(2, "Reasoning first", "on/off (persona)", pad=22))
+        out(C.entry(3, "Cooldown", "seconds before the primary again", pad=22))
+        out(C.entry(4, "Fallbacks on/off", "", pad=22))
+        c = _ask(input_fn, "Choose (Enter to return): ").lower()
+        rs = entity.cluster.setdefault("routing_settings", {})
+        if c in ("", "b", "q"):
+            return
+        if c == "1":
+            for i, k in enumerate(FALLBACK_ROLES, 1):
+                out(f"  {i}) {R.label(k)}")
+            k = _ask(input_fn, "Role #: ")
+            if not (k.isdigit() and 1 <= int(k) <= len(FALLBACK_ROLES)):
+                continue
+            key = FALLBACK_ROLES[int(k) - 1]
+            spec = entity.roles.get(key)
+            if not R.is_set(spec):
+                out(f"[x] {R.label(key)} is not set yet.")
+                continue
+            cur = [d["model"] for d in FB.secondary_list(R.normalize(spec, key))]
+            out("Current list: " + (", ".join(cur) or "(empty)"))
+            if verified:
+                out(C.dim("200-tested models: " + ", ".join(sorted(verified)[:12]) + (" ..." if len(verified) > 12
+                                                                                       else "")))
+            v = _ask(input_fn, "Models in order, comma-separated (- clears it, Enter keeps it): ")
+            if not v:
+                continue
+            new = [] if v == "-" else [m.strip() for m in v.split(",") if m.strip()]
+            d = R.normalize(spec, key)
+            d.pop("label", None)
+            d["fallbacks"] = new
+            entity.roles[key] = d
+            out(f"[ok] {R.label(key)} fallbacks: " + (", ".join(new) or "none"))
+        elif c == "2":
+            rs["fallback_to_reasoning"] = not FB.settings(entity.cluster)["to_reasoning"]
+        elif c == "3":
+            v = _ask(input_fn, "Cooldown in seconds [300]: ")
+            if v.isdigit():
+                rs["fallback_cooldown_sec"] = int(v)
+        elif c == "4":
+            rs["fallback_enabled"] = not FB.settings(entity.cluster)["enabled"]
+        else:
+            continue
+        if save_fn:
+            save_fn()
 
 
 # ---------------------------------------------------------------------------
@@ -191,8 +309,10 @@ def choose_mcp_tool(entity, key, input_fn=input, out=print):
         out("Mapping now:")
         show_arg_map(tool, arg_map, out)
     allowed = entity.mcp_settings.get("allowed_tools") or []
-    if "*" not in allowed and tool["name"] not in allowed:
-        out("Note: role tools run without the chat allowlist and y/N prompt, because you picked this tool here.")
+    blocked = entity.mcp_settings.get("blocked_tools") or []
+    if tool["name"] in blocked or (allowed and "*" not in allowed and tool["name"] not in allowed):
+        out("Note: role tools run without the chat's local overrides and y/N prompt, because you picked this "
+            "tool here.")
     return tool["name"], arg_map
 
 

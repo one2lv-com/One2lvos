@@ -34,10 +34,114 @@ AUDIO_GEN_WORDS = re.compile(r"\b(compose|generate|create|make|produce)\b.{0,40}
 TRANSLATE_WORDS = re.compile(r"\btranslat(e|ion)\b|\bin (spanish|french|german|japanese|chinese|korean|"
                              r"italian|portuguese|russian|arabic|hindi)\b", re.I)
 
+# v3.7.0 reasoning gate: the reasoning role is slow (a 1T-parameter model can
+# take a minute), so it only runs when a turn really needs long-context or
+# multi-step reasoning. Everything else (conversation, small talk, quick
+# questions, "is this working?") goes straight to the persona.
+DEEP_WORDS = re.compile(
+    r"\b(think (it through|deeply|hard|carefully|step by step)|reason (it|this|that) (out|through)|"
+    r"step[- ]by[- ]step|in[- ]depth|deep (dive|analysis)|thorough(ly)?|"
+    r"analy[sz]e|analysis|evaluate|assess|critique|"
+    r"plan (out|for|my|the|a|how)|make a plan|(project|study|business|migration|test|release) plan|roadmap|"
+    r"strategy|design (a|an|the)\b.{0,30}\b(system|architecture|schema|api|pipeline|service|database)|"
+    r"architecture|trade-?offs?|pros and cons|compare\b.{0,40}\b(in depth|in detail|thoroughly)|"
+    r"prove|proof|derive|derivation|solve\b.{0,30}\b(equation|problem|puzzle)|puzzle|"
+    r"long document|whole (document|file|report|paper)|summari[sz]e (this|the) (document|report|paper|file|pdf)|"
+    r"root cause|debug(ging)? strategy)\b", re.I)
+REASONING_DEFAULTS = {
+    "reasoning_gate": True,          # off: the router / keywords may pick reasoning for any turn (pre-3.7)
+    "reasoning_min_chars": 4000,     # message + attached text at least this long may use reasoning
+    "reasoning_keywords": True,      # explicit asks (analyze, plan, step by step, think deeply, ...) may use it
+    "chat_fast_path": True,          # short everyday turns skip the router call and go to the persona
+    "chat_max_words": 16,            # "short" for the fast path
+    "router_timeout_sec": 8,         # the intent router is a quick label; don't wait longer than this
+}
+
+
+# voice turns (v3.7.1): a spoken turn is conversation unless it clearly asks
+# for code, a picture, music, a translation or deep reasoning, so the router
+# call (and reasoning) is skipped and the persona answers at once.
+VOICE_DEFAULTS = {
+    "fast_route": True,              # casual voice turns skip the router and reasoning
+    "fast_route_max_words": 60,      # longer transcripts still go through the router
+}
+
+
+def voice_settings(vs=None):
+    out = dict(VOICE_DEFAULTS)
+    out.update({k: v for k, v in (vs or {}).items() if k in VOICE_DEFAULTS})
+    return out
+
+
+def is_voice_casual(text, vs=None):
+    """(bool, why): can the persona answer this spoken turn directly?"""
+    v = voice_settings(vs)
+    if not v["fast_route"]:
+        return False, "voice fast route off"
+    words = len((text or "").split())
+    if words == 0:
+        return False, "empty"
+    if words > int(v["fast_route_max_words"] or 0):
+        return False, f"long voice turn ({words} words > fast_route_max_words {v['fast_route_max_words']})"
+    for name, rx in (("code", CODE_WORDS), ("image", IMAGE_GEN_WORDS), ("audio", AUDIO_GEN_WORDS),
+                     ("translation", TRANSLATE_WORDS), ("deep reasoning", DEEP_WORDS)):
+        m = rx.search(text)
+        if m:
+            return False, f"asks for {name} ('{m.group(0).strip()[:30]}')"
+    return True, f"casual voice turn ({words} words)"
+
+
+def gate_settings(rs=None):
+    out = dict(REASONING_DEFAULTS)
+    out.update({k: v for k, v in (rs or {}).items() if k in REASONING_DEFAULTS})
+    return out
+
+
+def needs_reasoning(text, context_chars=0, rs=None):
+    """(bool, why): does this turn need the reasoning role?"""
+    g = gate_settings(rs)
+    if not g["reasoning_gate"]:
+        return True, "reasoning gate off"
+    total = len(text or "") + int(context_chars or 0)
+    if total >= int(g["reasoning_min_chars"] or 0) > 0:
+        return True, f"long input ({total} chars >= reasoning_min_chars {g['reasoning_min_chars']})"
+    if g["reasoning_keywords"]:
+        m = DEEP_WORDS.search(text or "")
+        if m:
+            return True, f"asks for deep reasoning ('{m.group(0)}')"
+    return False, (f"normal conversation ({total} chars, no planning/analysis ask)")
+
+
+# a turn with one of these asks for work, so the router still looks at it
+TASK_WORDS = re.compile(
+    r"\b(write|make|create|build|generate|draft|compose|draw|paint|render|design|code|program|script|"
+    r"implement|fix|debug|refactor|translate|summari[sz]e|explain|describe|list|outline|calculate|compute|"
+    r"convert|transcribe|read|look at|check (this|my|the)|review|help|show|find|search|compare|rewrite|"
+    r"edit|plan|analy[sz]e|solve|prove|sing|speak|say)\b", re.I)
+
+
+def is_quick_chat(text, context_chars=0, rs=None):
+    """A short everyday turn the persona answers alone, with no router call:
+    small talk, a quick question, "is this working?". Anything that asks
+    for work (write, fix, translate, ...) still goes to the router."""
+    g = gate_settings(rs)
+    if not g["chat_fast_path"] or context_chars:
+        return False
+    words = len((text or "").split())
+    if words == 0 or words > int(g["chat_max_words"] or 0):
+        return False
+    if TASK_WORDS.search(text):
+        return False
+    for rx in (CODE_WORDS, IMAGE_GEN_WORDS, AUDIO_GEN_WORDS, TRANSLATE_WORDS):
+        if rx.search(text):
+            return False
+    return not needs_reasoning(text, 0, rs)[0] if g["reasoning_gate"] else not REASON_WORDS.search(text)
+
+
 # labels the router model may answer with -> role key
 ROUTER_LABELS = {
-    "persona": ("persona", "normal conversation, questions, small talk"),
-    "reasoning": ("reasoning", "hard multi-step reasoning, planning, long documents, math"),
+    "persona": ("persona", "normal conversation, questions, small talk, quick checks (the usual answer)"),
+    "reasoning": ("reasoning", "ONLY long documents or explicit multi-step analysis, planning or proofs"),
     "coding": ("coding", "writing or fixing code, or a task that needs tools"),
     "image_gen": ("image_gen", "the user asks to create an image"),
     "audio_gen": ("audio_gen", "the user asks to create music or sound"),
@@ -142,24 +246,63 @@ def parse_label(reply, allowed):
     return best[1] if best else None
 
 
-def route(text, is_set, ask_fn=None, exists=os.path.isfile):
-    """-> dict(role, reason, media, text, via). via: media | router | rules.
+def _gate(res, context_chars, rs, is_set):
+    """Apply the reasoning gate to a decided route: reasoning only when the
+    turn needs it. Adds res['gate'] with the decision for the trace. A
+    persona route is upgraded to reasoning when the turn clearly needs it
+    (long input or an explicit ask such as 'think it through')."""
+    if res["role"] == "persona" and gate_settings(rs)["reasoning_gate"] and is_set("reasoning"):
+        need, why = needs_reasoning(res["text"], context_chars, rs)
+        if need:
+            res.update(role="reasoning", reason=f"{res['reason']}; {why}: reasoning role", gate=why)
+        return res
+    if res["role"] != "reasoning":
+        return res
+    need, why = needs_reasoning(res["text"], context_chars, rs)
+    if need:
+        res["reason"] = f"{res['reason']}; {why}"
+        res["gate"] = why
+        return res
+    res.update(role="persona", reason=f"{res['reason']}, but {why}: persona answers (no reasoning call)",
+               gate=why)
+    return res
+
+
+def route(text, is_set, ask_fn=None, exists=os.path.isfile, context_chars=0, rs=None, voice=None):
+    """-> dict(role, reason, media, text, via). via: media | fast | voice | router | rules.
+
+    voice: the voice_settings when the turn was spoken (a voice call or a
+    Telegram voice note): casual spoken turns go straight to the persona.
 
     is_set(role_key) says whether a role has a backend; ask_fn(prompt) ->
-    reply text or None runs the Intent Router role (None = not set)."""
+    reply text or None runs the Intent Router role (None = not set).
+    context_chars: size of attached document text for this turn. rs: the
+    routing_settings (the reasoning gate and fast path read it)."""
     media = find_media(text, exists)
     rest = strip_media(text, media) if media else text
     role, why = media_route(rest, media, is_set)
     if role:
         return {"role": role, "reason": why, "media": media, "text": rest, "via": "media"}
+    if not media and voice is not None and not context_chars:
+        casual, vwhy = is_voice_casual(rest, voice)
+        if casual:
+            return {"role": "persona", "reason": f"{vwhy}: persona answers directly (no router or reasoning call)",
+                    "media": media, "text": rest, "via": "voice"}
+    if not media and is_quick_chat(rest, context_chars, rs):
+        return {"role": "persona", "reason": "quick conversation: persona answers directly (no router or "
+                "reasoning call)", "media": media, "text": rest, "via": "fast"}
     if ask_fn is not None:
         allowed = [lab for lab, (rk, _) in ROUTER_LABELS.items() if rk == "persona" or is_set(rk)]
         if len(allowed) > 1:
             reply = ask_fn(router_prompt(rest, allowed))
             lab = parse_label(reply, allowed) if reply else None
             if lab:
-                return {"role": ROUTER_LABELS[lab][0], "reason": f"intent router said '{lab}'", "media": media,
-                        "text": rest, "via": "router"}
+                res = {"role": ROUTER_LABELS[lab][0], "reason": f"intent router said '{lab}'", "media": media,
+                       "text": rest, "via": "router"}
+                return _gate(res, context_chars, rs, is_set)
+            why = (why + "; " if why else "") + ("intent router gave no usable label" if reply
+                                                 else "intent router failed or timed out")
     role, why2 = keyword_route(rest, is_set)
     reason = why2 if not why else f"{why}; {why2}"
-    return {"role": role, "reason": reason, "media": media, "text": rest, "via": "rules"}
+    res = {"role": role, "reason": reason, "media": media, "text": rest, "via": "rules"}
+    return _gate(res, context_chars, rs, is_set)

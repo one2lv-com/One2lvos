@@ -636,6 +636,10 @@ def derive_plans(info, api_id=None, source="page"):
                       "probe_get": f"https://{fid}.invocation.api.nvcf.nvidia.com{probe_get}" if probe_get else None})
     if not plans and info.get("grpc"):
         notes["grpc_only"] = True
+        from .nvcf_grpc import sample_from_usage
+        sample = sample_from_usage(info.get("usage"))
+        if sample:
+            notes["grpc_sample"] = sample  # the "Try API" command's script, language, voice
     if not plans and not info.get("grpc") and info.get("found") and not oa:
         notes["no_hosted_api"] = True
     return plans, notes

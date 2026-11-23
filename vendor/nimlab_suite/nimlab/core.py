@@ -61,6 +61,11 @@ def redact(text, secrets_list=None):
     if not isinstance(text, str) or not text:
         return text
     candidates = [load_api_key(), sanitize_key(os.environ.get("MCP_API_KEY", ""))]
+    try:
+        from .mcpkey import known_keys
+        candidates += known_keys()
+    except Exception:  # noqa: BLE001 - redaction never fails
+        pass
     candidates += list(secrets_list or [])
     for s in candidates:
         if s and len(s) >= 8:
@@ -78,6 +83,95 @@ _BEARER = re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._\-]{12,}")
 # ---------------------------------------------------------------------------
 # Result object
 # ---------------------------------------------------------------------------
+def error_detail(text, limit=400):
+    """The useful part of an error body: NVIDIA answers with JSON such as
+    {"title": ..., "detail": ...}, {"error": {"message": ...}} or
+    {"message": ...}; anything else is shown as it is (shortened)."""
+    try:
+        j = json.loads(text)
+    except (ValueError, TypeError):
+        j = None
+    if isinstance(j, dict):
+        e = j.get("error")
+        parts = []
+        if isinstance(e, dict):
+            parts.append(str(e.get("message") or e.get("detail") or ""))
+        elif isinstance(e, str):
+            parts.append(e)
+        for k in ("title", "detail", "message", "msg"):
+            v = j.get(k)
+            if isinstance(v, (str, int, float)) and str(v) not in parts:
+                parts.append(str(v))
+            elif isinstance(v, list) and v:      # FastAPI-style validation errors
+                parts.append("; ".join(str(x.get("msg", x)) if isinstance(x, dict) else str(x) for x in v[:3]))
+        msg = " - ".join(p for p in parts if p)
+        if msg:
+            return msg[:limit]
+    t = (text or "").strip()
+    return t[:limit] if t else "(empty body)"
+
+
+class RateLimiter:
+    """v3.8.3: paces calls to NVIDIA's API so a sweep stays under the free
+    tier's per-minute limit. Thread-safe: every worker waits its turn, at
+    most `rpm` requests a minute, evenly spaced. A 429's Retry-After pauses
+    everyone until it has passed. rpm 0 or less turns pacing off."""
+
+    def __init__(self, rpm=30, clock=time.monotonic, sleep=time.sleep):
+        import threading
+        self.rpm = float(rpm or 0)
+        self._clock, self._sleep = clock, sleep
+        self._lock = threading.Lock()
+        self._next = 0.0
+        self.waited = 0.0
+        self.pauses = 0
+
+    @property
+    def interval(self):
+        return 60.0 / self.rpm if self.rpm > 0 else 0.0
+
+    def wait(self):
+        if self.rpm <= 0:
+            return 0.0
+        with self._lock:
+            now = self._clock()
+            at = max(now, self._next)
+            self._next = at + self.interval
+        d = at - now
+        if d > 0:
+            self.waited += d
+            self._sleep(d)
+        return d
+
+    def pause_for(self, seconds):
+        """A 429 said wait: nobody sends before it has passed (capped at 120 s)."""
+        try:
+            sec = min(120.0, max(0.0, float(seconds)))
+        except (TypeError, ValueError):
+            return
+        with self._lock:
+            self._next = max(self._next, self._clock() + sec)
+            self.pauses += 1
+
+    def note(self, res):
+        """Look at a response: a 429 pauses (Retry-After, else 10 s)."""
+        if getattr(res, "status", None) == 429:
+            ra = (getattr(res, "headers", None) or {}).get("retry-after")
+            self.pause_for(ra if ra not in (None, "") else 10.0)
+
+
+def sweep_rpm(settings=None):
+    """Requests a minute for setup's 200-OK sweep and spec rebuild: env
+    NIMLAB_SWEEP_RPM, then discovery_settings.probe_rpm, default 30."""
+    v = os.environ.get("NIMLAB_SWEEP_RPM")
+    if v in (None, ""):
+        v = (settings or {}).get("probe_rpm", 30)
+    try:
+        return max(0.0, float(v))
+    except (TypeError, ValueError):
+        return 30.0
+
+
 class HttpResult:
     """Uniform outcome of one HTTP exchange. Never raises for HTTP errors.
 
@@ -123,7 +217,7 @@ class HttpResult:
         if self.ok:
             return f"HTTP {self.status} in {self.latency}s"
         if self.error_kind == "http":
-            return redact(f"HTTP {self.status}: {self.text[:300]}")
+            return redact(f"HTTP {self.status}: {error_detail(self.text)}")
         return redact(f"{self.error_kind}: {self.error}")
 
     def to_dict(self):
@@ -169,27 +263,42 @@ class HttpClient:
         """Perform a request. With stream=True the open response is returned
         in result.body (caller must close it) on success."""
         timeout = self.timeout if timeout is None else timeout
+        from . import perf  # v3.7.1: a voice call / self-test caps every call it makes
+        timeout = perf.capped(timeout)
         max_bytes = self.max_bytes if max_bytes is None else max_bytes
         attempt = 0
         t0 = time.monotonic()
+        first, res = self._request(method, url, data, headers, timeout, max_bytes, stream, attempt, t0, perf)
+        try:   # 3.7.2: per-call timing for the router benchmark (no-op outside a tracked turn)
+            perf.note_http(method, url, len(data or b""), res.status,
+                           None if first is None else (first - t0) * 1000, res.latency * 1000,
+                           0 if stream else len(res.body or b""), res.attempts, stream, res.error)
+        except Exception:  # noqa: BLE001 - timing never breaks a call
+            pass
+        return res
+
+    def _request(self, method, url, data, headers, timeout, max_bytes, stream, attempt, t0, perf):
+        first = None
         while True:
             attempt += 1
             req = urllib.request.Request(url, data=data, headers=dict(headers or {}), method=method)
             try:
                 resp = self._open(req, timeout=timeout)
+                first = time.monotonic()
                 hdrs = dict(resp.headers.items()) if getattr(resp, "headers", None) else {}
                 status = getattr(resp, "status", None) or resp.getcode()
                 if stream:
-                    return HttpResult(status, resp, hdrs, round(time.monotonic() - t0, 3), url=url, attempts=attempt)
+                    return first, HttpResult(status, resp, hdrs, round(time.monotonic() - t0, 3), url=url, attempts=attempt)
                 try:
                     body = resp.read(max_bytes + 1)
                 finally:
                     resp.close()
                 if len(body) > max_bytes:
-                    return HttpResult(status, body[:max_bytes], hdrs, round(time.monotonic() - t0, 3),
+                    return first, HttpResult(status, body[:max_bytes], hdrs, round(time.monotonic() - t0, 3),
                                       "too_large", f"response exceeded {max_bytes} bytes", url, attempt)
-                return HttpResult(status, body, hdrs, round(time.monotonic() - t0, 3), url=url, attempts=attempt)
+                return first, HttpResult(status, body, hdrs, round(time.monotonic() - t0, 3), url=url, attempts=attempt)
             except urllib.error.HTTPError as e:
+                first = time.monotonic()      # the server answered (with an error status)
                 try:
                     body = e.read(min(max_bytes, 256 * 1024))
                 except Exception:
@@ -200,14 +309,14 @@ class HttpClient:
                 if e.code in RETRY_STATUSES and attempt <= self.retries:
                     self._sleep(self._delay(attempt, hdrs))
                     continue
-                return result
+                return first, result
             except (socket.timeout, TimeoutError) as e:
                 result = HttpResult(None, b"", {}, round(time.monotonic() - t0, 3),
                                     "timeout", str(e) or "timed out", url, attempt)
                 if self.retry_on_timeout and attempt <= self.retries:
                     self._sleep(self._delay(attempt, {}))
                     continue
-                return result
+                return first, result
             except (urllib.error.URLError, ConnectionError, OSError) as e:
                 reason = getattr(e, "reason", e)
                 kind = "timeout" if isinstance(reason, (socket.timeout, TimeoutError)) or "timed out" in str(reason) else "network"
@@ -215,7 +324,7 @@ class HttpClient:
                 if attempt <= self.retries and (kind == "network" or self.retry_on_timeout):
                     self._sleep(self._delay(attempt, {}))
                     continue
-                return result
+                return first, result
 
     def _delay(self, attempt, headers):
         retry_after = {k.lower(): v for k, v in headers.items()}.get("retry-after")

@@ -16,7 +16,8 @@ Config (all optional):
   ASTRA_DB_API_ENDPOINT, ASTRA_DB_APPLICATION_TOKEN, ASTRA_DB_KEYSPACE
   ASTRA_VECTOR_COLLECTION   default aria_memory_v3
   ASTRA_LEGACY_COLLECTION   default COLLECTION_NAME or aria_memory (keyword only)
-  ASTRA_VECTOR_MODEL        default EMBEDDING_MODEL or nvidia/nemotron-3-embed-1b
+  ASTRA_VECTOR_MODEL        default EMBEDDING_MODEL or nvidia/nemotron-3.5-embed-1b
+                            (nemotron-3-embed-1b reached end of life 2026-11-23: HTTP 410)
   NVIDIA_API_KEY, NVIDIA_API_KEY_2, NVIDIA_API_KEY_3 (tried in order)
 """
 
@@ -33,7 +34,10 @@ import httpx
 _RETIRED = {
     "nvidia/nv-embedqa-e5-v5", "nvidia/llama-3.2-nv-embedqa-1b-v2", "nvidia/nv-embed-v1",
     "nvidia/llama-3.2-nemoretriever-300m-embed-v1", "baai/bge-m3",
+    "nvidia/nemotron-3-embed-1b",  # end of life 2026-11-23T09:00Z (HTTP 410)
 }
+# Live 2048-dim replacements, tried in order when the configured model is gone (404/410).
+_FALLBACK_MODELS = ["nvidia/nemotron-3.5-embed-1b", "nvidia/nemotron-3.5-embed-8b"]
 _DREAM_TYPES = {"dream", "dream_phase", "dream_insight", "dream_cycle"}
 _dim_cache: dict[str, int] = {}
 
@@ -41,7 +45,7 @@ _dim_cache: dict[str, int] = {}
 def _cfg() -> dict:
     model = os.environ.get("ASTRA_VECTOR_MODEL") or os.environ.get("EMBEDDING_MODEL") or ""
     if not model or model in _RETIRED:
-        model = "nvidia/nemotron-3-embed-1b"
+        model = _FALLBACK_MODELS[0]
     return {
         "endpoint": os.environ.get("ASTRA_DB_API_ENDPOINT", "").rstrip("/"),
         "token": os.environ.get("ASTRA_DB_APPLICATION_TOKEN", ""),
@@ -79,22 +83,33 @@ async def embed(text: str, input_type: str = "passage") -> dict:
     keys = _nv_keys()
     if not keys:
         return {"ok": False, "error": "no NVIDIA_API_KEY configured"}
+    models = [c["model"]] + [m for m in _FALLBACK_MODELS if m != c["model"]]
     last = ""
     async with httpx.AsyncClient(timeout=30) as cl:
-        for k in keys:
-            try:
-                r = await cl.post(f"{c['nv_base']}/embeddings",
-                                  headers={"Authorization": f"Bearer {k}", "Content-Type": "application/json"},
-                                  json={"model": c["model"], "input": [text[:8000]],
-                                        "input_type": input_type, "encoding_format": "float"})
-                if r.status_code == 200:
-                    vec = r.json()["data"][0]["embedding"]
-                    return {"ok": True, "vector": vec, "model": c["model"], "dim": len(vec)}
-                last = f"NVIDIA embeddings HTTP {r.status_code}: {r.text[:160]}"
-                if r.status_code not in (401, 403, 429, 500, 502, 503):
-                    break  # a bad request will not improve with another key
-            except Exception as e:
-                last = f"NVIDIA embeddings {type(e).__name__}: {e}"
+        for model in models:
+            gone = False
+            for k in keys:
+                try:
+                    r = await cl.post(f"{c['nv_base']}/embeddings",
+                                      headers={"Authorization": f"Bearer {k}", "Content-Type": "application/json"},
+                                      json={"model": model, "input": [text[:8000]],
+                                            "input_type": input_type, "encoding_format": "float"})
+                    if r.status_code == 200:
+                        vec = r.json()["data"][0]["embedding"]
+                        out = {"ok": True, "vector": vec, "model": model, "dim": len(vec)}
+                        if model != c["model"]:
+                            out["fallback_from"] = c["model"]
+                        return out
+                    last = f"NVIDIA embeddings HTTP {r.status_code} ({model}): {r.text[:160]}"
+                    if r.status_code in (404, 410):
+                        gone = True  # model retired / not on this account: try the next model
+                        break
+                    if r.status_code not in (401, 403, 429, 500, 502, 503):
+                        break  # a bad request will not improve with another key
+                except Exception as e:
+                    last = f"NVIDIA embeddings {type(e).__name__}: {e}"
+            if not gone:
+                break
     return {"ok": False, "error": _clean(last)}
 
 

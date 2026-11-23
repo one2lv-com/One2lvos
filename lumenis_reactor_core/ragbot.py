@@ -77,7 +77,7 @@ class LumenisRAG:
         token: Optional[str] = None,
         keyspace: Optional[str] = None,
         collection_name: str = "lumenis_rag",
-        embedding_model: str = "nvidia/nemotron-3-embed-1b",  # nv-embedqa-e5-v5 was retired 2026-08-25 (HTTP 410)
+        embedding_model: str = "nvidia/nemotron-3.5-embed-1b",  # nemotron-3-embed-1b EOL 2026-11-23 (HTTP 410); nv-embedqa-e5-v5 was retired 2026-08-25 (HTTP 410)
         embedding_dimension: int = 2048,
         similarity_metric: str = "cosine"
     ):

@@ -140,22 +140,37 @@ STARTER_CLUSTER = {'roles': _starter_roles(),
                     'auto_tts': True,
                     'language': 'en-US',
                     'tts_url': 'https://877104f7-e885-42b9-8de8-f6e4c6303969.invocation.api.nvcf.nvidia.com/v1/audio/synthesize',
-                    'voice_profiles': ['Magpie-Multilingual.EN-US.Aria', 'Magpie-Multilingual.EN-US.Jason']},
+                    'voice_profiles': ['Magpie-Multilingual.EN-US.Aria', 'Magpie-Multilingual.EN-US.Jason'],
+                    'fast_route': True,
+                    'fast_route_max_words': 60,
+                    'router_timeout_sec': 4,
+                    'turn_timeout_sec': 45,
+                    'slow_turn_sec': 20,
+                    'show_stages': True},
  'mcp_settings': {'enabled': True,
                   'url': 'https://svn-dev.online/mcp',
                   'auth': {'style': 'x-api-key', 'header_name': 'X-API-Key', 'key_env': 'MCP_API_KEY'},
                   'protocol_version': '2025-06-18',
                   'allowed_tools': [],
-                  'confirm_tool_calls': True,
+                  'blocked_tools': [],
+                  'dedicated_endpoint': 'auto',
+                  'own_memory_tool': '',
+                  'confirm_tool_calls': False,
                   'max_tool_steps': 4,
                   'max_calls_per_step': 3,
                   'tool_timeout_sec': 20,
                   'max_result_chars': 8000,
                   'max_response_bytes': 1000000},
- 'memory_settings': {'recall_top_k': 3, 'similarity_threshold': 0.45, 'rerank_candidates': 10},
+ 'memory_settings': {'recall_top_k': 6, 'similarity_threshold': 0.45, 'rerank_candidates': 16,
+                     'recent_on_recall_ask': 3, 'search_threshold': 0.3, 'trace': True,
+                     'hybrid_recall': True, 'hybrid_keyword_weight': 0.6, 'exclude_context_turns': True,
+                     'recall_max_chars': 2400, 'recall_version': 380},
+ 'agent_settings': {'name': ''},
  'guard_settings': {'check_input': False, 'check_output': False, 'block_on_unsafe': True,
                     'translate_target': 'English'},
- 'routing_settings': {'use_intent_router': True, 'show_route': True},
+ 'routing_settings': {'use_intent_router': True, 'show_route': True, 'reasoning_gate': True,
+                      'reasoning_min_chars': 4000, 'reasoning_keywords': True, 'chat_fast_path': True,
+                      'chat_max_words': 16, 'router_timeout_sec': 8},
  'judge_settings': {'judges': ['mistralai/mistral-large-4-1t-a52b', 'nvidia/nemotron-3-ultra-550b-a55b'],
                     'repeats': 1,
                     'judge_temperature': 0.0,
@@ -181,13 +196,9 @@ STARTER_CLUSTER = {'roles': _starter_roles(),
 STARTER_PROMPTS = {
     'intent_router': 'You are the intent router. Read the user turn and answer with exactly one label from the '
                      'list you are given, nothing else.',
-    'persona': 'You are the primary conversational persona. Parse intent cleanly, address the user in the '
-               'established persona, synthesize data from sub-models, and trigger tool calls when data must '
-               'be fetched or acted upon.',
-    'reasoning': 'You are the deep analytical reasoning core. Break down complex architectural and '
-                 'algorithmic problems step-by-step with zero hand-waving.',
-    'coding': 'You are the specialized systems programmer and tool caller. Write clean, complete, '
-              'dependency-minimal code without truncation or placeholders, and call tools precisely.',
+    'persona': 'You are the conversational persona: the one voice that answers every message, in the identity soul.md gives you. Address the user directly and keep turns short. Weave in what the abilities and recalled memories above give you as if you knew it, without naming models or pipelines. Memory recall and saving happen automatically. Use a tool only when the ENVIRONMENT section lists one that fits; never write tool-call markup in a reply.',
+    'reasoning': 'You are the deep analytical reasoning core. Break down complex architectural and algorithmic problems step-by-step with zero hand-waving. Plan the steps before answering, and use a tool only if the ENVIRONMENT section lists it.',
+    'coding': 'You are the specialized systems programmer. Write clean, complete, dependency-minimal code without truncation or placeholders. Call a tool only if the ENVIRONMENT section lists it, and then precisely.',
     'vision': 'You are the forensic visual analyzer. Extract exact object locations, text, dimensions, and '
               'anomalies from the provided image.',
     'ocr': 'You are the document parsing engine. Transcribe layout, data tables, and structured text '
@@ -206,7 +217,5 @@ STARTER_PROMPTS = {
     'reranker': '',
     'guard_translate': 'You are the translation and safety model. Translate faithfully when asked to translate; '
                        'when asked to check safety, answer SAFE or UNSAFE and a short reason.',
-    'compactor': 'You are the episodic memory compactor. Compress chat turns and operational logs into '
-                 'high-density semantic bullets while preserving proper nouns, exact numbers, and state '
-                 'decisions.',
+    'compactor': 'You are the episodic memory compactor. Compress chat turns and operational logs into high-density semantic bullets while preserving proper nouns, exact numbers, and state decisions. Output only the bullets; the testbed stores them in long-term memory itself.',
 }

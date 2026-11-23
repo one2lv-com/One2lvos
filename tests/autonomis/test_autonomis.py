@@ -38,21 +38,22 @@ def build_repo():
     # Shared modules the merged agent imports (restart lock, L0-L3 command tiers).
     shutil.copy(AGENT.parent / "service_lock.py", REPO / "service_lock.py")
     (REPO / "lumenis_reactor_core").mkdir()
-    shutil.copy(AGENT.parent / "lumenis_reactor_core" / "command_tiers.py",
-                REPO / "lumenis_reactor_core" / "command_tiers.py")
+    for name in ("command_tiers.py", "model_guard.py"):
+        shutil.copy(AGENT.parent / "lumenis_reactor_core" / name, REPO / "lumenis_reactor_core" / name)
     for name in ("svc_a.py", "public_bridge.py"):
         shutil.copy(HERE / "fake_svc.py", REPO / name)
     shutil.copy(HERE / "fake_cf.py", REPO / "fake_cf.py")
     (REPO / "crash.py").write_text("import sys; print('crashing'); sys.exit(1)\n")
     (REPO / "aria" / "main.py").write_text("import time\nwhile True: time.sleep(60)\n")
     # No start-aria.sh: the agent starts aria/main.py itself now (the real repo never had that script).
-    (REPO / "bridge_tunnel.sh").write_text(
+    # Same shape as the real start-tunnel.sh: a named tunnel ("tunnel ... run"), pid in logs/cloudflared.pid.
+    (REPO / "start-tunnel.sh").write_text(
         "#!/bin/bash\ncd \"$(dirname \"$0\")\"\n"
         "echo started >> logs/tunnel_starts.txt\n"
         f"READY_FILE=$PWD/ready.txt nohup bash -c 'exec -a cloudflared {PY} \"$0\" tunnel "
-        "--url http://localhost:18095 --metrics 127.0.0.1:18200' \"$PWD/fake_cf.py\" "
-        "> logs/bridge_tunnel.log 2>&1 &\n"
-        "echo $! > logs/bridge_tunnel.pid\n"
+        "--no-autoupdate --metrics 127.0.0.1:18200 run' \"$PWD/fake_cf.py\" "
+        "> logs/cloudflared.log 2>&1 &\n"
+        "echo $! > logs/cloudflared.pid\n"
         "echo http://127.0.0.1:18095 > logs/bridge_tunnel.url\n"
         "sleep 1\n")
     (REPO / "mode_a.txt").write_text("ok")
@@ -113,12 +114,12 @@ def start_external(script, port, mode):
                             stderr=subprocess.DEVNULL, start_new_session=True)
 
 
-def start_fake_cf(url_port, metrics=None, extra=None):
-    args = f"tunnel --url http://localhost:{url_port}"
-    if metrics:
-        args += f" --metrics {metrics}"
-    if extra:
-        args = extra
+def start_fake_cf(metrics=None, quick_port=None):
+    """A named tunnel like start-tunnel.sh runs, or with quick_port a quick tunnel (--url)."""
+    if quick_port:
+        args = f"tunnel --url http://localhost:{quick_port}"
+    else:
+        args = "tunnel --no-autoupdate" + (f" --metrics {metrics}" if metrics else "") + " run"
     return subprocess.Popen(
         ["bash", "-c", f"exec -a cloudflared {PY} {REPO / 'fake_cf.py'} {args}"],
         env=dict(os.environ, READY_FILE=str(REPO / "ready.txt")),
@@ -304,14 +305,14 @@ def test_tunnel(mod):
     logs = REPO / "logs"
     bridge = start_external("public_bridge.py", 18095, "mode_bridge.txt")
     wait_port(mod, 18095)
-    for f in ("bridge_tunnel.pid", "bridge_tunnel.url"):
+    for f in ("cloudflared.pid", "bridge_tunnel.url"):
         (logs / f).unlink(missing_ok=True)
 
     th = mod.tunnel_health(check_public=False)
     check("tunnel: no pid file, no process -> down", th["state"] == "down", th["detail"])
 
     sleeper = subprocess.Popen(["sleep", "300"])
-    (logs / "bridge_tunnel.pid").write_text(str(sleeper.pid))
+    (logs / "cloudflared.pid").write_text(str(sleeper.pid))
     th = mod.tunnel_health(check_public=False)
     check("tunnel: pid file -> live non-cloudflared pid (reused pid) -> down",
           th["state"] == "down" and "stale" in th["detail"], th["detail"])
@@ -323,22 +324,22 @@ def test_tunnel(mod):
     check("tunnel: pid file -> dead pid -> down", th["state"] == "down", th["detail"])
 
     zombie = subprocess.Popen(["true"]); time.sleep(0.3)   # exited, not reaped
-    (logs / "bridge_tunnel.pid").write_text(str(zombie.pid))
+    (logs / "cloudflared.pid").write_text(str(zombie.pid))
     th = mod.tunnel_health(check_public=False)
     check("tunnel: pid file -> zombie -> down", th["state"] == "down", th["detail"])
     zombie.wait()
 
-    unrelated = start_fake_cf(None, extra="tunnel run main-named-tunnel")
-    other = start_fake_cf(9999)
+    unrelated = start_fake_cf(quick_port=18095)
+    other = start_fake_cf(quick_port=9999)
     time.sleep(0.5)
     th = mod.tunnel_health(check_public=False)
-    check("tunnel: cloudflared for other tunnels is not mistaken for the bridge",
+    check("tunnel: quick tunnels (--url) are not mistaken for the named tunnel",
           th["state"] == "down", th["detail"])
 
-    cf = start_fake_cf(18095, metrics="127.0.0.1:18200")
+    cf = start_fake_cf(metrics="127.0.0.1:18200")
     wait_port(mod, 18200)
     th = mod.tunnel_health(check_public=False)
-    check("tunnel: stale pid file but cloudflared publishing :18095 found -> ok",
+    check("tunnel: stale pid file but a named-tunnel cloudflared found -> ok",
           th["state"] == "ok" and th["pid"] == cf.pid, th["detail"])
 
     (REPO / "ready.txt").write_text("503")
@@ -357,26 +358,26 @@ def test_tunnel(mod):
     (logs / "bridge_tunnel.url").write_text("http://127.0.0.1:18095")
 
     # A cycle adopts the found process into the pid file and stops a duplicate.
-    dup = start_fake_cf(18095)
+    dup = start_fake_cf()
     time.sleep(0.5)
     mod.service_registry = lambda: [BRIDGE()]
     agent = mod.Autonomis()
     r = agent.cycle()
     dup.wait(timeout=5)
     check("tunnel: cycle rewrote the stale pid file",
-          (logs / "bridge_tunnel.pid").read_text().strip() == str(cf.pid))
-    check("tunnel: duplicate bridge cloudflared stopped", dup.returncode is not None)
+          (logs / "cloudflared.pid").read_text().strip() == str(cf.pid))
+    check("tunnel: duplicate named-tunnel cloudflared stopped", dup.returncode is not None)
     check("tunnel: the kept cloudflared still runs", cf.poll() is None)
     check("tunnel: no restart when healthy", not any(x["service"] == "bridge-tunnel" for x in r["restarts"]))
 
-    # Kill it: the next cycle stops leftovers and runs bridge_tunnel.sh once.
+    # Kill it: the next cycle stops leftovers and runs start-tunnel.sh once.
     (logs / "tunnel_starts.txt").unlink(missing_ok=True)
     cf.kill(); cf.wait()
     r = agent.cycle()
     starts = (logs / "tunnel_starts.txt").read_text().count("started") if (logs / "tunnel_starts.txt").exists() else 0
-    check("tunnel: dead cloudflared -> bridge_tunnel.sh run once", starts == 1, f"starts={starts}")
+    check("tunnel: dead cloudflared -> start-tunnel.sh run once", starts == 1, f"starts={starts}")
     th = mod.tunnel_health(check_public=False)
-    new_pid = int((logs / "bridge_tunnel.pid").read_text())
+    new_pid = int((logs / "cloudflared.pid").read_text())
     check("tunnel: new cloudflared live and matches pid file", th["state"] == "ok" and th["pid"] == new_pid, th["detail"])
 
     # Tunnel process alive but published URL failing: restart only after 2 checks,
@@ -395,8 +396,8 @@ def test_tunnel(mod):
     starts = (logs / "tunnel_starts.txt").read_text().count("started") if (logs / "tunnel_starts.txt").exists() else 0
     check("tunnel: 2nd 'bad' check -> restarted once", starts == 1, f"starts={starts}")
     check("tunnel: old cloudflared stopped before restart", not mod.pid_alive(old_pid))
-    live = mod.bridge_tunnel_pids()
-    check("tunnel: exactly one bridge cloudflared afterwards", len(live) == 1, str(live))
+    live = mod.tunnel_pids()
+    check("tunnel: exactly one named-tunnel cloudflared afterwards", len(live) == 1, str(live))
     check("tunnel: unrelated cloudflared processes never stopped",
           unrelated.poll() is None and other.poll() is None)
     unrelated.kill(); other.kill(); bridge.kill()
@@ -512,6 +513,34 @@ def test_merge_rules(mod):
     check("approval: reactor down -> L0 read runs locally", out["success"] and out.get("local"), json.dumps(out)[:200])
 
 
+def test_nimlab(mod):
+    """nimlab.<tool> goes through the reactor's tool engine as one call; safety models never leave."""
+    sent = []
+    mod.engine_call = lambda tool, args, timeout=150.0: sent.append((tool, args)) or {
+        "ok": True, "result": {"suite": "3.8.6", "key": {"present": True}}}
+    out = mod.nimlab_call("status")
+    check("nimlab: status sent to the engine as nimlab.status", out["ok"] and sent == [("nimlab.status", {})], str(sent))
+    for args in ({"model": "nvidia/llama-3.1-nemoguard-8b-content-safety", "prompt": "hi"},
+                 {"type": "chat", "models": ["meta/llama-3.1-8b-instruct"],
+                  "judge": "nvidia/llama-3.1-nemotron-safety-guard-8b-v3"},
+                 {"models": ["meta/llama-3.1-8b-instruct", "nvidia/nemoguard-jailbreak-detect"]}):
+        out = mod.nimlab_call("chat", args)
+        check(f"nimlab: safety model refused before the engine ({json.dumps(args)[:60]})",
+              out.get("refused") and len(sent) == 1, json.dumps(out))
+    real = mod.restart_in_progress
+    mod.restart_in_progress = lambda service, holder, grace_s=0: True
+    out = mod.nimlab_call("status")
+    check("nimlab: not called while the reactor's restart lock is held",
+          out.get("skipped") and len(sent) == 1, json.dumps(out))
+    mod.restart_in_progress = real
+
+    (REPO / "logs" / "cloudflared.log").write_text(
+        'ERR edge discovery: error looking up Cloudflare edge IPs: the DNS query failed '
+        'error="lookup _v2-origintunneld._tcp.argotunnel.com on 10.0.0.1:53: no such host"\n')
+    why = mod.tunnel_log_diagnosis() or ""
+    check("tunnel: DNS failure in cloudflared.log is named", "cannot resolve" in why, why)
+
+
 def main():
     build_repo()
     mod = load_module()
@@ -526,6 +555,7 @@ def main():
         test_lock(mod)
         kill_all()
         test_merge_rules(mod)
+        test_nimlab(mod)
     finally:
         kill_all()
     failed = [n for n, ok in RESULTS if not ok]

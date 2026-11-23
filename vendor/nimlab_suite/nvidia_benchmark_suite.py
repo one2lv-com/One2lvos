@@ -634,6 +634,9 @@ def main():
 
 
 if __name__ == "__main__":
+    from nimlab import colors as _colors
+    _colors.apply_flags(sys.argv)
+    _colors.install()
     try:
         main()
     except KeyboardInterrupt:

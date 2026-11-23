@@ -48,27 +48,33 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO_ROOT))
 # Shared with watchdog.py: only one supervisor restarts a service at a time (service_lock.py).
-from service_lock import REACTOR_SERVICE, restart_lock, watchdog_running  # noqa: E402
+from service_lock import (REACTOR_SERVICE, restart_in_progress, restart_lock,  # noqa: E402
+                          watchdog_running)
 
 
-def _load_command_tiers():
-    """lumenis_reactor_core/command_tiers.py, loaded by path (no reactor package import, no heavy deps)."""
+def _load_core_module(name: str):
+    """lumenis_reactor_core/<name>.py, loaded by path (no reactor package import, no heavy deps)."""
     import importlib.util
     spec = importlib.util.spec_from_file_location(
-        "_command_tiers", REPO_ROOT / "lumenis_reactor_core" / "command_tiers.py")
+        f"_{name}", REPO_ROOT / "lumenis_reactor_core" / f"{name}.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
 
 
-command_tiers = _load_command_tiers()
+command_tiers = _load_core_module("command_tiers")
+model_guard = _load_core_module("model_guard")
 REACTOR_URL = os.environ.get("ONE2LV_REACTOR_URL", "http://127.0.0.1:8000")
 CONFIG_PATH = REPO_ROOT / "autonomis-config.json"
 LOG_DIR = REPO_ROOT / "logs"
 PID_FILE = LOG_DIR / "autonomis.pid"
 LOCK_FILE = LOG_DIR / "autonomis.lock"
 STATE_FILE = LOG_DIR / "autonomis_state.json"
-TUNNEL_PID_FILE = LOG_DIR / "bridge_tunnel.pid"
+# The tunnel is started by start-tunnel.sh (the named "one2lvos" tunnel), which
+# writes logs/cloudflared.pid. bridge_tunnel.sh never existed in this repo.
+TUNNEL_SCRIPT = REPO_ROOT / "start-tunnel.sh"
+TUNNEL_PID_FILE = LOG_DIR / "cloudflared.pid"
+TUNNEL_LOG_FILE = LOG_DIR / "cloudflared.log"
 TUNNEL_URL_FILE = LOG_DIR / "bridge_tunnel.url"
 BRIDGE_PORT = 8095
 
@@ -696,18 +702,32 @@ def _read_tunnel_pid() -> int | None:
         return None
 
 
-def bridge_tunnel_pids(port: int | None = None) -> set[int]:
-    """cloudflared processes publishing the bridge port (--url ...:8095).
-    Other cloudflared tunnels (the main named tunnel) never match."""
-    port = BRIDGE_PORT if port is None else port
-    pattern = re.compile(rf"(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0):{port}(?!\d)")
+def tunnel_pids() -> set[int]:
+    """cloudflared processes running a named tunnel ("cloudflared tunnel ... run"), the
+    kind start-tunnel.sh starts. Quick tunnels (--url ...) are someone else's and never match."""
     found: set[int] = set()
     for pid in _iter_pids():
         if not _is_cloudflared(pid):
             continue
-        if pattern.search(" ".join(_proc_cmdline(pid))) and pid_alive(pid):
+        args = _proc_cmdline(pid)
+        if "tunnel" in args and "run" in args and "--url" not in args and pid_alive(pid):
             found.add(pid)
     return found
+
+
+def tunnel_log_diagnosis() -> str | None:
+    """Explain a tunnel that will not stay up, from the end of cloudflared.log."""
+    try:
+        tail = TUNNEL_LOG_FILE.read_text(errors="replace")[-4000:]
+    except OSError:
+        return None
+    if "edge discovery" in tail and ("DNS query failed" in tail or "lookup" in tail):
+        return ("this machine cannot resolve Cloudflare's tunnel servers "
+                "(_v2-origintunneld._tcp.argotunnel.com); a network/DNS block, "
+                "not a script problem")
+    if "Unauthorized" in tail or "invalid token" in tail.lower():
+        return "Cloudflare rejected CLOUDFLARE_TUNNEL_TOKEN"
+    return None
 
 
 def _metrics_addr(pid: int) -> str | None:
@@ -722,11 +742,11 @@ def _metrics_addr(pid: int) -> str | None:
 
 def tunnel_health(check_public: bool = True, timeout: float = 10,
                   bridge_ok: bool = True) -> dict:
-    """Is the bridge tunnel really up?
+    """Is the Cloudflare tunnel (start-tunnel.sh) really up?
 
     The pid file alone is not trusted: the pid must be alive, not a zombie,
-    and actually be cloudflared (a reused pid is caught). A cloudflared that
-    publishes :8095 is found even when the pid file is stale or missing.
+    and actually be cloudflared (a reused pid is caught). A cloudflared running
+    a named tunnel is found even when the pid file is stale or missing.
     When cloudflared runs with --metrics, its /ready endpoint must say it has
     an edge connection. When the local bridge is healthy, the published URL
     must answer /v1/health too.
@@ -736,17 +756,20 @@ def tunnel_health(check_public: bool = True, timeout: float = 10,
     file_pid = _read_tunnel_pid()
     result["pid_file"] = file_pid
     file_ok = bool(file_pid) and pid_alive(file_pid) and _is_cloudflared(file_pid)
-    procs = bridge_tunnel_pids()
+    procs = tunnel_pids()
     live = set(procs)
     if file_ok:
         live.add(file_pid)
     result["pids"] = sorted(live)
     if not live:
         if file_pid is None:
-            result["detail"] = "no pid file and no cloudflared publishing the bridge"
+            result["detail"] = "no pid file and no cloudflared tunnel running"
         else:
             result["detail"] = (f"pid file says {file_pid}, which is not a running "
                                 f"cloudflared (stale pid)")
+        why = tunnel_log_diagnosis()
+        if why:
+            result["detail"] += f"; {why}"
         return result
     pid = file_pid if file_ok else min(live)
     result["pid"] = pid
@@ -1057,6 +1080,25 @@ def engine_call(tool: str, args: dict, timeout: float = 150.0) -> dict:
         return {"ok": False, "status": 0, "error": f"reactor unreachable: {type(exc).__name__}: {exc}"}
 
 
+def nimlab_call(tool: str, args: dict | None = None, timeout: float = 150.0) -> dict:
+    """Run one nimlab.<tool> (the NVIDIA lab suite inside the reactor) as caller 'autonomis'.
+
+    The reactor's tool engine applies the L0-L3 tiers (L0-L1 run, L2-L3 are held for One2lv) and
+    nimlab_tools' own gate (NVIDIA hosts only, call budget, rate limit, no safety models). Autonomis
+    adds two checks before the call: no safety/guard/classifier model named in the arguments, and no
+    call while another supervisor holds the reactor's restart lock (service_lock.py)."""
+    args = dict(args or {})
+    named = [args.get("model"), args.get("judge"), *(args.get("models") or [])]
+    bad = next((m for m in named if isinstance(m, str) and model_guard.is_safety_model(m)), None)
+    if bad:
+        return {"ok": False, "refused": True,
+                "error": f"{bad} is a safety/guard model; the reactor never uses one"}
+    if restart_in_progress(REACTOR_SERVICE, holder="autonomis"):
+        return {"ok": False, "skipped": True,
+                "error": "the reactor is being restarted (shared restart lock); nimlab not called"}
+    return engine_call(f"nimlab.{tool}", args, timeout=timeout)
+
+
 def run_allowed_command(command: str, bridge: MCPBridge | None, allowlist: list[str],
                         denylist: list[str] | None = None) -> dict:
     """Run an AI-proposed command through the reactor's L0-L3 approval levels.
@@ -1314,6 +1356,17 @@ class Autonomis:
                 what="public bridge tunnel",
                 bad_threshold=int(tun_cfg.get("failed_checks_before_restart", 3)))
 
+        # nimlab: read-only status (L0, no NVIDIA request) through the reactor's tool engine.
+        if self.config.get("nimlab", {}).get("monitor"):
+            out = nimlab_call("status", timeout=timeout * 4)
+            res = out.get("result") if isinstance(out.get("result"), dict) else {}
+            report["nimlab"] = {"ok": bool(out.get("ok")), "suite": res.get("suite"),
+                                "key_present": (res.get("key") or {}).get("present"),
+                                "error": out.get("error")}
+            # A down reactor is already reported above; flag nimlab only when the reactor answered.
+            if not out.get("ok") and not out.get("skipped") and out.get("status") != 0:
+                report["unhealthy"].append("nimlab")
+
         # Ask the LLM about anything that keeps failing.
         report["ai"] = self.consult(report["unhealthy"])
         self.policy.save()
@@ -1368,7 +1421,7 @@ class Autonomis:
         svc = next((s for s in self.services if s["name"] == name), None)
         if svc:
             return svc["log"]
-        return {"bridge-tunnel": "bridge_tunnel.log", "aria": "aria.log"}.get(name, "autonomis.log")
+        return {"bridge-tunnel": "cloudflared.log", "aria": "aria.log"}.get(name, "autonomis.log")
 
     def _stop_timeout(self) -> float:
         return float(self.config.get("services", {}).get("stop_timeout_seconds", 10))
@@ -1400,7 +1453,7 @@ class Autonomis:
         return spawn({"name": "aria", "cmd": cmd, "cwd": REPO_ROOT / "aria", "log": "aria.log"})
 
     def _tunnel_pids_to_stop(self, tunnel: dict) -> set[int]:
-        pids = set(bridge_tunnel_pids())
+        pids = set(tunnel_pids())
         file_pid = _read_tunnel_pid()
         # The pid file is only trusted when it really is cloudflared - a
         # stale number may belong to an unrelated process by now.
@@ -1411,14 +1464,16 @@ class Autonomis:
     def _restart_tunnel(self, tunnel: dict) -> int | None:
         stop_processes(self._tunnel_pids_to_stop(tunnel), "bridge-tunnel",
                        self._stop_timeout())
-        res = subprocess.run(["bash", str(REPO_ROOT / "bridge_tunnel.sh")],
+        if not TUNNEL_SCRIPT.exists():
+            raise RuntimeError(f"{TUNNEL_SCRIPT.name} is missing")
+        res = subprocess.run(["bash", str(TUNNEL_SCRIPT)],
                              capture_output=True, text=True, timeout=180)
         if res.returncode != 0:
-            raise RuntimeError(f"bridge_tunnel.sh exited {res.returncode}: "
+            raise RuntimeError(f"{TUNNEL_SCRIPT.name} exited {res.returncode}: "
                                f"{(res.stderr or res.stdout).strip()[-200:]}")
         after = tunnel_health(check_public=False)
         if not after["healthy"]:
-            log("WARN", f"bridge_tunnel.sh ran but no live tunnel: {after['detail']}")
+            log("WARN", f"{TUNNEL_SCRIPT.name} ran but no live tunnel: {after['detail']}")
         return after.get("pid")
 
     def _tidy_tunnel(self, tunnel: dict) -> None:
@@ -1564,7 +1619,17 @@ def main() -> int:
                         help="override the check interval in seconds")
     parser.add_argument("--no-bytecode-clean", action="store_true",
                         help="skip clearing stale .pyc caches")
+    parser.add_argument("--nimlab", metavar="TOOL",
+                        help="run one nimlab.<TOOL> through the reactor's L0-L3 tiers, print the result, exit")
+    parser.add_argument("--nimlab-args", metavar="JSON", default="{}",
+                        help="JSON arguments for --nimlab")
     args = parser.parse_args()
+
+    if args.nimlab:
+        load_env()
+        out = nimlab_call(args.nimlab, json.loads(args.nimlab_args))
+        print(json.dumps(out, indent=2, default=str))
+        return 0 if out.get("ok") else 1
 
     if not args.no_bytecode_clean:
         removed = clear_stale_bytecode()

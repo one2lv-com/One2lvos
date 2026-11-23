@@ -11,6 +11,21 @@ import os
 from . import config, store
 
 
+# 3.8.2: request kinds that always take their prefix rule, so a new image
+# model without a known name ("flux", "sdxl"...) still goes to /genai, never
+# to chat/completions (Kayden's finding, verified in the source).
+KIND_RULES = ("image_gen", "video", "vision_task")
+
+
+def catalog_kind(model_id):
+    """The discovery catalog's kind for a model ('' when unknown)."""
+    try:
+        ent = (store.load(store.DISCOVERED).get("models") or {}).get(model_id) or {}
+        return (ent.get("kind") or "").lower()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 class NvidiaRouter:
     def __init__(self, registry=None, registry_path=None):
         if registry is None and registry_path:
@@ -59,16 +74,25 @@ class NvidiaRouter:
             return {"url": f"{base.rstrip('/')}{override['path']}", "method": override.get("method", "POST"),
                     "kind": override.get("kind", kind), "is_nvcf": False}
 
-        for kw in self.reg.get("nvcf_fallbacks", []):
-            if kw in m_lower and "magpie" not in m_lower:
-                return {"url": gateways.get("nvcf_grpc", ""), "method": "gRPC", "kind": "nvcf_speech",
-                        "is_nvcf": True,
-                        "hint": f"Model '{model_id}' requires NVCF gRPC (grpc.nvcf.nvidia.com:443) "
-                                f"or an NVCF function invocation ID."}
+        grpc_rec = None
+        try:
+            from . import store
+            grpc_rec = store.grpc_function(model_id)
+        except Exception:  # a router never fails on a broken data file
+            grpc_rec = None
+        if grpc_rec or any(kw in m_lower and "magpie" not in m_lower for kw in self.reg.get("nvcf_fallbacks", [])):
+            fid = (grpc_rec or {}).get("function_id")
+            uri = gateways.get("nvcf_grpc", "") or "grpc.nvcf.nvidia.com:443"
+            how = (f"function ID {fid}" if fid else
+                   f"no function ID yet: ./start.sh grpc refresh {model_id} (or grpc set {model_id} <id>)")
+            return {"url": uri, "method": "gRPC", "kind": "nvcf_speech", "is_nvcf": True,
+                    "transport": "nvcf_grpc", "function_id": fid,
+                    "hint": f"Model '{model_id}' runs over NVCF gRPC ({uri}); {how}."}
 
         publisher, name = self.parse_model(model_id)
         for rule in self.reg.get("dynamic_prefix_rules", []):
-            if kind == rule["pattern"] or any(k in m_lower for k in rule.get("keywords", [])):
+            if kind == rule["pattern"] or (kind == rule.get("kind") and kind in KIND_RULES) or \
+                    any(k in m_lower for k in rule.get("keywords", [])):
                 base = gateways[rule["gateway"]]
                 return {"url": f"{base.rstrip('/')}{rule['prefix']}/{publisher}/{name}", "method": "POST",
                         "kind": rule["kind"], "is_nvcf": False}

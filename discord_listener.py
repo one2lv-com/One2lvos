@@ -64,6 +64,10 @@ GUEST_LIMITS = [(5, 600), (20, 3600)]
 ALL_GUESTS_LIMIT = (40, 3600)
 
 THINKING_EMOJI = "\U0001F440"   # eyes
+# After a machine stop/restart, answer messages that arrived (or were cut off) in the last
+# CATCHUP_HOURS and never got a reply. Bounded so a restart can never flood the channel.
+CATCHUP_HOURS = float(os.environ.get("DISCORD_CATCHUP_HOURS", "6") or 0)
+CATCHUP_MAX = 3
 
 log = logging.getLogger("discord_listener")
 
@@ -92,22 +96,53 @@ def parse_request(content: str, bot_id: int | None):
     return text[:MAX_INPUT]
 
 
+_THINK = re.compile(r"<think>.*?</think>\s*", re.S | re.I)
+_CITE_TAIL = re.compile(r"\n*\s*\u2014 Sources: [^\n]*\s*$")
+
+
+def clean_for_discord(text: str) -> str:
+    """Turn the reactor's chat answer into a Discord post.
+
+    The reactor appends an internal provenance footer ("— Sources: soul · live status ·
+    fuzzy memory") for the app's chat view. In Discord it reads as part of his answer and
+    confused people ("what do you mean? fuzzy memory"), so it is dropped here. Hidden
+    <think> blocks are removed too, and runs of blank lines collapsed."""
+    text = _THINK.sub("", text or "")
+    text = re.sub(r"</?think>", "", text, flags=re.I)
+    text = _CITE_TAIL.sub("", text.rstrip())
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def split_reply(text: str, limit: int = DISCORD_LIMIT):
-    """Split text into Discord-sized pieces, preferring paragraph, line, then word breaks."""
+    """Split text into Discord-sized pieces, preferring paragraph, line, then word breaks.
+    A code block cut across two messages is closed at the end of one and reopened at the
+    start of the next, so formatting never breaks."""
     text = (text or "").strip()
     parts = []
-    while len(text) > limit:
+    reopen = ""
+    budget = limit - 8   # room for a closing/opening ``` pair
+    while len(reopen + text) > limit:
+        chunk_src = reopen + text
         cut = -1
         for sep in ("\n\n", "\n", " "):
-            cut = text.rfind(sep, int(limit * 0.5), limit)
+            cut = chunk_src.rfind(sep, int(budget * 0.5), budget)
             if cut > 0:
                 break
         if cut <= 0:
-            cut = limit
-        parts.append(text[:cut].rstrip())
-        text = text[cut:].lstrip()
-    if text:
-        parts.append(text)
+            cut = budget
+        piece = chunk_src[:cut].rstrip()
+        rest = chunk_src[cut:].lstrip(" ").lstrip("\n") if cut < len(chunk_src) else ""
+        fences = re.findall(r"^\s*```(\S*)", piece, re.M)
+        if len(fences) % 2 == 1:
+            piece += "\n```"
+            reopen = "```" + fences[-1] + "\n"
+        else:
+            reopen = ""
+        parts.append(piece)
+        text = rest
+    if text.strip():
+        parts.append((reopen + text).strip())
     return parts
 
 
@@ -246,6 +281,7 @@ async def ask_lumenis(user_id: int, name: str, text: str, guest: bool, on_chunk=
             reply = str(hist[-1]["content"]).strip()
     except Exception:
         pass
+    reply = clean_for_discord(reply)
     if not reply:
         raise RuntimeError("the council finished but returned an empty answer")
     return reply, meta
@@ -373,14 +409,52 @@ def run_bot():
             except Exception:
                 log.exception("voice state handler failed")
 
+    catchup_done = False
+
+    async def catch_up():
+        """Answer addressed messages from the last CATCHUP_HOURS that have no reply from
+        this bot (the machine stopped mid-answer, or the listener was down)."""
+        if CATCHUP_HOURS <= 0:
+            return
+        ch = client.get_channel(CHANNEL_ID)
+        if ch is None:
+            return
+        import datetime as _dt
+        after = _dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(hours=CATCHUP_HOURS)
+        try:
+            msgs = [m async for m in ch.history(limit=100, after=after, oldest_first=True)]
+        except Exception as e:
+            log.warning("catch-up: could not read channel history: %s", type(e).__name__)
+            return
+        answered = {m.reference.message_id for m in msgs
+                    if client.user and m.author.id == client.user.id and m.reference and m.reference.message_id}
+        todo = [m for m in msgs if not m.author.bot and m.id not in answered
+                and parse_request(m.content, client.user.id if client.user else None)]
+        # Only the newest addressed message per user: older ones were superseded.
+        latest = {}
+        for m in todo:
+            latest[m.author.id] = m
+        todo = sorted(latest.values(), key=lambda m: m.created_at)[-CATCHUP_MAX:]
+        if todo:
+            log.info("catch-up: %d unanswered message(s) from the last %.0f h", len(todo), CATCHUP_HOURS)
+        for m in todo:
+            await handle(m, catchup=True)
+
     @client.event
     async def on_ready():
+        nonlocal catchup_done
         _write_state(connected_at=time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()))
         log.info("connected as %s (%s); watching channel %s; owner %s",
                  client.user, client.user.id, CHANNEL_ID, OWNER_ID or "none")
+        if not catchup_done:      # on_ready fires again on every gateway reconnect
+            catchup_done = True
+            asyncio.create_task(catch_up())
 
     @client.event
     async def on_message(message):
+        await handle(message)
+
+    async def handle(message, catchup: bool = False):
         if message.author.bot or (client.user and message.author.id == client.user.id):
             return
         if message.guild is None or message.channel.id != CHANNEL_ID:
@@ -407,7 +481,7 @@ def run_bot():
             return
 
         in_flight.add(uid)
-        log.info("message from %s: %r", who, text[:200])
+        log.info("%s from %s: %r", "catch-up message" if catchup else "message", who, text[:200])
         started = time.time()
         reacted = False
         try:

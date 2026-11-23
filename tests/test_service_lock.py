@@ -87,6 +87,23 @@ def main():
     check("watchdog_running() True while watchdog.lock is held", sl.watchdog_running())
     p.wait(timeout=10)
 
+    # 7. startos.sh stamps its own reactor start; restart_in_progress() sees stamps and held locks
+    (TMP / f"restart-{sl.REACTOR_SERVICE}.last.json").unlink(missing_ok=True)
+    check("restart_in_progress() False when nobody restarted or holds the lock",
+          not sl.restart_in_progress(sl.REACTOR_SERVICE, holder="autonomis"))
+    sl.mark_restarted(sl.REACTOR_SERVICE, "startos")
+    check("mark_restarted() writes the startos stamp",
+          sl.last_restart(sl.REACTOR_SERVICE).get("holder") == "startos")
+    with sl.restart_lock(sl.REACTOR_SERVICE, holder="watchdog") as got:
+        check("watchdog waits out the grace period after startos started the reactor", got is False)
+    check("restart_in_progress() True during startos's grace period",
+          sl.restart_in_progress(sl.REACTOR_SERVICE, holder="autonomis"))
+    (TMP / f"restart-{sl.REACTOR_SERVICE}.last.json").unlink(missing_ok=True)
+    p, got = hold(sl.REACTOR_SERVICE, "watchdog", 3)
+    check("restart_in_progress() True while another holder has the lock",
+          got == "got" and sl.restart_in_progress(sl.REACTOR_SERVICE, holder="autonomis"))
+    p.wait(timeout=10)
+
     failed = [n for n, ok in RESULTS if not ok]
     print(f"\n{len(RESULTS) - len(failed)} of {len(RESULTS)} checks passed")
     return 1 if failed else 0

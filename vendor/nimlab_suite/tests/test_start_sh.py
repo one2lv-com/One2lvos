@@ -71,10 +71,45 @@ class StartShTests(unittest.TestCase):
             self.assertIn("Total Live Models: 1", r.stdout)
         self.assertEqual(run([START, "--help"]).returncode, 0)
 
+    def test_first_run_setup_drops_into_main_menu(self):
+        """3.7.1: after the first-run guided setup the launcher shows the main
+        menu (setup quit at step 1 -> summary -> Enter -> main menu -> 0)."""
+        with tempfile.TemporaryDirectory() as d:
+            home = os.path.join(d, "home")
+            os.makedirs(home)
+            env = {"NIMLAB_DATA_DIR": os.path.join(d, "data"), "HOME": home, "TERM": "dumb",
+                   "XDG_CONFIG_HOME": os.path.join(home, ".config"), "NIMLAB_FIRST_RUN_TTY": "1",
+                   "NIMLAB_CONFIG_READONLY": "1", "NIMLAB_COLOR": "0"}
+            r = run(["bash", START], env, stdin="y\n3\n\n0\n")
+            out = r.stdout
+            self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+            self.assertIn("FIRST RUN", out)
+            self.assertIn("== Setup summary ==", out)
+            after = out.split("== Setup summary ==", 1)[1]
+            self.assertIn("Guided setup", after)      # the main menu was drawn after setup
+            self.assertIn("0. Exit", after)
+            # (with piped input Python's buffered stdin takes the rest of the
+            # keys, so the menu then ends on end-of-input, exit code 0)
+            self.assertNotIn("Traceback", out + r.stderr)
+            # the offer is made once: the next launch goes straight to the menu
+            r = run(["bash", START], env, stdin="0\n")
+            self.assertNotIn("FIRST RUN", r.stdout)
+            self.assertIn("Exiting", r.stdout)
+
+    def test_first_run_declined_goes_to_main_menu(self):
+        with tempfile.TemporaryDirectory() as d:
+            env = {"NIMLAB_DATA_DIR": os.path.join(d, "data"), "TERM": "dumb", "NIMLAB_FIRST_RUN_TTY": "1"}
+            r = run(["bash", START], env, stdin="n\n0\n")
+            self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+            self.assertIn("FIRST RUN", r.stdout)
+            self.assertIn("Guided setup", r.stdout.split("FIRST RUN", 1)[1])
+            self.assertIn("Exiting", r.stdout)
+
     def test_tui_menu_and_exit(self):
-        r = run(["bash", START], stdin="5\n\n0\n", env_extra={"TERM": "dumb"})
+        # 5 Benchmark & judge -> 3 Verified 200 fleet -> Enter -> 0 back -> 0 exit
+        r = run(["bash", START], stdin="5\n3\n\n0\n0\n", env_extra={"TERM": "dumb"})
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertIn("VERIFIED 200 ENDPOINTS FLEET", r.stdout)
+        self.assertIn("VERIFIED 200 FLEET", r.stdout)
         self.assertIn("Exiting", r.stdout)
 
     def test_tui_runs_from_another_directory(self):
@@ -82,15 +117,55 @@ class StartShTests(unittest.TestCase):
             r = run(["bash", START], stdin="0\n", env_extra={"TERM": "dumb"}, cwd=tmp)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    @staticmethod
+    def offline_env(tmp, **extra):
+        """No stored keys (a private HOME) and no network: any request goes to
+        a closed local port and fails at once. The 3.8.1 version of this test
+        made a real NVIDIA call (the hostile phrase was read as the key), which
+        stalled on machines whose network drops packets (the audit's hang)."""
+        home = os.path.join(tmp, "home")
+        os.makedirs(home, exist_ok=True)
+        env = {"TERM": "dumb", "HOME": home, "XDG_CONFIG_HOME": os.path.join(home, ".config"),
+               "NIMLAB_DATA_DIR": os.path.join(tmp, "data"), "NIMLAB_COLOR": "0",
+               "https_proxy": "http://127.0.0.1:9", "HTTPS_PROXY": "http://127.0.0.1:9",
+               "http_proxy": "http://127.0.0.1:9", "HTTP_PROXY": "http://127.0.0.1:9",
+               "no_proxy": "", "NO_PROXY": "", "NIMLAB_PLAY_TIMEOUT": "2"}
+        env.update(extra)
+        return env
+
+    @staticmethod
+    def hostile(marker):
+        return f"''' ; import os; os.system('touch {marker}') ; ''' $(touch {marker}) `touch {marker}`"
+
     def test_tts_injection_text_never_executes(self):
-        """Hostile phrase goes to the TTS command via stdin; with no key the
-        command refuses before any network call, and nothing is executed."""
+        """No key: the hostile phrase typed at the key prompt is refused as a
+        key (it is never exported or sent), and nothing is executed."""
         with tempfile.TemporaryDirectory() as tmp:
             marker = os.path.join(tmp, "pwned")
-            phrase = f"''' ; import os; os.system('touch {marker}') ; ''' $(touch {marker}) `touch {marker}`"
-            r = run(["bash", START], stdin=f"7\n{phrase}\n1\n\n0\n", env_extra={"TERM": "dumb"})
+            # 9 Tools -> 5 Voice synthesizer -> the key prompt gets the phrase
+            r = run(["bash", START], stdin="9\n5\n" + self.hostile(marker) + "\n\n0\n0\n",
+                    env_extra=self.offline_env(tmp))
             self.assertFalse(os.path.exists(marker))
         self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("does not look like an API key", r.stdout)
+        self.assertIn("Operation aborted", r.stdout)
+        self.assertNotIn("Sending synthesis request", r.stdout)
+
+    def test_tts_injection_with_a_key_goes_over_stdin_and_does_not_hang(self):
+        """With a key: the phrase reaches `nimlab tts` over stdin, nothing in
+        it runs, the request fails fast offline, and no player starts."""
+        import time
+        with tempfile.TemporaryDirectory() as tmp:
+            marker = os.path.join(tmp, "pwned")
+            t0 = time.monotonic()
+            r = run(["bash", START], stdin="9\n5\n" + self.hostile(marker) + "\n1\n\n0\n0\n",
+                    env_extra=self.offline_env(tmp, NVIDIA_API_KEY=KEY))
+            took = time.monotonic() - t0
+            self.assertFalse(os.path.exists(marker))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("Sending synthesis request", r.stdout)
+        self.assertLess(took, 45)
+        self.assertNotIn(KEY, r.stdout + r.stderr)
 
     def test_persist_key_file_is_private_and_quoted(self):
         with tempfile.TemporaryDirectory() as tmp:

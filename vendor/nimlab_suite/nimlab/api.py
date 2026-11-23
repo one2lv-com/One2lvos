@@ -9,6 +9,7 @@ import base64
 import io
 import json
 import mimetypes
+import re
 import os
 import time
 import wave
@@ -21,6 +22,98 @@ INTEGRATE = "https://integrate.api.nvidia.com/v1"
 DEFAULT_TTS_URL = config.DEFAULT_CLUSTER["voice_settings"]["tts_url"]
 OCR_PROMPT = ("Transcribe all text in this image exactly as written, line by line. "
               "Output only the transcribed text, no commentary.")
+
+
+THINKING_ONLY_NOTE = ("(The model used its whole token budget thinking and gave no answer. Raise max tokens, "
+                      "or use a non-reasoning model for this role.)")
+
+_THINK_BLOCK = re.compile(r"<(think|thinking|reasoning)>.*?</\1>", re.S | re.I)
+
+
+def strip_thinking(text):
+    """Remove a reasoning model's thinking from a finished reply."""
+    if not text:
+        return text or ""
+    t = _THINK_BLOCK.sub("", text)
+    low = t.lower()
+    # an unterminated opening tag: everything after it is thinking
+    m = re.search(r"<(think|thinking|reasoning)>", low)
+    if m:
+        t = t[:m.start()]
+        low = t.lower()
+    # a closing tag with no opening one (DeepSeek-R1 style): keep what follows
+    m = None
+    for m in re.finditer(r"</(think|thinking|reasoning)>", low):
+        pass
+    if m:
+        t = t[m.end():]
+    # gpt-oss harmony leaking into content
+    i = t.find("assistantfinal")
+    if i != -1 and t.lstrip().lower().startswith("analysis"):
+        t = t[i + len("assistantfinal"):]
+    return t.lstrip("\n") if t != text else t
+
+
+class ThinkFilter:
+    """Streaming version of strip_thinking: drops <think>...</think> spans,
+    including tags split across chunks."""
+
+    OPEN = ("<think>", "<thinking>", "<reasoning>")
+
+    def __init__(self):
+        self.buf = ""
+        self.inside = None      # closing tag we wait for
+        self.dropped = False
+        self.saw_reasoning = False
+        self.started = False
+
+    def feed(self, s):
+        if not s:
+            return ""
+        self.buf += s
+        out = []
+        while self.buf:
+            low = self.buf.lower()
+            if self.inside:
+                j = low.find(self.inside)
+                if j == -1:
+                    keep = len(self.inside) - 1
+                    self.buf = self.buf[-keep:] if len(self.buf) > keep else self.buf
+                    self.dropped = True
+                    break
+                self.buf = self.buf[j + len(self.inside):]
+                self.inside = None
+                self.dropped = True
+                continue
+            hits = [(low.find(o), o) for o in self.OPEN if low.find(o) != -1]
+            if hits:
+                j, o = min(hits)
+                out.append(self.buf[:j])
+                self.buf = self.buf[j + len(o):]
+                self.inside = "</" + o[1:]
+                continue
+            # hold back a possible partial opening tag at the end
+            k = self.buf.rfind("<")
+            if k != -1 and any(o.startswith(low[k:]) for o in self.OPEN):
+                out.append(self.buf[:k])
+                self.buf = self.buf[k:]
+            else:
+                out.append(self.buf)
+                self.buf = ""
+            break
+        text = "".join(out)
+        if not self.started:
+            text = text.lstrip("\n") if self.dropped else text
+            if text:
+                self.started = True
+        return text
+
+    def flush(self):
+        if self.inside:
+            self.buf = ""
+            return ""
+        t, self.buf = self.buf, ""
+        return t
 
 
 class ModelResult:
@@ -45,6 +138,9 @@ class ModelResult:
         self.error = error
         self.status = status
         self.raw = raw
+        self.url = None          # v3.8.3: the upstream URL a failure came from
+        self.attempts = None     # HTTP attempts (1 + retries)
+        self.tried = []          # v3.8.3: every model tried for this step, fallbacks included
 
     @property
     def completion_tokens(self):
@@ -64,8 +160,11 @@ class ModelResult:
 
 
 def _fail(res, prefix=""):
-    return ModelResult(False, latency=res.latency, error=(prefix + res.describe()), status=res.status,
-                       raw=res.json())
+    r = ModelResult(False, latency=res.latency, error=(prefix + res.describe()), status=res.status,
+                    raw=res.json())
+    r.url = getattr(res, "url", None)               # v3.8.3: for the trace/bug record (host only is kept)
+    r.attempts = getattr(res, "attempts", None)
+    return r
 
 
 def image_to_data_url(path_or_url):
@@ -154,12 +253,54 @@ class NimClient:
         except (FileNotFoundError, ValueError):
             return INTEGRATE
 
+    def headers_for(self, url):
+        """The key for this URL: a custom endpoint's own key (3.8.2) when the
+        URL is under one, else the NVIDIA key. The NVIDIA key never goes to a
+        custom endpoint."""
+        try:
+            from . import endpoints
+            e = endpoints.owner_of(url)
+        except Exception:  # noqa: BLE001 - a broken endpoints file never breaks NVIDIA calls
+            e = None
+        if e:
+            return endpoints.headers(e["name"])
+        return self.auth_headers()
+
+    # one routing path for every caller (3.8.2): an explicit URL (the role's
+    # endpoint), then a custom endpoint that serves the model, then the
+    # endpoint registry (spec sweep overrides, prefix rules, static routes).
+    ROUTE_OK = {"chat": ("chat", "chat_stream", "vision"),
+                "embeddings": ("embeddings", "embeddings_typed", "embeddings_retrieval"),
+                "image_gen": ("image_gen",), "rerank": ("rerank", "ranking", "rerank_classic"),
+                "audio_tts": ("audio_tts",)}
+
+    def route(self, model, kind="chat", url=None):
+        """-> (url or None, body model id). None: use the caller's default."""
+        try:
+            from . import endpoints
+            if url:
+                return url, endpoints.real_model_id(model)
+            e, m = endpoints.find(model, kind)
+            if e:
+                return endpoints.model_url(e, m), m["id"]
+        except Exception:  # noqa: BLE001
+            if url:
+                return url, model
+        try:
+            r = self.router.resolve(model, kind) or {}
+        except Exception:  # noqa: BLE001 - a broken registry never stops a call
+            r = {}
+        u = r.get("url") or ""
+        if u.startswith("http") and r.get("kind") in self.ROUTE_OK.get(kind, (kind,)):
+            return u, r.get("api_model_id") or model
+        return None, model
+
     def post(self, url, payload, timeout=None, accept="application/json"):
         """Raw JSON POST with auth. Returns core.HttpResult."""
-        return self.http.post_json(url, payload, self.auth_headers(), timeout, accept)
+        return self.http.post_json(url, payload, self.headers_for(url), timeout, accept)
 
     def get(self, url, timeout=None):
-        return self.http.get(url, self.auth_headers(), timeout)
+        return self.http.get(url, self.headers_for(url), timeout)
 
     # -- catalog ----------------------------------------------------------
     def list_models(self, base=None, timeout=30):
@@ -173,6 +314,28 @@ class NimClient:
     # -- chat -------------------------------------------------------------
     @staticmethod
     def _chat_text(body):
+        """The answer text only. A reasoning model's thinking (reasoning_content /
+        reasoning, inline <think> blocks, gpt-oss 'analysis...assistantfinal')
+        is never returned as the answer. When the model spent its whole budget
+        thinking, a short note says so instead."""
+        text = NimClient._chat_text_raw(body)
+        if text is None:
+            return None
+        clean = strip_thinking(text)
+        if clean.strip():
+            return clean
+        try:
+            ch = body["choices"][0]
+            msg = ch.get("message") or {}
+        except (KeyError, IndexError, TypeError, AttributeError):
+            return clean
+        thought = msg.get("reasoning_content") or msg.get("reasoning") or (text if text.strip() else "")
+        if thought:
+            return THINKING_ONLY_NOTE
+        return clean
+
+    @staticmethod
+    def _chat_text_raw(body):
         try:
             msg = body["choices"][0]["message"]
         except (KeyError, IndexError, TypeError):
@@ -193,11 +356,22 @@ class NimClient:
                         continue
                 parts.extend(_collect_text(args))
             content = "\n".join(p for p in parts if p)
-        return content or msg.get("reasoning_content") or ""
+        return content or ""
+
+    def model_params(self, model):
+        """Extra request fields for one chat model from cluster model_params (Quill latency fix,
+        3.8.4 candidate), e.g. {"minimaxai/minimax-m3.1-flash": {"reasoning_effort": "low"}}.
+        Applies wherever the model is used: persona, fallbacks, scheduler jobs."""
+        mp = (self.cluster or {}).get("model_params") or {}
+        got = mp.get(model) if isinstance(mp, dict) else None
+        return dict(got) if isinstance(got, dict) else {}
 
     def chat(self, model, messages, temperature=0.7, max_tokens=1024, url=None, timeout=None, extra=None):
+        params = self.model_params(model)
+        url, model = self.route(model, "chat", url)
         payload = {"model": model, "messages": messages, "temperature": temperature,
                    "max_tokens": max_tokens, "stream": False}
+        payload.update(params)
         payload.update(extra or {})
         res = self.post(url or f"{self.integrate()}/chat/completions", payload, timeout)
         if not res.ok:
@@ -211,15 +385,20 @@ class NimClient:
                            status=res.status, raw=body)
 
     def chat_stream(self, model, messages, on_token=None, temperature=0.7, max_tokens=1024, url=None, timeout=None):
+        params = self.model_params(model)
+        url, model = self.route(model, "chat", url)
+        url = url or f"{self.integrate()}/chat/completions"
         payload = {"model": model, "messages": messages, "temperature": temperature,
                    "max_tokens": max_tokens, "stream": True}
-        h = dict(self.auth_headers(), **{"Content-Type": "application/json", "Accept": "text/event-stream"})
+        payload.update(params)
+        h = dict(self.headers_for(url), **{"Content-Type": "application/json", "Accept": "text/event-stream"})
         t0 = time.monotonic()
         res = self.http.request("POST", url or f"{self.integrate()}/chat/completions",
                                 json.dumps(payload).encode("utf-8"), h, timeout, stream=True)
         if not res.ok:
             return _fail(res)
         tokens, usage = [], {}
+        thinking = ThinkFilter()
         resp = res.body
         try:
             for ev in iter_sse(resp):
@@ -232,7 +411,9 @@ class NimClient:
                 usage = chunk.get("usage") or usage
                 choices = chunk.get("choices") or [{}]
                 delta = choices[0].get("delta", {}) if choices else {}
-                tok = delta.get("content") or delta.get("reasoning_content") or ""
+                if delta.get("reasoning_content") or delta.get("reasoning"):
+                    thinking.saw_reasoning = True
+                tok = thinking.feed(delta.get("content") or "")
                 if tok:
                     tokens.append(tok)
                     if on_token:
@@ -242,7 +423,17 @@ class NimClient:
                                error=redact(f"stream interrupted: {e}"), status=res.status)
         finally:
             resp.close()
-        return ModelResult(True, text="".join(tokens), usage=usage, latency=round(time.monotonic() - t0, 3),
+        tail = thinking.flush()
+        if tail:
+            tokens.append(tail)
+            if on_token:
+                on_token(tail)
+        text = "".join(tokens)
+        if not text.strip() and (thinking.saw_reasoning or thinking.dropped):
+            text = THINKING_ONLY_NOTE
+            if on_token:
+                on_token(text)
+        return ModelResult(True, text=text, usage=usage, latency=round(time.monotonic() - t0, 3),
                            status=res.status)
 
     # -- vision / OCR -----------------------------------------------------
@@ -260,26 +451,61 @@ class NimClient:
         return self.vision(model, image_url, prompt, temperature=0.0, max_tokens=1024, timeout=timeout)
 
     # -- embeddings -------------------------------------------------------
-    def embed(self, model, texts, input_type=None, url=None, timeout=None):
-        """Embeds a list of texts. Retries once without input_type when the
-        model rejects that field. data -> list of vectors."""
+    def embed(self, model, texts, input_type=None, url=None, timeout=None, truncate="END", dimensions=None):
+        """Embeds a list of texts. data -> list of vectors.
+
+        input_type ("query" to search, "passage" to store) is sent always:
+        NVIDIA's retrieval and VL embedders (llama-nemotron-embed-vl-1b-v2,
+        llama-3.2-nv-embedqa-1b-v2, nv-embedqa-e5-v5) require it. The call
+        is retried without it only when the model says it does not know the
+        field, never when it says the field is required; the error keeps
+        the first HTTP status and body (v3.7.1). truncate END keeps long
+        turns under the model's token limit instead of a 400."""
+        url, model = self.route(model, "embeddings", url)
         url = url or f"{self.integrate()}/embeddings"
         payload = {"model": model, "input": list(texts), "encoding_format": "float"}
         if input_type:
             payload["input_type"] = input_type
+        if truncate:
+            payload["truncate"] = truncate
+        if dimensions:
+            payload["dimensions"] = int(dimensions)
         res = self.post(url, payload, timeout)
-        if not res.ok and input_type and res.status in (400, 422):
-            payload.pop("input_type", None)
-            res = self.post(url, payload, timeout)
+        first = None
+        if not res.ok and res.status in (400, 422):
+            low = (res.text or "").lower()
+            drop = [f for f in ("truncate", "dimensions", "input_type") if f in payload and f in low
+                    and not ("required" in low and f == "input_type")
+                    and any(w in low for w in ("extra", "not permitted", "unexpected", "unknown", "unrecognized",
+                                               "not supported", "unsupported", "invalid", "not allowed"))]
+            if drop:
+                first = res
+                for f in drop:
+                    payload.pop(f, None)
+                res = self.post(url, payload, timeout)
         if not res.ok:
-            return _fail(res)
+            err = _fail(res)
+            if first is not None:
+                err.error = f"{first.describe()}; retried without {', '.join(drop)}: {err.error}"
+            return err
         body = res.json()
         try:
             items = sorted(body["data"], key=lambda d: d.get("index", 0))
             vectors = [d["embedding"] for d in items]
-        except (KeyError, TypeError):
+        except (KeyError, TypeError, AttributeError):
             return ModelResult(False, latency=res.latency, status=res.status,
-                               error=f"unexpected embeddings shape: {res.text[:200]}")
+                               error=f"HTTP {res.status}: unexpected embeddings shape: {(res.text or '')[:200]}")
+        if vectors and isinstance(vectors[0], str):
+            import base64
+            import struct
+            dec = []
+            for v in vectors:
+                raw = base64.b64decode(v)
+                dec.append(list(struct.unpack(f"<{len(raw) // 4}f", raw)))
+            vectors = dec
+        if not vectors or not vectors[0]:
+            return ModelResult(False, latency=res.latency, status=res.status,
+                               error=f"HTTP {res.status}: the response has no embedding: {(res.text or '')[:200]}")
         return ModelResult(True, data=vectors, usage=(body.get("usage") or {}), latency=res.latency,
                            status=res.status)
 
@@ -311,14 +537,29 @@ class NimClient:
             if audio_prompt_transcript:
                 fields.append(("audio_prompt_transcript", audio_prompt_transcript))
         body, ctype = build_multipart(fields)
-        h = dict(self.auth_headers(), **{"Content-Type": ctype, "Accept": "audio/wav, application/json"})
-        res = self.http.request("POST", url or self.tts_url(), body, h, timeout)
+        url = url or self.tts_url()
+        h = dict(self.headers_for(url), **{"Content-Type": ctype, "Accept": "audio/wav, application/json"})
+        res = self.http.request("POST", url, body, h, timeout)
         if not res.ok:
             return _fail(res)
         audio = res.body
         if len(audio) <= 200:
             return ModelResult(False, latency=res.latency, status=res.status,
                                error=f"empty or invalid audio ({len(audio)} bytes)")
+        return ModelResult(True, data=audio, latency=res.latency, status=res.status)
+
+    def tts_openai(self, model, text, url, voice=None, timeout=35):
+        """OpenAI-style /audio/speech (custom gateways, 3.8.2): JSON in, WAV out."""
+        payload = {"model": model, "input": text, "response_format": "wav"}
+        if voice:
+            payload["voice"] = voice
+        res = self.post(url, payload, timeout, accept="audio/wav, audio/*, application/json")
+        if not res.ok:
+            return _fail(res)
+        audio = res.body
+        if len(audio) <= 200 or audio[:1] in (b"{", b"["):
+            return ModelResult(False, latency=res.latency, status=res.status,
+                               error=f"no audio in the answer ({len(audio)} bytes): {res.text[:150]}")
         return ModelResult(True, data=audio, latency=res.latency, status=res.status)
 
     # -- media on chat/completions (video, audio) --------------------------
@@ -348,6 +589,7 @@ class NimClient:
         """data -> list of (index, score) best first."""
         payload = {"model": model, "query": {"text": query}, "passages": [{"text": p} for p in passages],
                    "truncate": "END"}
+        url, payload["model"] = self.route(model, "rerank", url)
         res = self.post(url or self.rerank_url(model), payload, timeout)
         if not res.ok:
             return _fail(res)
@@ -371,8 +613,7 @@ class NimClient:
     # -- image generation -------------------------------------------------
     def image_gen(self, model, prompt, url=None, timeout=120, extra=None):
         """data -> list of image bytes (PNG/JPEG) on success."""
-        if not url:
-            url = self.router.resolve(model, "image_gen").get("url")
+        url, _m = self.route(model, "image_gen", url)
         if not url or not url.startswith("http"):
             url = f"https://ai.api.nvidia.com/v1/genai/{model}"
         payload = {"prompt": prompt, "mode": "base", "seed": 0}
@@ -423,10 +664,15 @@ class NimClient:
         if model:
             fields.append(("model", model))
         body, ctype = build_multipart(fields)
-        h = dict(self.auth_headers(), **{"Content-Type": ctype, "Accept": "application/json"})
+        h = dict(self.headers_for(url), **{"Content-Type": ctype, "Accept": "application/json"})
         res = self.http.request("POST", url, body, h, timeout)
         if not res.ok:
-            return _fail(res)
+            hint = (" (this Riva model is served over NVCF gRPC only: set the role's transport to grpc, "
+                    "or run: ./start.sh grpc refresh " + str(model) + ")") if res.status == 400 and model and \
+                re.search(r"parakeet|canary|conformer", str(model), re.I) else ""
+            r = _fail(res, "NVIDIA ASR ")
+            r.error = (r.error or "") + hint
+            return r
         data = res.json()
         text = None
         if isinstance(data, dict):
@@ -466,12 +712,27 @@ def save_wav(data, prefix="voice"):
     return path
 
 
+PLAY_TIMEOUT = float(os.environ.get("NIMLAB_PLAY_TIMEOUT", "120") or 120)
+
+
 def play_audio(path):
     """Play through termux-media-player (Android) or mpv if available."""
     import shutil
     import subprocess
     for player in (["termux-media-player", "play"], ["mpv", "--really-quiet"]):
         if shutil.which(player[0]):
-            subprocess.run(player + [path], check=False)
+            try:
+                # a player that never returns must not hang a call or a script
+                subprocess.run(player + [path], check=False, timeout=PLAY_TIMEOUT)
+            except subprocess.TimeoutExpired:
+                pass
             return player[0]
+    try:   # 3.8.5: headless (VPS): the active phone plays it
+        from . import audiobus
+        if audiobus.remote_ready():
+            with open(path, "rb") as f:
+                audiobus.publish(f.read(), fmt=os.path.splitext(path)[1].lstrip("."), source="play_audio")
+            return "nimbridge"
+    except Exception:  # noqa: BLE001 - playing is best effort
+        pass
     return None

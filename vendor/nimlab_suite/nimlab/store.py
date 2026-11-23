@@ -120,7 +120,7 @@ def default_endpoints():
     doc = {"schema": SCHEMA, "updated_at": None,
            "routing": copy.deepcopy(defaults.ROUTING),
            "candidate_routes": copy.deepcopy(defaults.CANDIDATE_ROUTES),
-           "endpoints": {}, "stale": {}, "last_sync": None}
+           "endpoints": {}, "stale": {}, "grpc_functions": {}, "last_sync": None}
     return _seed_endpoints(doc)
 
 
@@ -155,7 +155,7 @@ DEFAULTS = {
     MEMORY: (list, list),
 }
 # keys a dict store must have; missing ones are filled from the default
-REQUIRED = {ENDPOINTS: ("routing", "endpoints", "stale", "candidate_routes"),
+REQUIRED = {ENDPOINTS: ("routing", "endpoints", "stale", "candidate_routes", "grpc_functions"),
             DISCOVERED: ("models", "removed", "key_list", "summary"),
             VERIFIED: ("models", "dropped"), PROBES: ("models", "archived"), BENCH_HISTORY: ("runs",)}
 
@@ -304,6 +304,192 @@ def record_endpoint(doc, url, method="POST", content_type=None, kind=None, funct
     if result:
         rec["last_result"] = {k: v for k, v in result.items() if v is not None}
     return state
+
+
+# ---------------------------------------------------------------------------
+# NVCF gRPC function ids (v3.5): endpoints.json -> grpc_functions
+#   {model_id: {function_id, kind, source, sample, page_url, set_at,
+#               previous: [...], last_check, language_code, mode}}
+# The shared gRPC endpoint (grpc.nvcf.nvidia.com:443, method GRPC) is kept
+# in the registry too, with every model's id in its function_ids map.
+# ---------------------------------------------------------------------------
+GRPC_URI = "grpc.nvcf.nvidia.com:443"
+GRPC_STATUS = "GRPC_NVCF_ONLY"
+GRPC_USER_SOURCES = {"user"}
+
+
+def _grpc_key(doc_section, model):
+    if model in doc_section:
+        return model
+    from . import spec
+    k = spec.match_key(model)
+    return next((m for m in doc_section if spec.match_key(m) == k), None)
+
+
+def grpc_functions():
+    return dict(load(ENDPOINTS).get("grpc_functions") or {})
+
+
+def grpc_function(model):
+    """The stored record for a gRPC model, or the function id the last
+    sweep saw for it (probe history) when none is stored yet. None when
+    the lab knows nothing."""
+    if not model:
+        return None
+    sec = load(ENDPOINTS).get("grpc_functions") or {}
+    k = _grpc_key(sec, model)
+    if k:
+        return dict(sec[k], model=k)
+    p = (load(PROBES).get("models") or {}).get(model) or {}
+    if p.get("status") == GRPC_STATUS:
+        return {"model": model, "function_id": p.get("function_id"), "source": "probe" if p.get("function_id") else None}
+    return None
+
+
+def grpc_model_ids():
+    """Models known to be gRPC-only: stored ones and those the last sweep
+    marked GRPC_NVCF_ONLY."""
+    ids = set(load(ENDPOINTS).get("grpc_functions") or {})
+    for mid, p in (load(PROBES).get("models") or {}).items():
+        if isinstance(p, dict) and p.get("status") == GRPC_STATUS:
+            ids.add(mid)
+    return sorted(ids, key=str.lower)
+
+
+def is_grpc_model(model):
+    rec = grpc_function(model)
+    return bool(rec) and not rec.get("disabled")
+
+
+def _grpc_endpoint(doc, model, fid, kind, at, source):
+    record_endpoint(doc, GRPC_URI, "GRPC", kind="nvcf_grpc", model=model, source="grpc", at=at)
+    rec = doc["endpoints"][endpoint_key(GRPC_URI, "GRPC")]
+    rec["gateway"] = "nvcf_grpc"
+    fids = rec.setdefault("function_ids", {})
+    if fid:
+        fids[model] = fid
+    else:
+        fids.pop(model, None)
+
+
+def _set_grpc(doc, model, function_id, source, kind=None, sample=None, page_url=None, at=None):
+    at = at or now()
+    sec = doc.setdefault("grpc_functions", {})
+    k = _grpc_key(sec, model) or model
+    rec = sec.get(k) or {"first_seen": at}
+    old = rec.get("function_id")
+    if old and function_id and old != function_id:
+        prev = list(rec.get("previous") or [])
+        prev.insert(0, {"function_id": old, "source": rec.get("source"), "replaced_at": at})
+        rec["previous"] = prev[:3]
+        rec.pop("last_check", None)  # the check was for the old id
+    if function_id:
+        rec["function_id"] = function_id
+        rec["source"] = source
+        rec["set_at"] = at
+        rec.pop("spec_function_id", None)
+    else:
+        rec.setdefault("function_id", None)
+    if kind:
+        rec["kind"] = kind
+    if sample:
+        rec["sample"] = sample
+    if page_url:
+        rec["page_url"] = page_url
+    sec[k] = rec
+    _grpc_endpoint(doc, k, rec.get("function_id"), kind, at, source)
+    return rec
+
+
+def set_grpc_function(model, function_id, source="user", kind=None, sample=None, page_url=None):
+    """Store (or replace) a model's NVCF function id. The id must be a
+    UUID; a replaced one is kept in 'previous'."""
+    from .nvcf_grpc import valid_function_id
+    if function_id is not None:
+        function_id = str(function_id).strip()
+        if not valid_function_id(function_id):
+            raise ValueError(f"not a function ID: {function_id!r} (expected a UUID like "
+                             "b0e8b4a5-217c-40b7-9b96-17d84e666317)")
+    with _lock:
+        doc = load(ENDPOINTS)
+        rec = _set_grpc(doc, model, function_id, source, kind, sample, page_url)
+        save(ENDPOINTS, doc)
+        return dict(rec)
+
+
+def update_grpc_settings(model, **fields):
+    """Per-model gRPC settings (language_code, mode, disabled). None
+    removes a field."""
+    with _lock:
+        doc = load(ENDPOINTS)
+        sec = doc.setdefault("grpc_functions", {})
+        k = _grpc_key(sec, model) or model
+        rec = sec.setdefault(k, {"function_id": None, "first_seen": now()})
+        for f, v in fields.items():
+            if v is None:
+                rec.pop(f, None)
+            else:
+                rec[f] = v
+        save(ENDPOINTS, doc)
+        return dict(rec)
+
+
+def clear_grpc_function(model):
+    """Forget a model's stored function id (the model stays gRPC-only)."""
+    with _lock:
+        doc = load(ENDPOINTS)
+        sec = doc.setdefault("grpc_functions", {})
+        k = _grpc_key(sec, model)
+        if not k:
+            return False
+        rec = sec[k]
+        if rec.get("function_id"):
+            prev = list(rec.get("previous") or [])
+            prev.insert(0, {"function_id": rec["function_id"], "source": rec.get("source"), "replaced_at": now()})
+            rec["previous"] = prev[:3]
+        rec["function_id"] = None
+        rec["source"] = None
+        rec.pop("last_check", None)
+        _grpc_endpoint(doc, k, None, None, now(), None)
+        save(ENDPOINTS, doc)
+        return True
+
+
+def note_grpc_check(model, ok, detail="", latency=None, mode=None):
+    """Remember the last real gRPC call for a model (shown by grpc list)."""
+    with _lock:
+        doc = load(ENDPOINTS)
+        sec = doc.setdefault("grpc_functions", {})
+        k = _grpc_key(sec, model)
+        if not k:
+            rec = grpc_function(model)
+            if not rec:
+                return
+            k = model
+            sec[k] = {"function_id": rec.get("function_id"), "source": rec.get("source"), "first_seen": now()}
+        sec[k]["last_check"] = {"ok": bool(ok), "at": now(), "detail": redact(str(detail))[:300],
+                                "latency_sec": latency}
+        if mode:
+            sec[k]["mode"] = mode
+        save(ENDPOINTS, doc)
+
+
+def _sync_grpc(doc, mid, e, at):
+    """A sweep result marked gRPC-only: store its function id. A user-set
+    id is kept; a different id from the spec is noted beside it so
+    `grpc list` can show it and `grpc refresh` can take it."""
+    from .nvcf_grpc import kind_of, valid_function_id
+    fid = e.get("function_id") if valid_function_id(e.get("function_id")) else None
+    sec = doc.setdefault("grpc_functions", {})
+    k = _grpc_key(sec, mid)
+    rec = sec.get(k) if k else None
+    if rec and rec.get("source") in GRPC_USER_SOURCES and rec.get("function_id"):
+        if fid and fid != rec["function_id"]:
+            rec["spec_function_id"] = fid
+        return
+    _set_grpc(doc, mid, fid or (rec or {}).get("function_id"), "spec" if fid else (rec or {}).get("source"),
+              kind=kind_of(mid, rec or {"sample": e.get("grpc_sample")}), sample=e.get("grpc_sample"),
+              page_url=e.get("page_url"), at=at)
 
 
 def routing():
@@ -548,6 +734,8 @@ def apply_results(results, sweep="spec_sweep", complete=False, at=None, known=No
         for mid, e in results.items():
             status = str(e.get("status") or "")
             _record_result_endpoints(eps, mid, e, status, at, seen_for, note, stats)
+            if status == GRPC_STATUS:
+                _sync_grpc(eps, mid, e, at)
             if not probed:
                 continue
             # --- probe history
@@ -732,6 +920,17 @@ def save_benchmark(report):
         hist["runs"] = ([_bench_summary(report)] + runs)[:BENCH_HISTORY_MAX]
         save(BENCH_HISTORY, hist)
     return path(BENCHMARK)
+
+
+def add_history_run(summary):
+    """3.7.2: push a summary (e.g. a router benchmark, kind 'router') onto
+    the benchmark history without touching benchmark_latest.json."""
+    with _lock:
+        hist = load(BENCH_HISTORY)
+        runs = [r for r in hist["runs"] if not (r.get("timestamp") == summary.get("timestamp")
+                                                 and r.get("kind") == summary.get("kind"))]
+        hist["runs"] = ([dict(summary)] + runs)[:BENCH_HISTORY_MAX]
+        save(BENCH_HISTORY, hist)
 
 
 def latest_benchmark():

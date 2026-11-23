@@ -1,0 +1,21 @@
+{
+  "_about": "getUpdates answers captured from the Bot API (ids and names replaced). batch_1 is the first long poll; batch_2 is what Telegram sent again after a poller restarted before it confirmed its offset, so it overlaps batch_1 and adds two new updates. conflict is the 409 body when a second copy polls the same token.",
+  "batch_1": {
+    "ok": true,
+    "result": [
+      {"update_id": 815001201, "message": {"message_id": 301, "from": {"id": 1111, "is_bot": false, "first_name": "Owner", "language_code": "en"}, "chat": {"id": 1111, "first_name": "Owner", "type": "private"}, "date": 1763031601, "text": "My name is SeVin."}},
+      {"update_id": 815001202, "message": {"message_id": 302, "from": {"id": 1111, "is_bot": false, "first_name": "Owner", "language_code": "en"}, "chat": {"id": 1111, "first_name": "Owner", "type": "private"}, "date": 1763031609, "text": "what model are you running on"}},
+      {"update_id": 815001203, "message": {"message_id": 77, "from": {"id": 2222, "is_bot": false, "first_name": "Friend"}, "chat": {"id": 2222, "first_name": "Friend", "type": "private"}, "date": 1763031615, "text": "hello from a friend"}}
+    ]
+  },
+  "batch_2": {
+    "ok": true,
+    "result": [
+      {"update_id": 815001202, "message": {"message_id": 302, "from": {"id": 1111, "is_bot": false, "first_name": "Owner", "language_code": "en"}, "chat": {"id": 1111, "first_name": "Owner", "type": "private"}, "date": 1763031609, "text": "what model are you running on"}},
+      {"update_id": 815001203, "message": {"message_id": 77, "from": {"id": 2222, "is_bot": false, "first_name": "Friend"}, "chat": {"id": 2222, "first_name": "Friend", "type": "private"}, "date": 1763031615, "text": "hello from a friend"}},
+      {"update_id": 815001204, "message": {"message_id": 303, "from": {"id": 1111, "is_bot": false, "first_name": "Owner", "language_code": "en"}, "chat": {"id": 1111, "first_name": "Owner", "type": "private"}, "date": 1763031650, "text": "check the scheduler later"}},
+      {"update_id": 815001205, "message": {"message_id": 304, "from": {"id": 1111, "is_bot": false, "first_name": "Owner", "language_code": "en"}, "chat": {"id": 1111, "first_name": "Owner", "type": "private"}, "date": 1763031662, "text": "how many tests passed last time"}}
+    ]
+  },
+  "conflict": {"ok": false, "error_code": 409, "description": "Conflict: terminated by other getUpdates request; make sure that only one bot instance is running"}
+}

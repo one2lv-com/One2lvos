@@ -1090,7 +1090,7 @@ def _embed_text(text: str) -> Optional[List[float]]:
     if not key:
         return None
     payload = json.dumps({
-        "input": [text], "model": "nvidia/nemotron-3-embed-1b",
+        "input": [text], "model": "nvidia/nemotron-3.5-embed-1b",
         "encoding_format": "float", "input_type": "query"
     }).encode()
     req = urllib.request.Request(
@@ -1121,7 +1121,7 @@ def tool_skill_memory_store(text: str, doc_type: str = "note", tags: str = "") -
         "text": text,
         "tags": [t.strip() for t in tags.split(",") if t.strip()],
         "timestamp": datetime.now().isoformat(),
-        "model": "nvidia/nemotron-3-embed-1b",
+        "model": "nvidia/nemotron-3.5-embed-1b",
     }
     col.insert_one(doc)
     return f"Stored in Astra DB.\nID: {doc_id}\nType: {doc_type}\nText: {text[:100]}"
@@ -1242,7 +1242,7 @@ def tool_registry_query(param: str = "all") -> str:
             pass
     registry = {
         "VECTOR_DIM": "2048",
-        "EMBEDDING_MODEL": "nvidia/nemotron-3-embed-1b",
+        "EMBEDDING_MODEL": "nvidia/nemotron-3.5-embed-1b",
         "LLM_MODEL": "nvidia/llama-3.3-nemotron-super-49b-v1",
         "COUNCIL_AGENTS": council_agents,
         "COLLECTION": "aria_memory_v3",
@@ -1662,7 +1662,7 @@ TOOLS = [
     {
         "name": "memory_store",
         "category": "Cognitive Development",
-        "description": "Store text with a real embedding in Astra DB (aria_memory_v3, cosine, dim=2048) using nvidia/nemotron-3-embed-1b.",
+        "description": "Store text with a real embedding in Astra DB (aria_memory_v3, cosine, dim=2048) using nvidia/nemotron-3.5-embed-1b.",
         "inputSchema": {
             "type": "object",
             "properties": {

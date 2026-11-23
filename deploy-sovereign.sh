@@ -77,7 +77,7 @@ else
 # NVIDIA L2 SKILLS PIPELINE (Modules 601-900)
 NVIDIA_API_KEY="your-nvidia-api-key-here"
 NVIDIA_BASE_URL="https://integrate.api.nvidia.com/v1"
-EMBEDDING_MODEL="nvidia/nemotron-3-embed-1b"
+EMBEDDING_MODEL="nvidia/nemotron-3.5-embed-1b"
 LLM_MODEL="nvidia/llama-3.3-nemotron-super-49b-v1"
 
 # ASTRA DB L1 MEMORY PIPELINE (Modules 301-600)

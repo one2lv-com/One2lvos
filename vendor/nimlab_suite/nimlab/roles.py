@@ -87,8 +87,8 @@ ROLE_DEFS = [
     RoleDef("asr", "Automatic Speech Recognition (ASR / STT)", "audio", kinds=("asr",),
             extra=r"parakeet|canary|whisper|-asr|asr-|transcri", fallback=(), support=PARTIAL,
             command="/listen",
-            note="Hosted ASR is mostly gRPC. HTTP works when the model has an NVCF function id "
-                 "(POST /v1/audio/transcriptions) or you set an endpoint, or use an MCP tool."),
+            note="gRPC-only models (Canary, Parakeet, Conformer, Whisper) run over NVCF gRPC with their "
+                 "function ID (grpc list). Set language_code for multilingual models."),
     RoleDef("omni_audio", "Omni-Modal Audio-Language Model (Music & Ambient Audio)", "audio",
             extra=r"omni|phi-4-multimodal|gemma-3n|audio-?flamingo|qwen.*audio|audio-?language|audio-?llm",
             exclude=r"tts|magpie|studiovoice|bnr|asr|parakeet|canary|whisper|embed|rerank",
@@ -98,7 +98,8 @@ ROLE_DEFS = [
     RoleDef("tts", "Neural Text-to-Speech (TTS)", "text", kinds=("tts",),
             extra=r"magpie-tts|fastpitch|chatterbox|-tts\b|tts-", exclude=r"studiovoice", fallback=("tts",),
             support=YES, command="/say", output="audio",
-            note="Spoken replies (auto TTS) and /say. Magpie over NVCF HTTP; voice cloning on zero-shot models."),
+            note="Spoken replies (auto TTS) and /say. Magpie over NVCF HTTP, gRPC-only models (zero-shot, "
+                 "Chatterbox) over NVCF gRPC; voice cloning on zero-shot models."),
     RoleDef("image_gen", "Text-to-Image Generation Model", "prompt", kinds=("image_gen",),
             extra=r"flux|stable-diffusion|sdxl|sana|qwen-image|imagen", exclude=r"trellis|edit|kontext",
             fallback=("image_gen",), command="/imagine", output="image",
@@ -389,7 +390,20 @@ def kinds_from_store():
         k = rec.get("catalog_kind") or kinds.get(mid) or rec.get("kind")
         if k:
             kinds[mid] = {"audio_tts": "tts", "nvcf_speech": "asr"}.get(k, k)
+    # v3.5: gRPC-only Riva models are usable (asr / tts / translation)
+    from .nvcf_grpc import kind_of
+    for mid, rec in (_read_data(store.ENDPOINTS).get("grpc_functions") or {}).items():
+        if isinstance(rec, dict):
+            k = kind_of(mid, rec)
+            if k in ("asr", "tts", "nmt"):
+                kinds[mid] = "translation" if k == "nmt" else k
     return kinds, infos
+
+
+def grpc_ids_readonly():
+    """gRPC-only models stored in data/endpoints.json (read-only)."""
+    from . import store
+    return sorted((_read_data(store.ENDPOINTS).get("grpc_functions") or {}).keys(), key=str.lower)
 
 
 def verified_ids_readonly():

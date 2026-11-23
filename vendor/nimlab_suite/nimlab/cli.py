@@ -32,7 +32,11 @@ def cmd_status(args):
     elif args.field == "inventory":
         print(len(store.key_list()))
     elif args.field == "memory":
-        print(len(store.load(store.MEMORY)))
+        # 3.7.1: the ACTIVE long-term backend's count (it counted the local
+        # short-term file data/memory.json, so the header said 0 while
+        # Oracle held 4)
+        from . import memmenu
+        print(memmenu.header_line(count_fn=memmenu.active_count))
     elif args.field in ("catalog", "discovered"):
         print(len(store.load(store.DISCOVERED)["models"]))
     elif args.field == "endpoints":
@@ -40,6 +44,9 @@ def cmd_status(args):
     elif args.field == "roles":
         for line in role_summary(compact=True):
             print(line)
+    elif args.field == "color":
+        from . import colors
+        sys.__stdout__.write(colors.shell_line() + "\n")
     return 0
 
 
@@ -58,7 +65,11 @@ def role_summary(compact=False, cluster=None):
         else:
             tag, target = "model", v["model"]
         flags = []
-        if v["backend"] == R.MODEL and v.get("model") and verified and v["model"] not in verified:
+        from .rolemenu import grpc_flag
+        g = grpc_flag(v.get("model")) if v["backend"] == R.MODEL and v.get("model") else ""
+        if g:
+            flags.append(g)
+        elif v["backend"] == R.MODEL and v.get("model") and verified and v["model"] not in verified:
             flags.append("not 200-tested")
         if key == "tts" and R.clone_text(v):
             flags.append(R.clone_text(v))
@@ -97,7 +108,7 @@ def cmd_roles(args):
             print("Give a role key: " + ", ".join(R.ROLE_KEYS))
             return 2
         kinds, infos = R.kinds_from_store()
-        verified = store.verified_ids()
+        verified = sorted(set(store.verified_ids()) | set(R.grpc_ids_readonly()), key=str.lower)
         pool = verified if args.scope == "verified" else sorted(set(store.load(store.DISCOVERED)["models"]) |
                                                                set(verified), key=str.lower)
         suited, possible, _ = R.candidates(args.role, pool, kinds, infos)
@@ -268,6 +279,203 @@ def cmd_tts(args):
         player = play_audio(path)
         if not player:
             print("(no player found: install termux-api or mpv)")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# grpc (v3.5): NVCF gRPC models and their function ids
+# ---------------------------------------------------------------------------
+def _grpc_model_arg(name):
+    """A model id from a full id, a unique part of one, or a list number."""
+    from . import nvcf_grpc
+    ids = [r["model"] for r in nvcf_grpc.rows()]
+    if not name:
+        return None
+    if name.isdigit() and 1 <= int(name) <= len(ids):
+        return ids[int(name) - 1]
+    if name in ids or "/" in name:
+        return name
+    hits = [m for m in ids if name.lower() in m.lower()]
+    return hits[0] if len(hits) == 1 else name
+
+
+def grpc_lines(rows=None):
+    from . import colors as C, nvcf_grpc
+    rows = nvcf_grpc.rows() if rows is None else rows
+    out = []
+    for i, r in enumerate(rows, 1):
+        fid = r["function_id"] or "(no function ID)"
+        bits = [r["kind"].upper()]
+        if r.get("language_code"):
+            bits.append(r["language_code"])
+        if r.get("mode"):
+            bits.append(r["mode"])
+        if r.get("source"):
+            bits.append(f"from {r['source']}")
+        chk = r.get("last_check") or {}
+        if chk:
+            bits.append(("last call ok" if chk.get("ok") else "last call FAILED") + f" {str(chk.get('at', ''))[:16]}")
+        if r.get("spec_function_id"):
+            bits.append(f"spec now says {r['spec_function_id']}: grpc refresh")
+        line = f"  {i:>2}. {r['model']:<44} {fid}  ({'; '.join(bits)})"
+        if C.enabled():
+            col = C.err if not r["function_id"] or (chk and not chk.get("ok")) else C.ok
+            name = f"{r['model']:<44}"
+            line = f"  {i:>2}. {C.model(name)} {col(fid)}  {C.dim('(' + '; '.join(bits) + ')')}"
+        out.append(line)
+    return out
+
+
+def cmd_grpc(args):
+    from . import nvcf_grpc, store
+    a = args.action
+    if a == "menu":
+        from . import colors as C, grpcmenu
+        try:
+            grpcmenu.run_menu(C.read, print)
+        except (KeyboardInterrupt, EOFError):
+            print()
+        return 0
+    model = _grpc_model_arg(args.model)
+    if a == "list":
+        n = nvcf_grpc.seed_from_spec_cache()
+        rows = nvcf_grpc.rows()
+        ok, detail = nvcf_grpc.available()
+        print(f"NVCF gRPC models ({len(rows)}), endpoint {nvcf_grpc.URI}; client: {detail if ok else 'NOT installed'}")
+        if n:
+            print(f"(added {n} function ID(s) from the sweep's spec cache)")
+        for line in grpc_lines(rows):
+            print(line)
+        if not rows:
+            print("  none yet: run the 200 sweep (launcher option 2) or ./start.sh sweep")
+        missing = [r["model"] for r in rows if not r["function_id"]]
+        if missing:
+            print(f"\n{len(missing)} without a function ID: ./start.sh grpc refresh, or paste one: "
+                  "./start.sh grpc set <model> <function-id>")
+        return 0
+    if a == "set":
+        if not model or not args.value:
+            print("usage: grpc set <model> <function-id>")
+            return 2
+        try:
+            rec = store.set_grpc_function(model, args.value, source="user", kind=nvcf_grpc.kind_of(model))
+        except ValueError as e:
+            print(f"[x] {e}")
+            return 2
+        print(f"[ok] {model}: function ID {rec['function_id']} saved to data/endpoints.json")
+        return 0
+    if a == "clear":
+        if not model:
+            print("usage: grpc clear <model>")
+            return 2
+        print(f"[ok] {model}: function ID cleared" if store.clear_grpc_function(model) else f"{model}: nothing stored")
+        return 0
+    if a == "fill":
+        n, with_id, missing = fill_grpc_ids(fetch=True)
+        if not n:
+            print("No gRPC models known yet. That is missing data, not a key or network problem: read the model "
+                  "specs first (nimlab setup functions) or run the 200 OK sweep (nimlab setup sweep).")
+            return 3
+        return 0
+    if a == "refresh":
+        targets = [model] if model else [r["model"] for r in nvcf_grpc.rows()]
+        if not targets:
+            print("No gRPC models known yet. That is missing data, not a key or network problem: read the model "
+                  "specs first (nimlab setup functions) or run the 200 OK sweep (nimlab setup sweep), or name one: "
+                  "grpc refresh <model>")
+            return 3
+        bad = 0
+        for m in targets:
+            if not model and (nvcf_grpc.record(m).get("source") in store.GRPC_USER_SOURCES) and not args.force:
+                print(f"  {m}: kept your pasted ID (use --force to replace it)")
+                continue
+            ok, msg = nvcf_grpc.refresh(m)
+            bad += 0 if ok else 1
+            print(("  [ok] " if ok else "  [x] ") + msg)
+        return 1 if bad and model else 0
+    if a == "lang":
+        if not model:
+            print("usage: grpc lang <model> <language-code|->  (e.g. es-US, de-DE, multi)")
+            return 2
+        v = None if args.value in (None, "-", "") else args.value
+        store.update_grpc_settings(model, language_code=v)
+        print(f"[ok] {model}: language_code {v or '(model default)'}")
+        return 0
+    if a == "mode":
+        if not model or args.value not in ("offline", "streaming", "-"):
+            print("usage: grpc mode <model> offline|streaming|-")
+            return 2
+        store.update_grpc_settings(model, mode=None if args.value == "-" else args.value)
+        print(f"[ok] {model}: ASR mode {args.value}")
+        return 0
+    if a == "check":
+        ok, detail = nvcf_grpc.available()
+        if not ok:
+            print(f"[x] {detail}")
+            return 1
+        if not load_api_key():
+            print("NVIDIA_API_KEY is not set.")
+            return 1
+        targets = [model] if model else [r["model"] for r in nvcf_grpc.rows()
+                                         if r["function_id"] and r["kind"] in nvcf_grpc.RIVA_KINDS]
+        cli = nvcf_grpc.client()
+        bad = 0
+        for m in targets:
+            fid = nvcf_grpc.function_id(m)
+            if not fid:
+                print(f"  [x] {m}: no function ID")
+                bad += 1
+                continue
+            good, lat, det = cli.check(fid, nvcf_grpc.kind_of(m, nvcf_grpc.record(m)))
+            store.note_grpc_check(m, good, det, latency=lat)
+            hint = "" if good else nvcf_grpc.stale_hint(m, det.split(":")[0], det)
+            print(f"  {'[ok]' if good else '[x] '} {m}: {det} ({lat}s)" + (f"\n       {hint}" if hint else ""))
+            bad += 0 if good else 1
+        return 1 if bad else 0
+    if a in ("asr", "tts"):
+        return _grpc_try(a, model, args)
+    print("actions: list, set, clear, refresh, lang, mode, check, asr, tts")
+    return 2
+
+
+def _grpc_try(kind, model, args):
+    """grpc asr <model> <audio> / grpc tts <model> "text" [--clip ref.wav]."""
+    from . import nvcf_grpc
+    from .api import play_audio, save_wav
+    if not model or not args.value:
+        print("usage: grpc asr <model> <audio-file> [--lang xx-XX]  |  grpc tts <model> \"text\" [--voice V] "
+              "[--clip ref.wav] [--transcript T]")
+        return 2
+    sp = {"model": model}
+    if args.lang:
+        sp["language_code"] = args.lang
+    if kind == "asr":
+        r = nvcf_grpc.run_asr(sp, path=args.value)
+        if not r.ok:
+            print(f"[x] {r.error}")
+            return 1
+        raw = r.raw or {}
+        print(f"[ok] {r.latency}s, {raw.get('mode')}, {raw.get('language_code')}"
+              + (f"; {', '.join(raw['notes'])}" if raw.get("notes") else ""))
+        print(r.text or "(empty transcript)")
+        return 0
+    prompt = None
+    if args.clip:
+        from . import voiceclone
+        try:
+            _, prompt, _info = voiceclone.prepare(args.clip)
+        except voiceclone.CloneError as e:
+            print(f"[x] reference clip: {e}")
+            return 1
+    r = nvcf_grpc.run_tts(sp, args.value, voice=args.voice, language=args.lang, prompt_wav=prompt,
+                          prompt_transcript=args.transcript)
+    if not r.ok:
+        print(f"[x] {r.error}")
+        return 1
+    path = save_wav(r.data, "grpc_tts")
+    print(f"[ok] {path} in {r.latency}s" + (" (cloned voice)" if prompt else ""))
+    if not args.no_play:
+        play_audio(path)
     return 0
 
 
@@ -473,8 +681,11 @@ def cmd_sweep(args):
     prober = sweep.Prober(timeout=float(settings.get("probe_timeout_sec", 20))) if probe else None
     print(f"Spec sweep: {len(ids)} models ({'probe' if probe else 'plan only'}). "
           f"Pages are paced (build.nvidia.com asks for 10 s between requests); cached specs are reused.")
+    limit = getattr(args, "time_limit", None)
     results = sweep.run(ids, resolver, prober, probe, workers=int(settings.get("probe_workers", 3)),
-                        use_cache=not args.refresh)
+                        use_cache=not args.refresh, time_limit=limit)
+    if len(results) < len(ids):
+        complete = False    # a run cut short by its time limit never drops what it did not reach
     print("\nResult classes:")
     for k, v in sweep.summarize(results).items():
         print(f"  {k:<26} {v}")
@@ -483,7 +694,40 @@ def cmd_sweep(args):
         return 0
     st = sweep.write_results(results, complete=complete and probe, probed=probe)
     print_sync(st, probe, complete)
+    fill_grpc_ids(fetch=not args.offline)
     return 0
+
+
+def fill_grpc_ids(fetch=True, log=print):
+    """3.7.2: give every gRPC-only model a function ID: first from the spec
+    pages already cached, then (fetch=True) from each missing model's NGC
+    spec or page. IDs the user pasted are never replaced. -> (known, with_id,
+    missing list)."""
+    from . import nvcf_grpc
+    try:
+        added = nvcf_grpc.seed_from_spec_cache()
+    except Exception:  # noqa: BLE001 - a broken cache never stops the sweep
+        added = 0
+    missing = [r["model"] for r in nvcf_grpc.rows() if not r.get("function_id")]
+    found = 0
+    if fetch:
+        for m in list(missing):
+            try:
+                ok, _msg = nvcf_grpc.refresh(m, log=lambda *_: None)
+            except Exception:  # noqa: BLE001
+                ok = False
+            if ok:
+                found += 1
+                missing.remove(m)
+    rows = nvcf_grpc.rows()
+    with_id = sum(1 for r in rows if r.get("function_id"))
+    if rows:
+        log(f"gRPC function IDs: {with_id} of {len(rows)} gRPC-only models have one"
+            + (f" ({added + found} filled in now)" if added + found else "") + ".")
+        if missing:
+            log("  Still without one (paste it from the model's \"Try API\" sample: nimlab grpc set <model> <id>): "
+                + ", ".join(missing[:8]) + (f" (+{len(missing) - 8} more)" if len(missing) > 8 else ""))
+    return len(rows), with_id, missing
 
 
 def sweep_ids(doc=None, include_retired=False, site_only=False, kinds=None):
@@ -517,10 +761,25 @@ def print_sync(st, probe=True, complete=False):
     if st.get("outage"):
         print("  Every probe failed with auth or timeout errors: that looks like the key or the network,\n"
               "  so no verified model was dropped. Check the key and connection, then sweep again.")
+    try:
+        from . import nvcf_grpc
+        rows = [r for r in nvcf_grpc.rows()]
+        riva = [r for r in rows if r["kind"] in nvcf_grpc.RIVA_KINDS]
+        if rows:
+            with_id = sum(1 for r in riva if r["function_id"])
+            print(f"  NVCF gRPC: {len(riva)} Riva model(s) usable over gRPC ({with_id} with a function ID), "
+                  f"{len(rows) - len(riva)} other gRPC-only; see ./start.sh grpc list")
+    except Exception:  # the summary never fails the sweep
+        pass
     if not probe:
         print("  Plan-only run: spec endpoints were recorded; the verified list was not changed.")
     elif not complete:
         print("  Partial run: only the models it tested were added or dropped.")
+
+
+def cmd_serve(args):
+    from .servemenu import cmd_serve as run
+    return run(args)
 
 
 # ---------------------------------------------------------------------------
@@ -530,7 +789,7 @@ def build_parser():
 
     s = sub.add_parser("status", help="print one status value (for the launcher header)")
     s.add_argument("field", choices=["key", "live", "inventory", "memory", "catalog", "discovered", "endpoints",
-                                     "roles"])
+                                     "roles", "color"])
     s.set_defaults(fn=cmd_status)
 
     s = sub.add_parser("roles", help="show the 16 roles, list candidates for one, or migrate old role keys")
@@ -555,6 +814,114 @@ def build_parser():
     s.set_defaults(fn=cmd_data)
     sub.add_parser("report", help="latest benchmark report").set_defaults(fn=cmd_report)
 
+    s = sub.add_parser("serve", help="OpenAI-compatible test server for the testbed's roles and agent")
+    s.add_argument("action", nargs="?", default="start",
+                   choices=["start", "info", "test", "log", "models", "ui", "regen-key", "settings", "menu", "tunnel"])
+    s.add_argument("values", nargs="*", help="settings: <name> <value>, e.g. 'port 9000' or 'lan on' | "
+                   "tunnel status|quick|named [<id-or-name>]|off|auto on|off|install|token-delete")
+    s.add_argument("--full", action="store_true", help="test: also the heavy live media checks (default for "
+                   "`serve test`; `serve test quick` skips them)")
+    s.add_argument("--token", action="store_true", help="tunnel named: read a tunnel token (hidden)")
+    s.add_argument("--credentials", help="tunnel named: the tunnel's credentials JSON file")
+    s.add_argument("--hostname", help="tunnel named: the public hostname routed to the server")
+    s.add_argument("--auto", dest="auto", action="store_true", default=None,
+                   help="tunnel quick|named: also start the tunnel with every 'serve start'")
+    s.add_argument("--no-auto", dest="auto", action="store_false", help="tunnel: do not auto-start it")
+    s.add_argument("--port", type=int)
+    s.add_argument("--lan", dest="lan", action="store_true", default=None, help="bind 0.0.0.0 (same Wi-Fi)")
+    s.add_argument("--local", dest="lan", action="store_false", help="bind 127.0.0.1 only")
+    s.add_argument("--tunnel", action="store_true", help="also start a cloudflared public tunnel")
+    s.add_argument("--no-log", action="store_true", help="do not write the request log this run")
+    s.add_argument("--save", action="store_true", help="keep --port/--lan/--local for next time")
+    s.add_argument("--limit", type=int, help="log: lines to show (default 50)")
+    s.set_defaults(fn=cmd_serve)
+
+    s = sub.add_parser("mcp", help="MCP server: URL, API key (hidden, saved outside the project), auth, test")
+    s.add_argument("action", nargs="?", default="show",
+                   choices=["show", "menu", "set-url", "set-key", "delete-key", "auth", "test", "tools", "key-source"])
+    s.add_argument("values", nargs="*", help="set-url <url> | auth <x-api-key|bearer|header|none> [header-name]")
+    s.add_argument("--session", action="store_true", help="set-key: use for this command only, do not save")
+    s.add_argument("--save", action="store_true", help="set-key: save without asking")
+    s.add_argument("--no-test", action="store_true", help="set-url/set-key: skip the connection test")
+    s.add_argument("-v", "--verbose", action="store_true", help="test: one line per tool (same as 'mcp tools')")
+    s.set_defaults(fn=cmd_mcp)
+
+    from . import routerbench
+    routerbench.add_parser(sub)
+    s = sub.add_parser("doctor", help="check memory (write + recall through the DB connection), prompts and MCP tools")
+    s.add_argument("--no-mcp", action="store_true", help="skip the MCP server check")
+    s.add_argument("--json", action="store_true", help="print the results as JSON (for the Telegram /health command and scripts)")
+    s.add_argument("--fix", action="store_true", help="run the safe repairs (backs up the settings first, then checks again)")
+    s.add_argument("--quick", action="store_true", help="skip the memory round trip, MCP and platform checks")
+    s.set_defaults(fn=lambda a: __import__("nimlab.doctor", fromlist=["cmd_doctor"]).cmd_doctor(a))
+
+    s = sub.add_parser("memory", help="long-term memory: backend (json/local/oracle/ords), embedding connection, test")
+    s.add_argument("action", nargs="?", default="show",
+                   choices=["show", "set", "use", "embed", "test", "setup", "list", "recall", "identity", "forget",
+                            "prune", "add",
+                            "sql", "creds", "load-onnx", "menu", "status", "embed-pending", "flush-queue",
+                            "reembed", "pending", "ords"])
+    s.add_argument("values", nargs="*", help="add <text> [--user ID] | set <name> <value> | use auto|off|json|local [dir]|oracle [schema]|"
+                   "ords [url] | ords [show|login]: the HTTPS (ORDS) login, saved outside the project | "
+                   "embed role|nvidia|openai <url> <model> [dims]|ollama <model> [url]|st [model]|oracle <model>"
+                   "|models | embed-pending (alias flush-queue): store queued turns | pending: list them | "
+                   "reembed [--recreate] [--yes]: embed stored memories again with the current model")
+    s.add_argument("--recreate", action="store_true", help="reembed: back up, drop and recreate the table at the "
+                   "embedder's size")
+    s.add_argument("--yes", "-y", action="store_true", help="reembed --recreate: don't ask")
+    s.set_defaults(fn=lambda a: __import__("nimlab.memmenu", fromlist=["cmd_memory"]).cmd_memory(a))
+
+    s = sub.add_parser("setup", help="guided setup: every step in order, or one: setup <step> (setup list)")
+    s.add_argument("step", nargs="?", default="", help="key|discover|functions|sweep|mcp|roles|grpc|memory|server|"
+                   "telegram|selfadmin|deps|shortcut|tunnel|service|list")
+    s.set_defaults(fn=lambda a: __import__("nimlab.wizard", fromlist=["cmd_setup"]).cmd_setup(a))
+
+    s = sub.add_parser("service", help="keep the server (+tunnel, +Telegram) running, restart on crash")
+    s.add_argument("action", nargs="?", default="status",
+                   choices=["install", "remove", "start", "stop", "restart", "status", "logs", "run", "brief",
+                            "boot", "telegram", "scheduler", "cleanup"])
+    s.add_argument("value", nargs="?", help="telegram|scheduler on|off")
+    s.add_argument("--backend", choices=["auto", "termux", "systemd", "builtin"])
+    s.add_argument("--boot", action="store_true", help="install: also start on boot (Termux:Boot)")
+    s.add_argument("--system", action="store_true",
+                   help="install: a system-wide systemd unit run as the sudo user (sudo nimlab service install --system)")
+    s.add_argument("--lines", type=int, help="logs: lines to show (default 40)")
+    s.set_defaults(fn=lambda a: __import__("nimlab.service", fromlist=["cmd_service"]).cmd_service(a))
+
+    s = sub.add_parser("telegram", help="Telegram bot connector (token from @BotFather)")
+    s.add_argument("action", nargs="?", default="status",
+                   choices=["set-token", "test", "allow", "status", "start", "stop", "run", "mode", "voice",
+                            "refusal"])
+    s.add_argument("values", nargs="*", help="allow <id>... | mode polling|webhook | voice on|off | "
+                   "refusal polite|ignore")
+    s.add_argument("--capture", action="store_true", help="allow: wait for /start and make that person the owner")
+    s.add_argument("--remove", action="store_true", help="allow: remove the IDs instead")
+    s.set_defaults(fn=lambda a: __import__("nimlab.telegram", fromlist=["cmd_telegram"]).cmd_telegram(a))
+
+    s = sub.add_parser("bugs", help="bug log: grouped errors with short bug IDs (list, show, tail, status)")
+    s.add_argument("action", nargs="?", default="list", choices=["list", "show", "tail", "status", "prune", "clear"])
+    s.add_argument("bug", nargs="?", default="", help="show: the bug ID (B-3F9A1C or 3F9A1C)")
+    s.add_argument("-n", type=int, default=None, help="tail: lines (default 10); show: occurrences (default 1)")
+    s.add_argument("--limit", type=int, default=50, help="list: rows (default 50)")
+    s.add_argument("--yes", action="store_true", help="clear: don't ask")
+    s.set_defaults(fn=lambda a: __import__("nimlab.bugs", fromlist=["cmd_bugs"]).cmd_bugs(a))
+
+    s = sub.add_parser("selfadmin", help="let the testbed inspect/change its own setup (admins only)")
+    s.add_argument("action", nargs="?", default="status",
+                   choices=["status", "on", "off", "shell", "others-read", "fixes", "admin-key", "undo",
+                            "audit"])
+    s.add_argument("values", nargs="*", help="shell on|off | others-read on|off | fixes on|off | audit [n]")
+    s.set_defaults(fn=lambda a: __import__("nimlab.selfadmin", fromlist=["cmd_selfadmin"]).cmd_selfadmin(a))
+
+    sub.add_parser("colors", aliases=["colours"], help="preview the terminal colours").set_defaults(fn=cmd_colors)
+
+    s = sub.add_parser("shortcut", help="install a 'nimlab' command that runs start.sh from any folder")
+    s.add_argument("action", nargs="?", default="install", choices=["install", "remove", "status"])
+    s.add_argument("name", nargs="?", help="command name (default nimlab)")
+    s.add_argument("--force", action="store_true", help="install: replace a same-named file this lab did not make")
+    s.add_argument("--dir", help="folder for the command (default $PREFIX/bin on Termux, else ~/.local/bin)")
+    s.set_defaults(fn=lambda a: __import__("nimlab.shortcut", fromlist=["cmd_shortcut"]).cmd_shortcut(a))
+
     s = sub.add_parser("discover", help="build the merged model catalog (site + docs + key)")
     s.add_argument("--refresh", action="store_true", help="ignore cached pages")
     s.add_argument("--offline", action="store_true", help="use cached pages only")
@@ -576,6 +943,8 @@ def build_parser():
     s.add_argument("--offline", action="store_true")
     s.add_argument("--fast", action="store_true")
     s.add_argument("--no-write", action="store_true", help="do not update the data stores")
+    s.add_argument("--time-limit", type=float, help="stop after this many seconds (models not reached are "
+                   "left for the next run, never dropped)")
     s.set_defaults(fn=cmd_sweep)
 
     s = sub.add_parser("tts", help="Magpie TTS; text from --text or stdin")
@@ -583,6 +952,20 @@ def build_parser():
     s.add_argument("--text", default=None)
     s.add_argument("--no-play", action="store_true")
     s.set_defaults(fn=cmd_tts)
+
+    s = sub.add_parser("grpc", help="NVCF gRPC models (Riva ASR/TTS/NMT): function IDs, language, check, try")
+    s.add_argument("action", nargs="?", default="list",
+                   choices=["list", "set", "clear", "refresh", "fill", "lang", "mode", "check", "asr", "tts", "menu"])
+    s.add_argument("model", nargs="?", help="model id, part of one, or its number in grpc list")
+    s.add_argument("value", nargs="?", help="set: function ID; lang: code; mode: offline|streaming; "
+                                           "asr: audio file; tts: text")
+    s.add_argument("--force", action="store_true", help="refresh: also replace IDs you pasted")
+    s.add_argument("--lang", help="asr/tts: language code, e.g. es-US")
+    s.add_argument("--voice", help="tts: voice name")
+    s.add_argument("--clip", help="tts: zero-shot reference clip (voice cloning)")
+    s.add_argument("--transcript", help="tts: what the clip says (flow models)")
+    s.add_argument("--no-play", action="store_true")
+    s.set_defaults(fn=cmd_grpc)
 
     s = sub.add_parser("judge", help="model ranking and entity scoring")
     s.add_argument("action", choices=["rank", "entity", "show", "apply"])
@@ -596,10 +979,136 @@ def build_parser():
     s.add_argument("--combos", help="entity: JSON file with [{name, roles}]")
     s.add_argument("--yes", action="store_true", help="apply: skip the confirmation prompt")
     s.set_defaults(fn=cmd_judge)
+    # 3.7.4: the cheat sheet, the symptom guide, the Tests menu and the platform check
+    from . import commands, hostenv, systests
+    commands.add_parsers(sub)
+    systests.add_parser(sub)
+    hostenv.add_parser(sub)
+    # 3.8.0: scheduler jobs and the heartbeat
+    from . import jobscli
+    jobscli.add_parsers(sub)
+    # 3.8.2: ./update.sh after unzipping a release
+    from . import updater
+    updater.add_parser(sub)
+    from . import uimenu, endpoints
+    uimenu.add_parser(sub)
+    endpoints.add_parser(sub)
+    from . import audiobus
+    audiobus.add_parser(sub)
     return p
 
 
+def _mcp_settings_io():
+    from . import config
+    cfg = config.load_json(config.CLUSTER_CONFIG, {}) or {}
+    merged = config.load_cluster_config().get("mcp_settings", {})
+    settings = dict(merged, **(cfg.get("mcp_settings") or {}))
+    settings.setdefault("auth", dict(merged.get("auth") or {}))
+
+    def save():
+        doc = config.load_json(config.CLUSTER_CONFIG, {}) or {}
+        clean = dict(settings)
+        clean.pop("api_key", None)
+        doc["mcp_settings"] = clean
+        config.save_json(config.CLUSTER_CONFIG, doc)
+    return settings, save
+
+
+def cmd_mcp(args):
+    """MCP server URL, API key (hidden, saved outside the project), auth
+    style and a connection test."""
+    from . import colors as C, mcpkey, mcpmenu
+    settings, save = _mcp_settings_io()
+    a = args.action
+    vals = list(args.values or [])
+    if a == "menu":
+        mcpmenu.run_menu(settings, input, print, save_fn=save)
+        return 0
+    if a == "show":
+        print(C.header("MCP SERVER"))
+        for line in mcpmenu.status_lines(settings):
+            print(line)
+        return 0
+    if a == "set-url":
+        url = vals[0] if vals else input(C.ask("MCP server URL: "))
+        e = mcpmenu.set_url(settings, url)
+        if e:
+            print(C.err(e))
+            return 2
+        save()
+        print(C.ok("URL set to ") + C.url(settings["url"]))
+        return 0 if args.no_test else (0 if mcpmenu.show_test(settings, print)["ok"] else 1)
+    if a == "set-key":
+        if vals:
+            print(C.err("Don't put the key on the command line (it lands in shell history). "
+                        "Run 'mcp set-key' and type it at the hidden prompt."))
+            return 2
+        how = mcpmenu.enter_key(settings, input, print, save=False if args.session else (True if args.save else None))
+        if not how:
+            return 1
+        if how == "session":
+            print(C.warn("A session-only key ends with this command; use the testbed or the launcher menu "
+                         "to keep one for a whole session."))
+        return 0 if args.no_test or not settings.get("url") else \
+            (0 if mcpmenu.show_test(settings, print)["ok"] else 1)
+    if a == "delete-key":
+        return 0 if mcpmenu.delete_saved(settings, print) else 1
+    if a == "auth":
+        if not vals:
+            if not mcpmenu.choose_style(settings, input, print):
+                return 1
+        else:
+            e = mcpmenu.set_style(settings, vals[0], vals[1] if len(vals) > 1 else None)
+            if e:
+                print(C.err(e))
+                return 2
+            print(C.ok("Auth style set to ") + C.value(mcpmenu.style_text(settings["auth"])))
+        save()
+        return 0
+    if a == "test":
+        return 0 if mcpmenu.show_test(settings, print, full_list=bool(getattr(args, "verbose", False)))["ok"] else 1
+    if a == "tools":
+        return 0 if mcpmenu.show_test(settings, print, full_list=True)["ok"] else 1
+    if a == "key-source":
+        print(mcpkey.source_text(settings.get("auth"))[0])
+        return 0
+    return 2
+
+
+def cmd_colors(args):
+    """Show the palette, the role colours and the current colour setting."""
+    from . import colors as C, roles as R
+    pol, dep = C.policy(), C.depth()
+    on = C.enabled()
+    print(C.header("TERMINAL COLOURS"))
+    print(f"  {C.label('setting:')} {C.value(pol)}  {C.label('depth:')} {C.value(str(dep))}"
+          f"  {C.label('colour now:')} {C.onoff(on, 'on', 'off')}")
+    print(C.hint("  Turn off: NIMLAB_COLOR=0, NO_COLOR=1, --no-color, or ui_settings.color=off. "
+                 "Depth: NIMLAB_COLOR_DEPTH=24|256|16."))
+    print(C.rule())
+    print(C.section("Roles"))
+    for i, d in enumerate(R.ROLE_DEFS, 1):
+        print("  " + C.paint(f"{i:>2}.", C.role_rgb(d.key), "bold") + " " + C.role(d.key, d.name))
+    print(C.section("Statuses"))
+    print("  " + "  ".join([C.status("PASS"), C.status("FAIL"), C.status("SKIP"), C.http(200), C.http(301),
+                            C.http(404), C.http(503), C.latency("0.4s"), C.latency("2.5s"), C.latency("7s"),
+                            C.latency("15s")]))
+    print(C.section("Values"))
+    print(f"  {C.model('meta/llama-3.3-70b-instruct')}  {C.url('http://127.0.0.1:8765/v1')}  "
+          f"{C.key('sk-...a1b2')}  {C.path('output/tts_1.wav')}  {C.value('0.35')}  {C.hint('a hint')}")
+    print(C.section("Chat"))
+    print(f"  {C.you('YOU >')} {C.you_text('what is in this picture?')}")
+    print(f"  {C.entity('QUILL')} {C.dim('[')}{C.role('vision', 'Vision')}{C.dim(']')} {C.dim('(')}"
+          f"{C.latency('1.2s')}{C.dim(')')}: {C.reply('A cat on a windowsill.')}")
+    for i in range(1, 9):
+        print("  " + C.item(i, f"menu entry {i}", extra="  (hint)"))
+    return 0
+
+
 def main(argv=None):
+    from . import colors
+    argv = colors.apply_flags(list(sys.argv[1:] if argv is None else argv))
+    colors.install()
     args = build_parser().parse_args(argv)
     try:
         return args.fn(args) or 0

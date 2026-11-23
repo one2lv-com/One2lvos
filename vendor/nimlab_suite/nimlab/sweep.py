@@ -253,11 +253,29 @@ def best_outcome(outcomes):
 
 
 class Prober:
-    def __init__(self, api_key=None, http=None, timeout=20, router=None):
+    def __init__(self, api_key=None, http=None, timeout=20, router=None, rpm=None, limiter=None):
         self.api_key = api_key if api_key is not None else load_api_key()
         self.http = http or HttpClient(timeout=timeout, retries=1, backoff=2.0, max_bytes=2 * 1024 * 1024)
         self.timeout = timeout
         self._router = router
+        # v3.8.3: paced so a sweep doesn't use up the free tier's per-minute limit
+        if limiter is None:
+            from .core import RateLimiter, sweep_rpm
+            if rpm is None and http is not None:
+                rpm = 0     # an injected client (tests, callers that pace themselves) is not paced here
+            if rpm is None:
+                try:
+                    rpm = sweep_rpm(config.load_cluster_config().get("discovery_settings", {}))
+                except Exception:  # noqa: BLE001
+                    rpm = sweep_rpm()
+            limiter = RateLimiter(rpm)
+        self.limiter = limiter
+
+    def _paced(self, method, url, data, headers):
+        self.limiter.wait()
+        res = self.http.request(method, url, data, headers, self.timeout)
+        self.limiter.note(res)
+        return res
 
     @property
     def router(self):
@@ -278,17 +296,17 @@ class Prober:
     def _send(self, plan, body):
         url, method = plan["url"], plan.get("method", "POST")
         if method == "GET":
-            return self.http.request("GET", url, None, self._headers(), self.timeout)
+            return self._paced("GET", url, None, self._headers())
         if plan.get("content_type") == "multipart/form-data":
             data, ctype = build_multipart(spec.multipart_fields(plan))
             h = self._headers("application/json, audio/*")
             h["Content-Type"] = ctype
             if plan.get("function_id"):
                 h["function-id"] = plan["function_id"]
-            return self.http.request("POST", url, data, h, self.timeout)
+            return self._paced("POST", url, data, h)
         h = self._headers("application/json")
         h["Content-Type"] = "application/json"
-        return self.http.request(method, url, json.dumps(body or {}).encode("utf-8"), h, self.timeout)
+        return self._paced(method, url, json.dumps(body or {}).encode("utf-8"), h)
 
     def probe_plan(self, plan, deprecated=False, retired=False):
         """Probe one plan: schema-built body first, then the page example
@@ -309,7 +327,7 @@ class Prober:
             if status != PAYLOAD:
                 break
         if plan.get("probe_get") and (not outcomes or outcomes[-1]["status"] == PAYLOAD):
-            res = self.http.request("GET", plan["probe_get"], None, self._headers(), self.timeout)
+            res = self._paced("GET", plan["probe_get"], None, self._headers())
             status, reason = classify(res.status, res.error_kind if not res.ok else None,
                                       res.text if not res.ok else "", deprecated, retired)
             if status == LIVE:
@@ -369,6 +387,27 @@ def _tried(plan, outcome):
             "status": outcome.get("status"), "http_status": outcome.get("http_status")}
 
 
+def grpc_entry(e, model, notes=None):
+    """A gRPC-only result, reported as usable: the shared NVCF gRPC
+    endpoint, the function id the spec gives (if any), the "Try API"
+    sample's settings, and a reason saying how to call it."""
+    from . import nvcf_grpc, store
+    notes = notes or {}
+    e = dict(e, url=nvcf_grpc.URI, method="GRPC", transport="nvcf_grpc")
+    if notes.get("grpc_sample"):
+        e["grpc_sample"] = notes["grpc_sample"]
+    rec = dict(store.grpc_function(model or "") or {})
+    if rec.get("source") not in store.GRPC_USER_SOURCES or not rec.get("function_id"):
+        rec["function_id"] = e.get("function_id") or rec.get("function_id")
+    rec.setdefault("sample", e.get("grpc_sample"))
+    kind = nvcf_grpc.kind_of(model or "", rec)
+    e["kind"] = "nvcf_grpc"
+    e["grpc_kind"] = kind
+    e["grpc_function_id"] = rec.get("function_id")
+    e["reason"] = nvcf_grpc.usable_label(model or "", rec)
+    return {k: v for k, v in e.items() if v is not None}
+
+
 def evaluate(plan_doc, prober=None, probe=True, today=None):
     """Verified-endpoint entry for one model from its plan document."""
     deprecated = bool(plan_doc.get("deprecation")) or plan_doc.get("catalog_status") == "deprecated"
@@ -404,7 +443,7 @@ def evaluate(plan_doc, prober=None, probe=True, today=None):
         return {k: v for k, v in e.items() if v is not None}
 
     if notes.get("grpc_only"):
-        return entry(GRPC, "page documents gRPC only (grpc.nvcf.nvidia.com:443)")
+        return grpc_entry(entry(GRPC, ""), plan_doc.get("model_id"), notes)
     if not plans:
         if retired:
             return entry(RETIRED, "retired per page/catalog")
@@ -480,11 +519,23 @@ def write_results(results, complete=False, sweep="spec_sweep", probed=True):
 # ---------------------------------------------------------------------------
 # Driver
 # ---------------------------------------------------------------------------
-def run(model_ids, resolver, prober=None, probe=True, workers=3, log=print, use_cache=True):
-    """Resolve plans (sequential, paced by the fetcher), then probe in parallel."""
+def run(model_ids, resolver, prober=None, probe=True, workers=3, log=print, use_cache=True, time_limit=None):
+    """Resolve plans (sequential, paced by the fetcher), then probe in parallel.
+
+    3.7.2: time_limit (seconds) caps the whole run. Models not reached in
+    time are left out of the results (never written as failures), and the
+    log says how many and how to finish."""
+    import time as _time
+    deadline = (_time.monotonic() + float(time_limit)) if time_limit else None
+
+    def late():
+        return deadline is not None and _time.monotonic() >= deadline
+
     plans = {}
     total = len(model_ids)
     for i, mid in enumerate(model_ids, 1):
+        if late():
+            break
         try:
             plans[mid] = resolver.resolve(mid, use_cache=use_cache)
         except Exception as e:  # one broken page must not stop the sweep
@@ -495,18 +546,39 @@ def run(model_ids, resolver, prober=None, probe=True, workers=3, log=print, use_
     results = {}
 
     def one(mid):
+        if late():
+            return mid, None
         try:
             return mid, evaluate(plans[mid], prober, probe)
         except Exception as e:
             return mid, {"status": SERVER, "reason": redact(f"probe crashed: {e}"), "checked_at": config.timestamp()}
 
-    if probe and prober and prober.api_key:
-        log(f"Probing {total} models with {workers} workers...")
+    todo = [m for m in model_ids if m in plans]
+    try:
+        # 3.7.4: scale to the box (a 1 GB VPS gets at most 2 workers)
+        from . import hostenv
+        scaled = hostenv.workers(workers)
+    except Exception:  # noqa: BLE001
+        scaled = max(1, int(workers))
+    if scaled < int(workers):
+        log(f"Low memory/CPU: using {scaled} probe workers instead of {workers}.")
+    workers = scaled
+    if probe and prober and prober.api_key and todo:
+        lim = getattr(prober, "limiter", None)
+        pace = f", paced to {int(lim.rpm)} requests/min" if lim is not None and lim.rpm > 0 else ""
+        log(f"Probing {len(todo)} models with {workers} workers{pace}...")
     with ThreadPoolExecutor(max_workers=max(1, int(workers))) as ex:
-        for mid, e in ex.map(one, model_ids):
+        for n, (mid, e) in enumerate(ex.map(one, todo), 1):
+            plans.pop(mid, None)        # drop the page plan once probed (memory on small boxes)
+            if e is None:
+                continue
             results[mid] = e
             if probe:
-                log(f"  {e['status']:<24} {mid}  {e.get('reason', '')[:80]}")
+                log(f"  [{n}/{len(todo)}] {e['status']:<24} {mid}  {e.get('reason', '')[:80]}")
+    left = total - len(results)
+    if left and deadline is not None:
+        log(f"Time limit ({int(float(time_limit))} s) reached: {left} of {total} models were not checked this run. "
+            "Nothing was dropped for them; run it again to finish (cached pages make the next run faster).")
     return results
 
 

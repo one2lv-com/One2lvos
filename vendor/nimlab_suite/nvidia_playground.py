@@ -600,8 +600,11 @@ def _probe_stage2(model, outcomes, resolver, prober):
     best = spec_sweep.best_outcome([o for o, _ in outcomes])
     plan = next((p for o, p in outcomes if o is best), None)
     if notes.get("grpc_only") or any(k in model.lower() for k in ("parakeet", "canary", "riva", "fastpitch")):
-        return dict(_entry_from(spec_sweep.GRPC, "gRPC only (grpc.nvcf.nvidia.com:443)"),
-                    url="grpc.nvcf.nvidia.com:443", kind="nvcf_grpc")
+        e = _entry_from(spec_sweep.GRPC, "")
+        for k in ("function_id", "page_url"):
+            if (doc or {}).get(k):
+                e[k] = doc[k]
+        return spec_sweep.grpc_entry(e, model, notes)
     if doc and spec_sweep._is_retired(doc):
         return _entry_from(spec_sweep.RETIRED, "retired per page/catalog", None, best)
     if notes.get("no_hosted_api"):
@@ -669,6 +672,9 @@ def run_200_sweep(interactive=True):
                                            catalog.load_catalog(),
                                            ttl_sec=float(settings.get("spec_ttl_hours", 72)) * 3600)
     prober = spec_sweep.Prober(api_key=API_KEY, timeout=14)
+    if prober.limiter.rpm > 0:
+        print(f"Paced to {int(prober.limiter.rpm)} requests/min for NVIDIA's free tier "
+              "(discovery_settings.probe_rpm or NIMLAB_SWEEP_RPM; 429 Retry-After respected).")
 
     print("\nStage 1: every registered endpoint (verified JSON, registry, default, matrix).")
     if use_spec:
@@ -689,7 +695,7 @@ def run_200_sweep(interactive=True):
                 via = "spec" if e.get("route_source") not in ("verified_json", "registry_json", "default", "matrix_json") else e.get("route_source")
                 print(f"-> 200 OK  ({e.get('kind')} @ {e.get('latency_sec')}s, via {via})")
             elif st == spec_sweep.GRPC:
-                print("-> [NVCF gRPC ONLY]")
+                print(f"-> {e.get('reason', 'USABLE via NVCF gRPC')}")
             else:
                 print(f"-> [{st}] {e.get('reason', '')[:60]}")
         finished = True
@@ -767,6 +773,48 @@ print()
     pause()
 
 
+def grpc_model_test(model, operation, kind):
+    """ASR / TTS on a gRPC-only model over NVCF gRPC (v3.5)."""
+    from nimlab import nvcf_grpc
+    ok, detail = nvcf_grpc.available()
+    if not ok:
+        print(f"\n{detail}")
+        return
+    fid = nvcf_grpc.function_id(model)
+    if not fid:
+        pasted = input(f"\n{model} has no function ID yet. Paste it from the model's \"Try API\" sample "
+                       "(Enter to fetch it from its spec): ").strip()
+        if pasted:
+            try:
+                store.set_grpc_function(model, pasted, source="user", kind=nvcf_grpc.kind_of(model))
+            except ValueError as e:
+                print(e)
+                return
+        else:
+            print(nvcf_grpc.refresh(model)[1])
+    sp = {"model": model}
+    if kind == "audio_asr":
+        path = input("\nPath to audio file (any format; converted to 16 kHz mono WAV): ").strip().strip("'\"")
+        lang = input(f"language_code [{nvcf_grpc.asr_language({}, nvcf_grpc.record(model))}]: ").strip()
+        if lang:
+            sp["language_code"] = lang
+        r = nvcf_grpc.run_asr(sp, path=path)
+        print(f"\n{'TRANSCRIPT' if r.ok else 'ERROR'} ({r.latency}s over NVCF gRPC):\n{r.text if r.ok else r.error}")
+    else:
+        text = input("\nText to synthesize: ").strip() or "Synthesizing voice through NVIDIA Riva over NVCF gRPC."
+        voice = input("Voice name [model default]: ").strip() or None
+        r = nvcf_grpc.run_tts(sp, text, voice=voice)
+        if r.ok:
+            out_file = save_wav(r.data, "tts_output")
+            print(f"\nSaved audio output to: {out_file} ({r.latency}s over NVCF gRPC)")
+            play_audio(out_file)
+        else:
+            print(f"\nTTS failed: {r.error}")
+    save_history({"timestamp": timestamp(), "model": model, "operation": operation, "kind": kind,
+                  "endpoint": f"grpc://{nvcf_grpc.URI}", "payload": None, "http_code": 200 if r.ok else None,
+                  "latency_seconds": r.latency, "response": None, "raw_response": "" if r.ok else (r.error or "")})
+
+
 def interactive_model_test(model):
     note_if_unverified(model)
     header("SINGLE MODEL TEST")
@@ -781,6 +829,10 @@ def interactive_model_test(model):
 
     operation, kind = endpoint_menu()
     url = default_path_for(kind, model)
+    if kind in ("audio_tts", "audio_asr") and url == "grpc.nvcf.nvidia.com:443":
+        grpc_model_test(model, operation, kind)
+        pause()
+        return
 
     if kind == "custom":
         url = input("Enter full URL: ").strip()
@@ -1139,6 +1191,9 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    from nimlab import colors as _colors
+    _colors.apply_flags(sys.argv)
+    _colors.install()
     try:
         main()
     except KeyboardInterrupt:

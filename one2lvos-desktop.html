@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>One2lvOS Web Environment</title>
+    <link rel="icon" href="/static/img/icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/img/icons/gods-eye-32.png">
+    <link rel="apple-touch-icon" href="/static/img/icons/gods-eye-180.png">
+    <link rel="manifest" href="/static/one2lvos.webmanifest">
     <!-- Tailwind CSS for rapid styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- FontAwesome for beautiful icons -->
@@ -142,6 +146,15 @@
             box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55), inset 0 0 22px rgba(125,211,252,0.28);
             animation: o2-breathe-aura 9s ease-in-out infinite;
         }
+        /* God's Eye start icon: gentle blink/pulse glow */
+        #start-icon { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; }
+        .gods-eye-blink { animation: godsEyeBlink 2.8s ease-in-out infinite; }
+        @keyframes godsEyeBlink {
+            0%, 100% { opacity: 1; box-shadow: 0 0 4px 1px rgba(96,165,250,0.45); transform: scale(1); }
+            45% { opacity: 0.55; box-shadow: 0 0 14px 4px rgba(251,146,60,0.75); transform: scale(1.06); }
+            55% { opacity: 0.55; box-shadow: 0 0 14px 4px rgba(251,146,60,0.75); transform: scale(1.06); }
+        }
+        @media (prefers-reduced-motion: reduce) { .gods-eye-blink { animation: none; } }
     </style>
 </head>
 <body class="text-gray-800 w-screen h-screen flex flex-col relative">
@@ -181,9 +194,9 @@
     <nav id="taskbar" class="h-14 bg-black/40 backdrop-blur-xl border-t border-white/10 flex items-center justify-between px-3 z-50 relative shadow-[0_-5px_20px_rgba(0,0,0,0.1)]">
         <div class="flex items-center gap-1.5 h-full">
             <button id="start-btn" onclick="toggleStartMenu()" class="w-10 h-10 rounded-lg hover:bg-white/10 flex items-center justify-center transition-all group active:scale-95">
-                <div class="text-[22px] text-blue-400 group-hover:text-blue-300 transition-colors drop-shadow-md">
-                    <i class="fab fa-windows"></i>
-                </div>
+                <!-- God's Eye (Helix) Nebula start icon: NASA/STScI image PIA18164 (public domain), source static/img/gods_eye_nebula.jpg, inlined so it also works when the file is opened directly. -->
+                <img id="start-icon" class="gods-eye-blink" alt="God's Eye Nebula" title="God's Eye Nebula"
+                     src="data:image/jpeg;base64,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">
             </button>
 
             <div class="w-px h-6 bg-white/20 mx-1"></div>

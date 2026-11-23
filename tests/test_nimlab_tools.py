@@ -12,6 +12,7 @@ import struct
 import sys
 import tempfile
 import urllib.error
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -60,11 +61,13 @@ class Resp:
 class Fake:
     def __init__(self):
         self.seen = []
+        self.models = []
         self.fail_401 = False
 
     def __call__(self, req, timeout=None):
         url = req.full_url
         self.seen.append((url, dict(req.header_items())))
+        self.models.append(nim.request_model(req))
         if self.fail_401:
             raise urllib.error.HTTPError(url, 401, "Unauthorized", {}, io.BytesIO(b'{"detail":"bad key"}'))
         if url.endswith("/models"):
@@ -207,6 +210,24 @@ async def run():
           and (nim.STATE_DIR / "rank_runs.jsonl").is_file(), r)
     r = await d("nimlab.leaderboard")
     check("leaderboard shows the rank run", r["ok"] and len(r["result"]["recent_rank_runs"]) == 1, r)
+    nim._calls.clear()
+
+    # safety/guard/classifier models are refused at the gate, before any request leaves
+    before = len(fake.models)
+    for tool, args in (("chat", {"model": "nvidia/llama-3.1-nemoguard-8b-content-safety", "prompt": "hi"}),
+                       ("chat", {"model": "nvidia/nemotron-3.5-content-safety", "prompt": "hi"}),
+                       ("embed", {"model": "nvidia/nemoguard-jailbreak-detect", "texts": ["x"]})):
+        r = await d(f"nimlab.{tool}", args)
+        check(f"nimlab.{tool} with {args['model']} refused", not r["ok"], r)
+    r = await d("nimlab.rank", {"type": "chat", "models": ["meta/llama-3.1-8b-instruct"],
+                                "judge": "nvidia/llama-3.1-nemotron-safety-guard-8b-v3", "prompt": "hi"})
+    leaked = [m for m in fake.models[before:] if nim.is_safety_model(m)]
+    check("no request to a safety/guard model left the gate", not leaked, leaked)
+    req = urllib.request.Request("https://integrate.api.nvidia.com/v1/chat/completions",
+                                 data=b'{"model": "a/b"}')
+    check("request_model reads the JSON body", nim.request_model(req) == "a/b")
+    check("request_model without a body is None",
+          nim.request_model(urllib.request.Request("https://integrate.api.nvidia.com/v1/models")) is None)
     nim._calls.clear()
 
     # refused tools never touch the network

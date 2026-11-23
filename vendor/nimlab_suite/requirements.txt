@@ -1,0 +1,9 @@
+# NIM lab dependencies. The lab itself runs on the Python standard library;
+# these add optional features. Install with: ./start.sh install
+#
+# NVCF gRPC transport (v3.5) for models build.nvidia.com serves only over
+# gRPC (grpc.nvcf.nvidia.com:443): Riva ASR (Canary, Parakeet, Conformer,
+# Whisper), TTS (Magpie zero-shot, Chatterbox) and translation. Pulls in
+# grpcio and protobuf. On Termux, `pkg install python-grpcio` first so pip
+# does not have to compile grpcio (./start.sh install does this).
+nvidia-riva-client>=2.19

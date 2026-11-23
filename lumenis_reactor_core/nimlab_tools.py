@@ -33,10 +33,12 @@ from collections import deque
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from .model_guard import is_safety_model
+
 ROOT = Path(__file__).resolve().parent.parent
 SUITE_DIR = ROOT / "vendor" / "nimlab_suite"
 STATE_DIR = Path(os.getenv("NIMLAB_STATE_DIR", str(ROOT / "data" / "nimlab")))
-SUITE_VERSION = "3.2.0"
+SUITE_VERSION = "3.8.6"
 
 CALLS_PER_MIN = int(os.getenv("NIMLAB_CALLS_PER_MIN", "30"))
 RANK_MAX_CALLS = int(os.getenv("NIMLAB_RANK_MAX_CALLS", "60"))
@@ -163,11 +165,30 @@ def host_allowed(url: str) -> bool:
     return u.scheme == "https" and (h == ALLOWED_HOST_SUFFIX or h.endswith("." + ALLOWED_HOST_SUFFIX))
 
 
+def request_model(req) -> Optional[str]:
+    """The model a suite request asks for: the JSON body's "model", else None."""
+    body = getattr(req, "data", None)
+    if not body:
+        return None
+    try:
+        data = json.loads(body)
+    except (ValueError, TypeError):
+        return None
+    m = data.get("model") if isinstance(data, dict) else None
+    return m if isinstance(m, str) else None
+
+
 def _gated(inner: Callable, budget: _Budget) -> Callable:
     def opener(req, timeout=None):
         url = getattr(req, "full_url", str(req))
         if not host_allowed(url):
             raise NimlabError(f"refused: {urllib.parse.urlparse(url).hostname} is not an NVIDIA host", 403)
+        # Every model the suite calls (tool args, its judges, its role picks) passes here:
+        # the reactor never sends a request to a safety, guard or classifier model.
+        model = request_model(req)
+        if is_safety_model(model) or is_safety_model(urllib.parse.urlparse(url).path):
+            raise NimlabError(f"refused: {model or urllib.parse.urlparse(url).path} is a safety/guard "
+                              f"model; the reactor never uses one", 403)
         if budget.used >= budget.limit:
             raise NimlabError(f"call budget for this tool ({budget.limit} requests) used up", 429)
         _take_rate_slot(budget)

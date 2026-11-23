@@ -85,7 +85,9 @@ class ValidateTests(unittest.TestCase):
 class PolicyAndFormatTests(unittest.TestCase):
     def test_allowlist_and_confirm(self):
         call = ToolCall("search", {"query": "x"}, "")
-        self.assertFalse(ToolPolicy([], confirm=False).approve(call)[0])
+        self.assertTrue(ToolPolicy([], confirm=False).approve(call)[0])   # 3.7.3: empty = every exposed tool
+        self.assertFalse(ToolPolicy(["other"], confirm=False).approve(call)[0])
+        self.assertFalse(ToolPolicy([], blocked_tools=["search"]).approve(call)[0])
         self.assertTrue(ToolPolicy(["search"], confirm=False).approve(call)[0])
         self.assertTrue(ToolPolicy(["*"], confirm=False).approve(call)[0])
         self.assertFalse(ToolPolicy(["search"], confirm=True, confirm_fn=lambda c: False).approve(call)[0])
@@ -215,7 +217,10 @@ class LoopTests(unittest.TestCase):
         m = FakeMCP()
         reply, trace = run_tool_loop(chat, [], m, ToolPolicy(["*"], confirm=False), max_steps=2, log=lambda *a: None)
         self.assertEqual(len(m.calls), 2)
-        self.assertIn("stopped after 2 steps", reply)
+        # v3.7.1: the leftover tool call is never shown; a final no-tool answer is asked for
+        self.assertNotIn("<tool_call", reply)
+        self.assertIn("ran out of tool steps", reply)
+        self.assertEqual(trace[-1].get("stopped"), "max_steps")
 
     def test_unknown_unlisted_invalid_and_declined_never_execute(self):
         replies = [

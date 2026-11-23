@@ -59,6 +59,14 @@ def recently_restarted_by_other(service: str, holder: str, within_s: float = DEF
     return None
 
 
+def mark_restarted(service: str, holder: str) -> None:
+    """Record that holder just (re)started the service; the others wait out the grace period."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = stamp_path(service).with_suffix(".tmp")
+    tmp.write_text(json.dumps({"holder": holder, "pid": os.getpid(), "at": time.time()}))
+    os.replace(tmp, stamp_path(service))
+
+
 @contextlib.contextmanager
 def restart_lock(service: str, holder: str, grace_s: float = DEFAULT_GRACE_S):
     """Yield True when this holder may restart the service now, else False (never blocks)."""
@@ -81,9 +89,7 @@ def restart_lock(service: str, holder: str, grace_s: float = DEFAULT_GRACE_S):
             fh.flush()
         yield got
         if got:
-            tmp = stamp_path(service).with_suffix(".tmp")
-            tmp.write_text(json.dumps({"holder": holder, "pid": os.getpid(), "at": time.time()}))
-            os.replace(tmp, stamp_path(service))
+            mark_restarted(service, holder)
     finally:
         if got and fcntl is not None:
             with contextlib.suppress(OSError):
@@ -91,9 +97,8 @@ def restart_lock(service: str, holder: str, grace_s: float = DEFAULT_GRACE_S):
         fh.close()
 
 
-def watchdog_running() -> bool:
-    """True while a watchdog.py process holds logs/watchdog.lock."""
-    p = LOG_DIR / "watchdog.lock"
+def _held_by_other(p: Path) -> bool:
+    """True while another process holds an flock on p (checks without keeping the lock)."""
     if fcntl is None or not p.exists():
         return False
     try:
@@ -106,3 +111,14 @@ def watchdog_running() -> bool:
             return False
     except OSError:
         return False
+
+
+def restart_in_progress(service: str, holder: str, grace_s: float = DEFAULT_GRACE_S) -> bool:
+    """True while another supervisor holds the service's restart lock, or restarted it less than
+    grace_s ago and the fresh copy may still be coming up. Takes nothing and never blocks."""
+    return bool(recently_restarted_by_other(service, holder, grace_s)) or _held_by_other(lock_path(service))
+
+
+def watchdog_running() -> bool:
+    """True while a watchdog.py process holds logs/watchdog.lock."""
+    return _held_by_other(LOG_DIR / "watchdog.lock")

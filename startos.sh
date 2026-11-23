@@ -267,6 +267,14 @@ if pgrep -f "watchdog.py" > /dev/null; then
     CLEANED=true
 fi
 
+# Autonomis also restarts the reactor; stopped here so it cannot start a second copy
+# while this script brings the reactor up. It is started again after the watchdog.
+if pgrep -f "autonomis-agent.py" > /dev/null; then
+    pkill -f "autonomis-agent.py"
+    echo -e "  ${YELLOW}○${NC} Stopped: Autonomis"
+    CLEANED=true
+fi
+
 if pgrep -f "minimax.*index.js" > /dev/null; then
     pkill -f "minimax.*index.js"
     echo -e "  ${YELLOW}○${NC} Stopped: Minimax"
@@ -355,7 +363,15 @@ if [ -f "$ROOT_DIR/lumenis-main.py" ]; then
     REACTOR_PID=$!
 
     echo -e "  ${CYAN}○${NC} Process ID: $REACTOR_PID"
-    sleep 4
+    # Shared restart stamp (service_lock.py): the watchdog and Autonomis leave the reactor
+    # alone during the grace period instead of starting a second copy while it boots.
+    python3 -c "import sys; sys.path.insert(0, sys.argv[1]); import service_lock as s; s.mark_restarted(s.REACTOR_SERVICE, 'startos')" "$ROOT_DIR" \
+        || echo -e "  ${YELLOW}⚠${NC} Could not write the shared restart stamp"
+    for _ in $(seq 1 45); do
+        curl -s --max-time 2 http://localhost:8000/api/status >/dev/null 2>&1 && break
+        kill -0 "$REACTOR_PID" 2>/dev/null || break
+        sleep 2
+    done
 
     if curl -s --max-time 5 http://localhost:8000/api/status >/dev/null 2>&1; then
         MODEL=$(curl -s http://localhost:8000/api/status | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['reactor']['model'].split('/')[-1])" 2>/dev/null || echo "Unknown")
@@ -382,6 +398,7 @@ if [ -f "$ROOT_DIR/watchdog.py" ]; then
 else
     echo -e "  ${YELLOW}⚠${NC} watchdog.py not found - skipped"
 fi
+
 
 echo ""
 
@@ -646,6 +663,22 @@ echo ""
 # ──────────────────────────────────────────────────────────────────────────
 # STEP 10: SYSTEM STATUS
 # ──────────────────────────────────────────────────────────────────────────
+# Autonomis: service supervision beside the watchdog (shared restart lock, L0-L3 command
+# tiers, nimlab status through the reactor's tool engine). Started last, once every service
+# above has been launched, so it never "restarts" one that is still booting. It writes
+# logs/autonomis.log itself; stdout would duplicate every line.
+if [ -f "$ROOT_DIR/autonomis-agent.py" ]; then
+    PY_BIN="$ROOT_DIR/.venv/bin/python3"; [ -x "$PY_BIN" ] || PY_BIN=python3
+    (cd "$ROOT_DIR" && setsid nohup "$PY_BIN" autonomis-agent.py > /dev/null 2>> "$ROOT_DIR/logs/autonomis.log" < /dev/null &)
+    sleep 1
+    AUTONOMIS_PID=$(pgrep -f "autonomis-agent.py" | head -1)
+    if [ -n "$AUTONOMIS_PID" ]; then
+        echo -e "  ${GREEN}✓${NC} Autonomis started (PID: $AUTONOMIS_PID)"
+    else
+        echo -e "  ${YELLOW}⚠${NC} Autonomis did not start (check logs/autonomis.log)"
+    fi
+fi
+
 echo -e "${CYAN}${BOLD}[10/10] SYSTEM STATUS${NC}"
 echo "────────────────────────────────────────────────────────────────────────────"
 

@@ -116,7 +116,7 @@ class NVIDIAAPIManager:
             "snowflake/arctic-embed-l",
             "nvidia/nemotron-3.5-embed-8b",
             "nvidia/nemotron-3.5-embed-1b",
-            "nvidia/nemotron-3-embed-1b",
+            "nvidia/nemotron-3.5-embed-1b",
             "nvidia/llama-3.2-nv-embedqa-1b-v1",
             "nvidia/nv-embedqa-mistral-7b-v2",
             "nvidia/embed-qa-4",
