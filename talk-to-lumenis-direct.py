@@ -197,7 +197,7 @@ def ask_lumenis(message: str, include_memory: bool = True) -> str:
                 "model": LLM_MODEL,
                 "messages": messages,
                 "temperature": 0.8,
-                "max_tokens": 1000,
+                "max_tokens": 2048,
                 "top_p": 0.95
             },
             timeout=60
@@ -205,7 +205,8 @@ def ask_lumenis(message: str, include_memory: bool = True) -> str:
 
         if response.status_code == 200:
             data = response.json()
-            lumenis_response = data["choices"][0]["message"]["content"]
+            msg = data["choices"][0]["message"]
+            lumenis_response = msg.get("content") or msg.get("reasoning_content") or "..."
 
             # Save to memory
             print(f"💾 Saving to memory...", flush=True)
